@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Avoid unreachable-code errors when `BotCommands` parses arguments with an infallible `FromStr` implementation.
 - Don't ignore argument separator in CommandEnum and both separators in Command ([#1462](https://github.com/teloxide/teloxide/pull/1462))
   - Now it's possible to specify `separator` in each command variant
   - Usage of `command_separator` in a command variant now leads to a compile time error instead of silent ignoring
