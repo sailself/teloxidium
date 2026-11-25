@@ -285,6 +285,8 @@ where
         stop_poll,
         approve_suggested_post,
         decline_suggested_post,
+        edit_ephemeral_message_reply_markup,
+        delete_ephemeral_message,
         delete_message,
         delete_messages,
         send_sticker,

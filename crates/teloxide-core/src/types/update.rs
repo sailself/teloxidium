@@ -212,6 +212,9 @@ impl Update {
     /// Note that this function may return quite a few users as it scans
     /// replies, pinned messages, message entities, "via bot" fields and more.
     /// Also note that this function can return duplicate users.
+    ///
+    /// Use [`crate::types::RichMessage::project`] to access users embedded in
+    /// rich message content.
     pub fn mentioned_users(&self) -> impl Iterator<Item = &User> {
         use either::Either::{Left as L, Right as R};
         use std::iter::{empty, once};
@@ -583,6 +586,8 @@ mod test {
             kind: UpdateKind::Message(Message {
                 via_bot: None,
                 id: MessageId(6557),
+                ephemeral_message_id: None,
+                receiver_user: None,
                 thread_id: None,
                 from: Some(User {
                     id: UserId(218_485_655),

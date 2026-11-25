@@ -3,6 +3,25 @@ Note that the list of required changes is not fully exhaustive and it may lack s
 
 ## unreleased
 
+### teloxide-core
+
+- When constructing `Message`, initialize `ephemeral_message_id` and
+  `receiver_user` to `None` for ordinary messages. Use `Message::receiver_user()`
+  to borrow the recipient of an ephemeral message. Its ordinary `Message::id`
+  is zero, so use `ephemeral_message_id` for ephemeral edits and deletes.
+- Add a `MediaKind::RichMessage` arm to exhaustive `MediaKind` matches.
+  Initialize `TextQuote::rich_texts` to `None` when constructing a plain quote.
+- Match `Some(kind)` for external reply media and `None` for replies that
+  contain only metadata. `ExternalReplyInfo::kind` is now optional.
+- Custom `Requester` implementations must provide `EditEphemeralMessageReplyMarkup`
+  and `DeleteEphemeralMessage` and their corresponding methods.
+- In `SendMessage` struct literals, set `ephemeral_message_parameters` to
+  `None` for ordinary sends. The `send_message(chat_id, text)` builder
+  continues to take the same arguments.
+- `SendMessage::ephemeral_message_parameters` requires Bot API 10.3 or newer.
+  Callback-only replies require Bot API 10.4 or newer. Older self-hosted servers
+  can ignore the parameter and send a regular message.
+
 ## 0.16 -> 0.17
 
 ### teloxide

@@ -8,17 +8,18 @@ use url::Url;
 use crate::types::{
     Animation, Audio, BareChatId, BusinessConnectionId, Chat, ChatBackground, ChatBoostAdded,
     ChatId, ChatShared, Checklist, ChecklistTaskId, ChecklistTasksAdded, ChecklistTasksDone,
-    Contact, Dice, DirectMessagePriceChanged, DirectMessagesTopic, Document, ExternalReplyInfo,
-    ForumTopicClosed, ForumTopicCreated, ForumTopicEdited, ForumTopicReopened, Game,
-    GeneralForumTopicHidden, GeneralForumTopicUnhidden, GiftInfo, Giveaway, GiveawayCompleted,
-    GiveawayCreated, GiveawayWinners, InlineKeyboardMarkup, Invoice, LinkPreviewOptions, Location,
-    MaybeInaccessibleMessage, MessageAutoDeleteTimerChanged, MessageEntity, MessageEntityRef,
-    MessageId, MessageOrigin, PaidMediaInfo, PaidMessagePriceChanged, PassportData, PhotoSize,
-    Poll, ProximityAlertTriggered, RefundedPayment, Sticker, Story, SuccessfulPayment,
-    SuggestedPostApprovalFailed, SuggestedPostApproved, SuggestedPostDeclined, SuggestedPostInfo,
-    SuggestedPostPaid, SuggestedPostRefunded, TextQuote, ThreadId, True, UniqueGiftInfo, User,
-    UsersShared, Venue, Video, VideoChatEnded, VideoChatParticipantsInvited, VideoChatScheduled,
-    VideoChatStarted, VideoNote, Voice, WebAppData, WriteAccessAllowed,
+    Contact, Dice, DirectMessagePriceChanged, DirectMessagesTopic, Document, EphemeralMessageId,
+    ExternalReplyInfo, ForumTopicClosed, ForumTopicCreated, ForumTopicEdited, ForumTopicReopened,
+    Game, GeneralForumTopicHidden, GeneralForumTopicUnhidden, GiftInfo, Giveaway,
+    GiveawayCompleted, GiveawayCreated, GiveawayWinners, InlineKeyboardMarkup, Invoice,
+    LinkPreviewOptions, Location, MaybeInaccessibleMessage, MessageAutoDeleteTimerChanged,
+    MessageEntity, MessageEntityRef, MessageId, MessageOrigin, PaidMediaInfo,
+    PaidMessagePriceChanged, PassportData, PhotoSize, Poll, ProximityAlertTriggered,
+    RefundedPayment, RichMessage, Sticker, Story, SuccessfulPayment, SuggestedPostApprovalFailed,
+    SuggestedPostApproved, SuggestedPostDeclined, SuggestedPostInfo, SuggestedPostPaid,
+    SuggestedPostRefunded, TextQuote, ThreadId, True, UniqueGiftInfo, User, UsersShared, Venue,
+    Video, VideoChatEnded, VideoChatParticipantsInvited, VideoChatScheduled, VideoChatStarted,
+    VideoNote, Voice, WebAppData, WriteAccessAllowed,
 };
 
 /// This object represents a message.
@@ -28,9 +29,16 @@ use crate::types::{
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct Message {
-    /// Unique message identifier inside this chat.
+    /// Unique message identifier inside this chat. Zero for ephemeral messages.
     #[serde(flatten)]
     pub id: MessageId,
+
+    /// Identifier of an ephemeral message within this chat. Telegram may reuse
+    /// it after the message expires or is deleted.
+    pub ephemeral_message_id: Option<EphemeralMessageId>,
+
+    /// User who received this ephemeral message.
+    pub receiver_user: Option<Box<User>>,
 
     /// Unique identifier of a message thread to which the message belongs; for
     /// supergroups only.
@@ -439,6 +447,7 @@ pub enum MediaKind {
     // (for backward compatability telegram duplicates some fields)
     //
     // See <https://github.com/teloxide/teloxide/issues/481>
+    RichMessage(MediaRichMessage),
     Animation(MediaAnimation),
     Audio(MediaAudio),
     Contact(MediaContact),
@@ -457,6 +466,13 @@ pub enum MediaKind {
     VideoNote(MediaVideoNote),
     Voice(MediaVoice),
     Migration(ChatMigration),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct MediaRichMessage {
+    /// The structured content of a rich-format message.
+    pub rich_message: RichMessage,
 }
 
 #[serde_with::skip_serializing_none]
@@ -987,20 +1003,21 @@ mod getters {
     use std::ops::Deref;
 
     use crate::types::{
-        self, message::MessageKind::*, Chat, ChatId, ChatMigration, EffectId, LinkPreviewOptions,
-        MaybeInaccessibleMessage, MediaAnimation, MediaAudio, MediaChecklist, MediaContact,
-        MediaDocument, MediaGame, MediaKind, MediaLocation, MediaPaid, MediaPhoto, MediaPoll,
-        MediaSticker, MediaStory, MediaText, MediaVenue, MediaVideo, MediaVideoNote, MediaVoice,
-        Message, MessageChannelChatCreated, MessageChatShared, MessageChecklistTasksAdded,
-        MessageChecklistTasksDone, MessageCommon, MessageConnectedWebsite, MessageDeleteChatPhoto,
-        MessageDice, MessageDirectMessagePriceChanged, MessageEntity, MessageGroupChatCreated,
-        MessageId, MessageInvoice, MessageLeftChatMember, MessageNewChatMembers,
-        MessageNewChatPhoto, MessageNewChatTitle, MessageOrigin, MessagePassportData,
-        MessagePinned, MessageProximityAlertTriggered, MessageSuccessfulPayment,
+        self, message::MessageKind::*, Chat, ChatId, ChatMigration, EffectId, ExternalReplyInfo,
+        LinkPreviewOptions, MaybeInaccessibleMessage, MediaAnimation, MediaAudio, MediaChecklist,
+        MediaContact, MediaDocument, MediaGame, MediaKind, MediaLocation, MediaPaid, MediaPhoto,
+        MediaPoll, MediaRichMessage, MediaSticker, MediaStory, MediaText, MediaVenue, MediaVideo,
+        MediaVideoNote, MediaVoice, Message, MessageChannelChatCreated, MessageChatShared,
+        MessageChecklistTasksAdded, MessageChecklistTasksDone, MessageCommon,
+        MessageConnectedWebsite, MessageDeleteChatPhoto, MessageDice,
+        MessageDirectMessagePriceChanged, MessageEntity, MessageGroupChatCreated, MessageId,
+        MessageInvoice, MessageLeftChatMember, MessageNewChatMembers, MessageNewChatPhoto,
+        MessageNewChatTitle, MessageOrigin, MessagePassportData, MessagePinned,
+        MessageProximityAlertTriggered, MessageSuccessfulPayment,
         MessageSuggestedPostApprovalFailed, MessageSuggestedPostApproved,
         MessageSuggestedPostDeclined, MessageSuggestedPostPaid, MessageSuggestedPostRefunded,
         MessageSupergroupChatCreated, MessageUsersShared, MessageVideoChatParticipantsInvited,
-        PhotoSize, Story, TextQuote, User,
+        PhotoSize, RichMessage, Story, TextQuote, User,
     };
 
     use super::{
@@ -1023,6 +1040,12 @@ mod getters {
         #[must_use]
         pub fn from(&self) -> Option<&User> {
             self.from.as_ref()
+        }
+
+        /// Returns the user who received this ephemeral message, if present.
+        #[must_use]
+        pub fn receiver_user(&self) -> Option<&User> {
+            self.receiver_user.as_deref()
         }
 
         #[must_use]
@@ -1136,6 +1159,13 @@ mod getters {
             self.common().and_then(|m| m.reply_to_message.as_deref())
         }
 
+        /// Returns information about a reply that may come from another chat or
+        /// topic.
+        #[must_use]
+        pub fn external_reply(&self) -> Option<&ExternalReplyInfo> {
+            self.common().and_then(|message| message.external_reply.as_ref())
+        }
+
         #[must_use]
         pub fn edit_date(&self) -> Option<&DateTime<Utc>> {
             match &self.kind {
@@ -1174,6 +1204,18 @@ mod getters {
                     media_kind: MediaKind::Text(MediaText { text, .. }),
                     ..
                 }) => Some(text),
+                _ => None,
+            }
+        }
+
+        /// Returns this message's structured rich content, if present.
+        #[must_use]
+        pub fn rich_message(&self) -> Option<&RichMessage> {
+            match &self.kind {
+                Common(MessageCommon {
+                    media_kind: MediaKind::RichMessage(MediaRichMessage { rich_message }),
+                    ..
+                }) => Some(rich_message),
                 _ => None,
             }
         }
@@ -1277,6 +1319,7 @@ mod getters {
                     | MediaKind::Venue(_)
                     | MediaKind::Location(_)
                     | MediaKind::Poll(_)
+                    | MediaKind::RichMessage(_)
                     | MediaKind::Checklist(_)
                     | MediaKind::Sticker(_)
                     | MediaKind::Story(_)
@@ -1309,6 +1352,7 @@ mod getters {
                     | MediaKind::Venue(_)
                     | MediaKind::Location(_)
                     | MediaKind::Poll(_)
+                    | MediaKind::RichMessage(_)
                     | MediaKind::Checklist(_)
                     | MediaKind::Sticker(_)
                     | MediaKind::Story(_)
@@ -2262,6 +2306,9 @@ impl Message {
     /// was lost with the TBA 7.3 update.
     ///
     /// [`chat`]: Self::forward_from_chat
+    /// Use [`RichMessage::project`] and
+    /// [`RichMessageContent::mentioned_users`](crate::types::RichMessageContent::mentioned_users)
+    /// to access users embedded in rich content.
     pub fn mentioned_users(&self) -> impl Iterator<Item = &User> {
         use crate::util::{flatten, mentioned_users_from_entities};
 
@@ -2269,6 +2316,7 @@ impl Message {
 
         self.from
             .iter()
+            .chain(self.receiver_user())
             .chain(self.via_bot.as_ref())
             .chain(flatten(self.reply_to_message().map(Self::mentioned_users_rec)))
             .chain(flatten(self.new_chat_members()))
@@ -2375,6 +2423,8 @@ mod tests {
             message.unwrap(),
             Message {
                 id: MessageId(198283),
+                ephemeral_message_id: None,
+                receiver_user: None,
                 thread_id: None,
                 direct_messages_topic: None,
                 from: None,
@@ -2987,6 +3037,8 @@ mod tests {
                 unclaimed_prize_count: Some(1),
                 giveaway_message: Some(Box::new(Message {
                     id: MessageId(24),
+                    ephemeral_message_id: None,
+                    receiver_user: None,
                     thread_id: None,
                     direct_messages_topic: None,
                     is_paid_post: false,

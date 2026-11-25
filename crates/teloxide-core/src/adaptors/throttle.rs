@@ -40,6 +40,9 @@ pub use settings::{Limits, Settings};
 /// they could be sent without exceeding limits (request order in chats is not
 /// changed).
 ///
+/// Callback-only ephemeral replies count toward the overall limit. Telegram
+/// resolves their destination from the callback query.
+///
 /// It's recommended to use this wrapper before other wrappers (i.e.:
 /// `SomeWrapper<Throttle<Bot>>` not `Throttle<SomeWrapper<Bot>>`) because if
 /// done otherwise inner wrappers may cause `Throttle` to miscalculate limits
@@ -74,7 +77,7 @@ pub use settings::{Limits, Settings};
 pub struct Throttle<B> {
     bot: B,
     // `RequestLock` allows to unlock requests (allowing them to be sent).
-    queue: mpsc::Sender<(ChatIdHash, RequestLock)>,
+    queue: mpsc::Sender<(Option<ChatIdHash>, RequestLock)>,
     info_tx: mpsc::Sender<InfoMessage>,
 }
 

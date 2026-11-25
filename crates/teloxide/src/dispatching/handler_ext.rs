@@ -180,6 +180,8 @@ mod tests {
             kind: UpdateKind::Message(Message {
                 via_bot: None,
                 id: MessageId(5042),
+                ephemeral_message_id: None,
+                receiver_user: None,
                 thread_id: None,
                 from: Some(User {
                     id: UserId(109_998_024),

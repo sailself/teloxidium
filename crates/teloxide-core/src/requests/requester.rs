@@ -1118,6 +1118,33 @@ pub trait Requester {
     where
         C: Into<ChatId>;
 
+    type EditEphemeralMessageReplyMarkup: Request<
+        Payload = EditEphemeralMessageReplyMarkup,
+        Err = Self::Err,
+    >;
+
+    /// For Telegram documentation see [`EditEphemeralMessageReplyMarkup`].
+    fn edit_ephemeral_message_reply_markup<C>(
+        &self,
+        chat_id: C,
+        receiver_user_id: UserId,
+        ephemeral_message_id: EphemeralMessageId,
+    ) -> Self::EditEphemeralMessageReplyMarkup
+    where
+        C: Into<Recipient>;
+
+    type DeleteEphemeralMessage: Request<Payload = DeleteEphemeralMessage, Err = Self::Err>;
+
+    /// For Telegram documentation see [`DeleteEphemeralMessage`].
+    fn delete_ephemeral_message<C>(
+        &self,
+        chat_id: C,
+        receiver_user_id: UserId,
+        ephemeral_message_id: EphemeralMessageId,
+    ) -> Self::DeleteEphemeralMessage
+    where
+        C: Into<Recipient>;
+
     type DeleteMessage: Request<Payload = DeleteMessage, Err = Self::Err>;
 
     /// For Telegram documentation see [`DeleteMessage`].
@@ -1773,6 +1800,8 @@ macro_rules! forward_all {
             stop_poll,
             approve_suggested_post,
             decline_suggested_post,
+            edit_ephemeral_message_reply_markup,
+            delete_ephemeral_message,
             delete_message,
             delete_messages,
             send_sticker,

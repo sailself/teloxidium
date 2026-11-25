@@ -227,7 +227,7 @@
         },
         {
           "name": "chat_id",
-          "description": "Unique identifier for the target chat or username of the target channel (in the format `@channelusername`)",
+          "description": "Target chat ID or username. Telegram ignores it for callback-only ephemeral replies.",
           "required": true,
           "type_info": {
             "type": "any_of",
@@ -259,6 +259,15 @@
           "type_info": {
             "type": "integer",
             "enumeration": []
+          }
+        },
+        {
+          "name": "ephemeral_message_parameters",
+          "description": "Parameters for sending an ephemeral text message. Requires Bot API 10.3 or newer, or 10.4 or newer for callback-only replies.",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "EphemeralMessageParameters"
           }
         },
         {
@@ -8279,6 +8288,115 @@
       "documentation_link": "https://core.telegram.org/bots/api#declinesuggestedpost"
     },
     {
+      "name": "editEphemeralMessageReplyMarkup",
+      "description": "Edits the inline keyboard of an ephemeral message. Returns True on success.",
+      "arguments": [
+        {
+          "name": "chat_id",
+          "description": "Target chat ID or supergroup username",
+          "required": true,
+          "type_info": {
+            "type": "any_of",
+            "any_of": [
+              {
+                "type": "integer",
+                "enumeration": []
+              },
+              {
+                "type": "string",
+                "enumeration": []
+              }
+            ]
+          }
+        },
+        {
+          "name": "receiver_user_id",
+          "description": "Identifier of the user who received the message",
+          "required": true,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "ephemeral_message_id",
+          "description": "Identifier of the ephemeral message to edit",
+          "required": true,
+          "type_info": {
+            "type": "integer",
+            "min": -2147483648,
+            "max": 2147483647,
+            "enumeration": []
+          }
+        },
+        {
+          "name": "reply_markup",
+          "description": "The new inline keyboard",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "InlineKeyboardMarkup"
+          }
+        }
+      ],
+      "maybe_multipart": false,
+      "return_type": {
+        "type": "bool",
+        "default": true
+      },
+      "documentation_link": "https://core.telegram.org/bots/api#editephemeralmessagereplymarkup"
+    },
+    {
+      "name": "deleteEphemeralMessage",
+      "description": "Deletes an ephemeral message. Returns True on success.",
+      "arguments": [
+        {
+          "name": "chat_id",
+          "description": "Target chat ID or supergroup username",
+          "required": true,
+          "type_info": {
+            "type": "any_of",
+            "any_of": [
+              {
+                "type": "integer",
+                "enumeration": []
+              },
+              {
+                "type": "string",
+                "enumeration": []
+              }
+            ]
+          }
+        },
+        {
+          "name": "receiver_user_id",
+          "description": "Identifier of the user who received the message",
+          "required": true,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "ephemeral_message_id",
+          "description": "Identifier of the ephemeral message to delete",
+          "required": true,
+          "type_info": {
+            "type": "integer",
+            "min": -2147483648,
+            "max": 2147483647,
+            "enumeration": []
+          }
+        }
+      ],
+      "maybe_multipart": false,
+      "return_type": {
+        "type": "bool",
+        "default": true
+      },
+      "documentation_link": "https://core.telegram.org/bots/api#deleteephemeralmessage"
+    },
+    {
       "name": "deleteMessage",
       "description": "Use this method to delete a message, including service messages, with the following limitations:  \n\\- A message can only be deleted if it was sent less than 48 hours ago.  \n\\- Service messages about a supergroup, channel, or forum topic creation can't be deleted.  \n\\- A dice message in a private chat can only be deleted if it was sent more than 24 hours ago.  \n\\- Bots can delete outgoing messages in private chats, groups, and supergroups.  \n\\- Bots can delete incoming messages in private chats.  \n\\- Bots granted *can\\_post\\_messages* permissions can delete outgoing messages in channels.  \n\\- If the bot is an administrator of a group, it can delete any message there.  \n\\- If the bot has *can\\_delete\\_messages* administrator right in a supergroup or a channel, it can delete any message there.  \n\\- If the bot has *can\\_manage\\_direct\\_messages* administrator right in a channel, it can delete any message in the corresponding direct messages chat.  \nReturns *True* on success.",
       "arguments": [
@@ -11175,11 +11293,31 @@
       "properties": [
         {
           "name": "message_id",
-          "description": "Unique message identifier inside this chat. In specific instances (e.g., message containing a video sent to a big chat), the server might automatically schedule a message instead of sending it immediately. In such cases, this field will be 0 and the relevant message will be unusable until it is actually sent",
+          "description": "Unique message identifier inside this chat, or 0 for ephemeral messages. In specific instances (e.g., message containing a video sent to a big chat), the server might automatically schedule a message instead of sending it immediately. In such cases, this field will be 0 and the relevant message will be unusable until it is actually sent",
           "required": true,
           "type_info": {
             "type": "integer",
             "enumeration": []
+          }
+        },
+        {
+          "name": "ephemeral_message_id",
+          "description": "*Optional*. Identifier of an ephemeral message within this chat",
+          "required": false,
+          "type_info": {
+            "type": "integer",
+            "min": -2147483648,
+            "max": 2147483647,
+            "enumeration": []
+          }
+        },
+        {
+          "name": "receiver_user",
+          "description": "*Optional*. User who received this ephemeral message",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "User"
           }
         },
         {
@@ -12643,6 +12781,40 @@
         }
       ],
       "documentation_link": "https://core.telegram.org/bots/api#replyparameters"
+    },
+    {
+      "name": "EphemeralMessageParameters",
+      "description": "Parameters for sending an ephemeral message. Requires a recipient or a callback query.",
+      "type": "properties",
+      "properties": [
+        {
+          "name": "receiver_user_id",
+          "description": "*Optional*. The recipient. Required unless this is a reply to a callback query.",
+          "required": false,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "callback_query_id",
+          "description": "*Optional*. Identifier of the callback query that triggered the message",
+          "required": false,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "replace_callback_query_message",
+          "description": "*Optional*. Pass *True* to show the ephemeral reply in place of the original message",
+          "required": false,
+          "type_info": {
+            "type": "bool"
+          }
+        }
+      ],
+      "documentation_link": "https://core.telegram.org/bots/api#ephemeralmessageparameters"
     },
     {
       "name": "MessageOrigin",

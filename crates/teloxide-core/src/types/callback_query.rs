@@ -76,6 +76,7 @@ impl CallbackQuery {
     ///
     /// This might be useful to track information about users.
     /// Note that this function can return duplicate users.
+    /// See [`Message::mentioned_users`] for rich message content.
     pub fn mentioned_users(&self) -> impl Iterator<Item = &User> {
         use crate::util::flatten;
         use std::iter::once;

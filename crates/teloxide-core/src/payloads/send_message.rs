@@ -3,8 +3,9 @@
 use serde::Serialize;
 
 use crate::types::{
-    BusinessConnectionId, EffectId, LinkPreviewOptions, Message, MessageEntity, ParseMode,
-    Recipient, ReplyMarkup, ReplyParameters, SuggestedPostParameters, ThreadId, TopicId,
+    BusinessConnectionId, EffectId, EphemeralMessageParameters, LinkPreviewOptions, Message,
+    MessageEntity, ParseMode, Recipient, ReplyMarkup, ReplyParameters, SuggestedPostParameters,
+    ThreadId, TopicId,
 };
 
 impl_payload! {
@@ -14,7 +15,7 @@ impl_payload! {
     #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize)]
     pub SendMessage (SendMessageSetters) => Message {
         required {
-            /// Unique identifier for the target chat or username of the target channel (in the format `@channelusername`)
+            /// Target chat ID or username. Telegram ignores it for callback-only ephemeral replies.
             pub chat_id: Recipient [into],
             /// Text of the message to be sent, 1-4096 characters after entities parsing
             pub text: String [into],
@@ -26,6 +27,8 @@ impl_payload! {
             pub message_thread_id: ThreadId,
             /// Identifier of the direct messages topic to which the message will be sent; required if the message is sent to a direct messages chat
             pub direct_messages_topic_id: TopicId,
+            /// Parameters for sending an ephemeral text message. Requires Bot API 10.3 or newer, or 10.4 or newer for callback-only replies.
+            pub ephemeral_message_parameters: EphemeralMessageParameters,
             /// Mode for parsing entities in the message text. See [formatting options] for more details.
             ///
             /// [formatting options]: https://core.telegram.org/bots/api#formatting-options

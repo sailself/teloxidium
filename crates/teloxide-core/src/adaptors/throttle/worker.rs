@@ -44,10 +44,23 @@ struct RequestsSentToChats {
     per_sec: HashMap<ChatIdHash, RequestsSent>,
 }
 
+impl RequestsSentToChats {
+    fn can_send(&self, chat: ChatIdHash, limits: Limits) -> bool {
+        let messages_per_min_limit = if chat.is_channel_or_supergroup() {
+            limits.messages_per_min_channel_or_supergroup
+        } else {
+            limits.messages_per_min_chat
+        };
+
+        self.per_sec.get(&chat).copied().unwrap_or_default() < limits.messages_per_sec_chat
+            && self.per_min.get(&chat).copied().unwrap_or_default() < messages_per_min_limit
+    }
+}
+
 pub(super) struct FreezeUntil {
     pub(super) until: Instant,
     pub(super) after: Duration,
-    pub(super) chat: ChatIdHash,
+    pub(super) chat: Option<ChatIdHash>,
 }
 
 // Throttling is quite complicated. This comment describes the algorithm of the
@@ -55,9 +68,9 @@ pub(super) struct FreezeUntil {
 //
 // ### Request
 //
-// When a throttling request is sent, it sends a tuple of `ChatId` and
-// `Sender<()>` to the worker. Then the request waits for a notification from
-// the worker. When notification is received, it sends the underlying request.
+// When a throttling request is sent, it sends its chat ID (if known) and a
+// request lock to the worker. It sends the underlying request after the
+// worker unlocks it.
 //
 // ### Worker
 //
@@ -94,7 +107,7 @@ pub(super) struct FreezeUntil {
 // history.
 pub(super) async fn worker<B>(
     Settings { mut limits, mut on_queue_full, retry, check_slow_mode }: Settings,
-    mut rx: mpsc::Receiver<(ChatIdHash, RequestLock)>,
+    mut rx: mpsc::Receiver<(Option<ChatIdHash>, RequestLock)>,
     mut info_rx: mpsc::Receiver<InfoMessage>,
     bot: B,
 ) where
@@ -104,10 +117,9 @@ pub(super) async fn worker<B>(
     // FIXME(waffle): Make an research about data structures for this queue.
     //                Currently this is O(n) removing (n = number of elements
     //                stayed), amortized O(1) push (vec+vecrem).
-    let mut queue: Vec<(ChatIdHash, RequestLock)> =
-        Vec::with_capacity(limits.messages_per_sec_overall as usize);
+    let mut queue = Vec::with_capacity(limits.messages_per_sec_overall as usize);
 
-    let mut history: VecDeque<(ChatIdHash, Instant)> = VecDeque::new();
+    let mut history: VecDeque<(Option<ChatIdHash>, Instant)> = VecDeque::new();
     let mut requests_sent = RequestsSentToChats::default();
 
     let mut slow_mode: Option<HashMap<ChatIdHash, (Duration, Instant)>> =
@@ -198,7 +210,7 @@ pub(super) async fn worker<B>(
                 break;
             }
 
-            if let Some((chat, _)) = history.pop_front() {
+            if let Some((Some(chat), _)) = history.pop_front() {
                 let entry = requests_sent.per_min.entry(chat).and_modify(|count| {
                     *count -= 1;
                 });
@@ -223,56 +235,42 @@ pub(super) async fn worker<B>(
         }
 
         for (chat, _) in history.iter().rev().take_while(|(_, time)| time > &sec_back) {
-            *requests_sent.per_sec.entry(*chat).or_insert(0) += 1;
+            if let Some(chat) = chat {
+                *requests_sent.per_sec.entry(*chat).or_insert(0) += 1;
+            }
         }
 
         let mut queue_removing = queue.removing();
 
         while let Some(entry) = queue_removing.next() {
-            let chat = &entry.value().0;
+            let chat = entry.value().0;
+            let slow_mode = slow_mode.as_mut().and_then(|sm| sm.get_mut(chat.as_ref()?));
 
-            let slow_mode = slow_mode.as_mut().and_then(|sm| sm.get_mut(chat));
-
-            if let Some(&mut (delay, last)) = slow_mode {
-                if last + delay > Instant::now() {
-                    continue;
-                }
+            if slow_mode.as_ref().is_some_and(|(delay, last)| *last + *delay > Instant::now())
+                || chat.is_some_and(|chat| !requests_sent.can_send(chat, limits))
+            {
+                continue;
             }
 
-            let requests_sent_per_sec_count = requests_sent.per_sec.get(chat).copied().unwrap_or(0);
-            let requests_sent_per_min_count = requests_sent.per_min.get(chat).copied().unwrap_or(0);
+            let (_, lock) = entry.remove();
+            // Count requests whose callers are still waiting for them.
+            if lock.unlock(retry, freeze_tx.clone()).is_err() {
+                continue;
+            }
 
-            let messages_per_min_limit = if chat.is_channel_or_supergroup() {
-                limits.messages_per_min_channel_or_supergroup
-            } else {
-                limits.messages_per_min_chat
-            };
+            if let Some(chat) = chat {
+                *requests_sent.per_sec.entry(chat).or_insert(0) += 1;
+                *requests_sent.per_min.entry(chat).or_insert(0) += 1;
+            }
+            let sent_at = Instant::now();
+            history.push_back((chat, sent_at));
+            if let Some((_, last)) = slow_mode {
+                *last = sent_at;
+            }
 
-            let limits_not_exceeded = requests_sent_per_sec_count < limits.messages_per_sec_chat
-                && requests_sent_per_min_count < messages_per_min_limit;
-
-            if limits_not_exceeded {
-                // Unlock the associated request.
-
-                let chat = *chat;
-                let (_, lock) = entry.remove();
-
-                // Only count request as sent if the request wasn't dropped before unlocked
-                if lock.unlock(retry, freeze_tx.clone()).is_ok() {
-                    *requests_sent.per_sec.entry(chat).or_insert(0) += 1;
-                    *requests_sent.per_min.entry(chat).or_insert(0) += 1;
-                    history.push_back((chat, Instant::now()));
-
-                    if let Some((_, last)) = slow_mode {
-                        *last = Instant::now();
-                    }
-
-                    // We have "sent" one request, so now we can send one less.
-                    allowed -= 1;
-                    if allowed == 0 {
-                        break;
-                    }
-                }
+            allowed -= 1;
+            if allowed == 0 {
+                break;
             }
         }
 
@@ -315,7 +313,7 @@ async fn freeze(
         #[allow(clippy::needless_option_as_deref)]
         if let Some(slow_mode) = slow_mode.as_deref_mut() {
             // TODO: do something with channels?...
-            if let hash @ ChatIdHash::Id(id) = chat {
+            if let Some(hash @ ChatIdHash::Id(id)) = chat {
                 // TODO: maybe not call `get_chat` every time?
 
                 // At this point there isn't much we can do with the error besides ignoring
@@ -337,7 +335,7 @@ async fn freeze(
         // slow mode is enabled and it is <= to the delay asked by telegram
         let slow_mode_enabled_and_likely_the_cause = slow_mode
             .as_ref()
-            .and_then(|m| m.get(&chat).map(|(delay, _)| delay <= &after))
+            .and_then(|m| m.get(chat.as_ref()?).map(|(delay, _)| delay <= &after))
             .unwrap_or(false);
 
         // Do not sleep if slow mode is enabled since the freeze is most likely caused
@@ -388,6 +386,31 @@ fn either<L, R>(x: future::Either<L, R>) -> Either<L, R> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::{adaptors::throttle::channel, types::ChatId, Bot};
+
+    #[tokio::test]
+    async fn callback_replies_do_not_share_a_per_chat_limit() {
+        let limits = Limits { messages_per_sec_overall: 4, ..Limits::default() };
+        let (tx, rx) = mpsc::channel(4);
+        let (_info_tx, info_rx) = mpsc::channel(1);
+        let chat = Some(ChatIdHash::Id(ChatId(-123)));
+        let mut waiters = [chat, chat, None, None].map(|chat| {
+            let (lock, waiter) = channel();
+            assert!(tx.try_send((chat, lock)).is_ok());
+            waiter
+        });
+
+        let mut worker =
+            pin!(worker(Settings::default().limits(limits), rx, info_rx, Bot::new("test-token"),));
+        assert!(futures::poll!(worker.as_mut()).is_pending());
+
+        assert!(futures::poll!(&mut waiters[0]).is_ready());
+        assert!(futures::poll!(&mut waiters[1]).is_pending());
+        assert!(futures::poll!(&mut waiters[2]).is_ready());
+        assert!(futures::poll!(&mut waiters[3]).is_ready());
+    }
+
     #[tokio::test]
     async fn issue_535() {
         let (tx, mut rx) = tokio::sync::mpsc::channel(1);
