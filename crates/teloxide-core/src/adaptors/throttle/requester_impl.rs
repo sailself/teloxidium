@@ -5,7 +5,7 @@ use url::Url;
 use crate::{
     adaptors::{throttle::ThrottlingRequest, Throttle},
     errors::AsResponseParameters,
-    requests::{HasPayload, Requester},
+    requests::Requester,
     types::*,
 };
 
@@ -13,7 +13,7 @@ macro_rules! f {
     ($m:ident $this:ident ($($arg:ident : $T:ty),*)) => {
         ThrottlingRequest {
             request: Arc::new($this.inner().$m($($arg),*)),
-            chat_id: |p| (&p.payload_ref().chat_id).into(),
+            chat_id: |payload| Some((&payload.chat_id).into()),
             worker: $this.queue.clone(),
         }
     };
@@ -67,8 +67,30 @@ where
 {
     type Err = B::Err;
 
+    type SendMessage = ThrottlingRequest<B::SendMessage>;
+
+    fn send_message<C, T>(&self, chat_id: C, text: T) -> Self::SendMessage
+    where
+        C: Into<Recipient>,
+        T: Into<String>,
+    {
+        ThrottlingRequest {
+            request: Arc::new(self.inner().send_message(chat_id, text)),
+            chat_id: |payload| {
+                if payload
+                    .ephemeral_message_parameters
+                    .as_ref()
+                    .is_some_and(|params| params.receiver_user_id().is_none())
+                {
+                    return None;
+                }
+                Some((&payload.chat_id).into())
+            },
+            worker: self.queue.clone(),
+        }
+    }
+
     requester_forward! {
-        send_message,
         forward_message,
         forward_messages,
         copy_message,
@@ -185,6 +207,8 @@ where
         stop_poll,
         approve_suggested_post,
         decline_suggested_post,
+        edit_ephemeral_message_reply_markup,
+        delete_ephemeral_message,
         delete_message,
         delete_messages,
         get_sticker_set,
@@ -248,4 +272,31 @@ download_forward! {
     B
     Throttle<B>
     { this => this.inner() }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        adaptors::{throttle::Limits, Throttle},
+        payloads::SendMessageSetters,
+        requests::{HasPayload, Requester},
+        types::{ChatId, EphemeralMessageParameters, UserId},
+        Bot,
+    };
+
+    #[test]
+    fn send_message_uses_the_chat_only_when_the_payload_targets_it() {
+        let (bot, _worker) = Throttle::new(Bot::new("test-token"), Limits::default());
+        let chat = ChatId(-123);
+        let request = bot.send_message(chat, "Settings");
+        assert_eq!((request.chat_id)(request.payload_ref()), Some((&chat).into()));
+
+        let callback = EphemeralMessageParameters::for_callback("12345".into());
+        let request = request.ephemeral_message_parameters(callback.clone());
+        assert_eq!((request.chat_id)(request.payload_ref()), None);
+
+        let request =
+            request.ephemeral_message_parameters(callback.with_receiver_user_id(UserId(42)));
+        assert_eq!((request.chat_id)(request.payload_ref()), Some((&chat).into()));
+    }
 }

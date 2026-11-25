@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::types::MessageEntity;
 
@@ -15,6 +16,13 @@ pub struct TextQuote {
     /// _custom_emoji_ entities are kept in quotes.
     #[serde(default)]
     pub entities: Vec<MessageEntity>,
+    /// The original rich text fragments if the quote was selected from a
+    /// rich message. In this case, [`Self::text`] may be empty.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    // The baseline Bot API schema predates rich quotes. The wire fixture
+    // covers the raw fragments.
+    #[cfg_attr(test, schemars(skip))]
+    pub rich_texts: Option<Vec<Value>>,
     /// Approximate quote position in the original message in UTF-16 code units
     /// as specified by the sender
     pub position: u32,

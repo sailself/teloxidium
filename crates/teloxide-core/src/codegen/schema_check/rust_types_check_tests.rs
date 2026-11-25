@@ -183,6 +183,13 @@ fn test_rust_objects() {
     );
     check_object(
         api_schema.clone(),
+        schema_for!(EphemeralMessageParameters),
+        "EphemeralMessageParameters".to_owned(),
+        &mut errors,
+        &exceptions,
+    );
+    check_object(
+        api_schema.clone(),
         schema_for!(MessageOrigin),
         "MessageOrigin".to_owned(),
         &mut errors,

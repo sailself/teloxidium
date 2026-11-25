@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Receive rich Telegram messages through the standard update API. Use
+  `Message::rich_message()` to access the original blocks and
+  `RichMessage::project()` for readable text, link entities, username
+  mentions, and ordered file references. `MediaKind::RichMessage` extends the
+  public enum, and `TextQuote::rich_texts` retains the original rich quote
+  fragments. [**BC**]
+- Send ephemeral text messages with `SendMessage::ephemeral_message_parameters`.
+  Use the returned `Message::ephemeral_message_id` with
+  `edit_ephemeral_message_reply_markup` or `delete_ephemeral_message`. These
+  APIs add fields to `Message` and methods to `Requester`. [**BC**]
+
 - Support for TBA 9.2 ([#1403](https://github.com/teloxide/teloxide/pull/1403))
   - Add `checklist_task_id` field to `ReplyParameters` struct
   - Add `reply_to_checklist_task_id` field to `Message` struct
@@ -27,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `suggested_post_approved`, `suggested_post_approval_failed`, `suggested_post_declined`, `suggested_post_paid` and `suggested_post_refunded` service messages
 
 ### Changed
+
+- `ExternalReplyInfo::kind` is optional. Replies with only origin metadata
+  preserve the enclosing message. [**BC**]
 
 - Support for TBA 9.2 ([#1403](https://github.com/teloxide/teloxide/pull/1403))
   - `ChatFullInfoPublicKind::Supergroup` is now of type `Box<ChatFullInfoPublicSupergroup>` instead of `ChatFullInfoPublicSupergroup` [**BC**]

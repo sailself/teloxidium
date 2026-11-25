@@ -233,7 +233,7 @@ Schema(
                 Param(
                     name: "chat_id",
                     ty: RawTy("Recipient"),
-                    descr: Doc(md: "Unique identifier for the target chat or username of the target channel (in the format `@channelusername`)")
+                    descr: Doc(md: "Target chat ID or username. Telegram ignores it for callback-only ephemeral replies.")
                 ),
                 Param(
                     name: "message_thread_id",
@@ -244,6 +244,11 @@ Schema(
                     name: "direct_messages_topic_id",
                     ty: Option(RawTy("TopicId")),
                     descr: Doc(md: "Identifier of the direct messages topic to which the message will be sent; required if the message is sent to a direct messages chat"),
+                ),
+                Param(
+                    name: "ephemeral_message_parameters",
+                    ty: Option(RawTy("EphemeralMessageParameters")),
+                    descr: Doc(md: "Parameters for sending an ephemeral text message. Requires Bot API 10.3 or newer, or 10.4 or newer for callback-only replies."),
                 ),
                 Param(
                     name: "text",
@@ -4511,6 +4516,59 @@ Schema(
                     name: "comment",
                     ty: Option(String),
                     descr: Doc(md: "Comment for the creator of the suggested post; 0-128 characters")
+                ),
+            ],
+        ),
+        Method(
+            names: ("editEphemeralMessageReplyMarkup", "EditEphemeralMessageReplyMarkup", "edit_ephemeral_message_reply_markup"),
+            return_ty: True,
+            doc: Doc(md: "Edits the inline keyboard of an ephemeral message. Returns _True_ on success."),
+            tg_doc: "https://core.telegram.org/bots/api#editephemeralmessagereplymarkup",
+            tg_category: "Updating messages",
+            params: [
+                Param(
+                    name: "chat_id",
+                    ty: RawTy("Recipient"),
+                    descr: Doc(md: "Target chat ID or supergroup username"),
+                ),
+                Param(
+                    name: "receiver_user_id",
+                    ty: RawTy("UserId"),
+                    descr: Doc(md: "Identifier of the user who received the message"),
+                ),
+                Param(
+                    name: "ephemeral_message_id",
+                    ty: RawTy("EphemeralMessageId"),
+                    descr: Doc(md: "Identifier of the ephemeral message to edit"),
+                ),
+                Param(
+                    name: "reply_markup",
+                    ty: Option(RawTy("InlineKeyboardMarkup")),
+                    descr: Doc(md: "The new inline keyboard"),
+                ),
+            ],
+        ),
+        Method(
+            names: ("deleteEphemeralMessage", "DeleteEphemeralMessage", "delete_ephemeral_message"),
+            return_ty: True,
+            doc: Doc(md: "Deletes an ephemeral message. Returns _True_ on success."),
+            tg_doc: "https://core.telegram.org/bots/api#deleteephemeralmessage",
+            tg_category: "Updating messages",
+            params: [
+                Param(
+                    name: "chat_id",
+                    ty: RawTy("Recipient"),
+                    descr: Doc(md: "Target chat ID or supergroup username"),
+                ),
+                Param(
+                    name: "receiver_user_id",
+                    ty: RawTy("UserId"),
+                    descr: Doc(md: "Identifier of the user who received the message"),
+                ),
+                Param(
+                    name: "ephemeral_message_id",
+                    ty: RawTy("EphemeralMessageId"),
+                    descr: Doc(md: "Identifier of the ephemeral message to delete"),
                 ),
             ],
         ),

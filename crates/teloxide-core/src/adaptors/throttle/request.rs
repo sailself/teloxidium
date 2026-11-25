@@ -22,8 +22,8 @@ use crate::{
 #[derive(Clone)]
 pub struct ThrottlingRequest<R: HasPayload> {
     pub(super) request: Arc<R>,
-    pub(super) chat_id: fn(&R::Payload) -> ChatIdHash,
-    pub(super) worker: mpsc::Sender<(ChatIdHash, RequestLock)>,
+    pub(super) chat_id: fn(&R::Payload) -> Option<ChatIdHash>,
+    pub(super) worker: mpsc::Sender<(Option<ChatIdHash>, RequestLock)>,
 }
 
 /// Future returned by [`ThrottlingRequest`]s.
@@ -155,8 +155,8 @@ where
 /// Actual implementation of the `ThrottlingSend` future
 async fn send<R>(
     mut request: ShareableRequest<R>,
-    chat: ChatIdHash,
-    worker: mpsc::Sender<(ChatIdHash, RequestLock)>,
+    chat: Option<ChatIdHash>,
+    worker: mpsc::Sender<(Option<ChatIdHash>, RequestLock)>,
 ) -> Result<Output<R>, R::Err>
 where
     R: Request + Send + Sync + 'static,

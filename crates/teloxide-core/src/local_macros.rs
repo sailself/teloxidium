@@ -1337,6 +1337,22 @@ macro_rules! requester_forward {
             $body!(decline_suggested_post this (chat_id: C, message_id: MessageId))
         }
     };
+    (@method edit_ephemeral_message_reply_markup $body:ident $ty:ident) => {
+        type EditEphemeralMessageReplyMarkup = $ty![EditEphemeralMessageReplyMarkup];
+
+        fn edit_ephemeral_message_reply_markup<C>(&self, chat_id: C, receiver_user_id: UserId, ephemeral_message_id: EphemeralMessageId) -> Self::EditEphemeralMessageReplyMarkup where C: Into<Recipient> {
+            let this = self;
+            $body!(edit_ephemeral_message_reply_markup this (chat_id: C, receiver_user_id: UserId, ephemeral_message_id: EphemeralMessageId))
+        }
+    };
+    (@method delete_ephemeral_message $body:ident $ty:ident) => {
+        type DeleteEphemeralMessage = $ty![DeleteEphemeralMessage];
+
+        fn delete_ephemeral_message<C>(&self, chat_id: C, receiver_user_id: UserId, ephemeral_message_id: EphemeralMessageId) -> Self::DeleteEphemeralMessage where C: Into<Recipient> {
+            let this = self;
+            $body!(delete_ephemeral_message this (chat_id: C, receiver_user_id: UserId, ephemeral_message_id: EphemeralMessageId))
+        }
+    };
     (@method delete_message $body:ident $ty:ident) => {
         type DeleteMessage = $ty![DeleteMessage];
 

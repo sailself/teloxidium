@@ -298,6 +298,8 @@ where
         stop_poll,
         approve_suggested_post,
         decline_suggested_post,
+        edit_ephemeral_message_reply_markup,
+        delete_ephemeral_message,
         delete_message,
         delete_messages,
         send_sticker,
@@ -947,6 +949,20 @@ trait ErasableRequester<'a> {
         chat_id: ChatId,
         message_id: MessageId,
     ) -> ErasedRequest<'a, DeclineSuggestedPost, Self::Err>;
+
+    fn edit_ephemeral_message_reply_markup(
+        &self,
+        chat_id: Recipient,
+        receiver_user_id: UserId,
+        ephemeral_message_id: EphemeralMessageId,
+    ) -> ErasedRequest<'a, EditEphemeralMessageReplyMarkup, Self::Err>;
+
+    fn delete_ephemeral_message(
+        &self,
+        chat_id: Recipient,
+        receiver_user_id: UserId,
+        ephemeral_message_id: EphemeralMessageId,
+    ) -> ErasedRequest<'a, DeleteEphemeralMessage, Self::Err>;
 
     fn delete_message(
         &self,
@@ -2092,6 +2108,31 @@ where
         message_id: MessageId,
     ) -> ErasedRequest<'a, DeclineSuggestedPost, Self::Err> {
         Requester::decline_suggested_post(self, chat_id, message_id).erase()
+    }
+
+    fn edit_ephemeral_message_reply_markup(
+        &self,
+        chat_id: Recipient,
+        receiver_user_id: UserId,
+        ephemeral_message_id: EphemeralMessageId,
+    ) -> ErasedRequest<'a, EditEphemeralMessageReplyMarkup, Self::Err> {
+        Requester::edit_ephemeral_message_reply_markup(
+            self,
+            chat_id,
+            receiver_user_id,
+            ephemeral_message_id,
+        )
+        .erase()
+    }
+
+    fn delete_ephemeral_message(
+        &self,
+        chat_id: Recipient,
+        receiver_user_id: UserId,
+        ephemeral_message_id: EphemeralMessageId,
+    ) -> ErasedRequest<'a, DeleteEphemeralMessage, Self::Err> {
+        Requester::delete_ephemeral_message(self, chat_id, receiver_user_id, ephemeral_message_id)
+            .erase()
     }
 
     fn delete_message(
