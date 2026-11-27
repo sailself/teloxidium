@@ -5,7 +5,7 @@ use serde::Serialize;
 use crate::types::{ChatId, DraftId, MessageEntity, ParseMode, ThreadId, True};
 
 impl_payload! {
-    /// Use this method to stream a partial message to a user while the message is being generated. You must not use this method more than once per a few seconds on the same draft. Returns _True_ on success.
+    /// Use this method to stream a partial message to a user while the message is being generated. All bots can use this method in private chats. Returns _True_ on success.
     #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize)]
     pub SendMessageDraft (SendMessageDraftSetters) => True {
         required {

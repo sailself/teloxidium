@@ -119,6 +119,10 @@ pub struct Administrator {
     #[serde(default)]
     pub can_manage_direct_messages: bool,
 
+    /// `true`, if the administrator can edit the tags of regular members; for
+    /// groups and supergroups only
+    pub can_manage_tags: Option<bool>,
+
     /// `true` if the administrator can add new administrators with a subset of
     /// his own privileges or demote administrators that he has promoted,
     /// directly or indirectly (promoted by administrators that were appointed
@@ -132,6 +136,9 @@ pub struct Administrator {
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct Member {
+    /// Tag of the member.
+    pub tag: Option<String>,
+
     /// Date when the user's subscription will expire
     pub until_date: Option<UntilDate>,
 }
@@ -142,6 +149,9 @@ pub struct Member {
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct Restricted {
+    /// Tag of the member.
+    pub tag: Option<String>,
+
     /// Date when restrictions will be lifted for this user.
     pub until_date: UntilDate,
 
@@ -177,6 +187,10 @@ pub struct Restricted {
     /// `true` if the user is allowed to add web page previews to their
     /// messages.
     pub can_add_web_page_previews: bool,
+
+    /// `true`, if the user is allowed to edit their own tag.
+    #[serde(default)]
+    pub can_edit_tag: bool,
 
     /// `true` if the user is allowed to change the chat title, photo
     /// and other settings.
@@ -340,6 +354,17 @@ impl ChatMemberKind {
             Self::Administrator(Administrator { custom_title, .. })
             | Self::Owner(Owner { custom_title, .. }) => custom_title.as_deref(),
             Self::Member(_) | Self::Restricted(_) | Self::Left | Self::Banned(_) => None,
+        }
+    }
+
+    /// Getter for [`Member::tag`] and [`Restricted::tag`] fields.
+    #[must_use]
+    pub fn tag(&self) -> Option<&str> {
+        match &self {
+            Self::Member(Member { tag, .. }) | Self::Restricted(Restricted { tag, .. }) => {
+                tag.as_deref()
+            }
+            Self::Owner(_) | Self::Administrator(_) | Self::Left | Self::Banned(_) => None,
         }
     }
 
@@ -573,6 +598,27 @@ impl ChatMemberKind {
         }
     }
 
+    /// Returns `true` if the user can edit the tags of regular members.
+    ///
+    /// I.e. returns `true` if the user
+    /// - is the owner of the chat
+    /// - is an administrator in the given chat and has [`can_manage_tags`]
+    ///   privilege.
+    ///
+    /// Returns `false` otherwise.
+    ///
+    /// [`can_manage_tags`]: Administrator::can_manage_tags
+    #[must_use]
+    pub fn can_manage_tags(&self) -> bool {
+        match self {
+            Self::Owner(_) => true,
+            Self::Administrator(Administrator { can_manage_tags, .. }) => {
+                can_manage_tags.unwrap_or(false)
+            }
+            Self::Member(_) | Self::Restricted(_) | Self::Left | Self::Banned(_) => false,
+        }
+    }
+
     /// Returns `true` if the user can add new administrators with a subset of
     /// his own privileges or demote administrators that he has promoted,
     /// directly or indirectly (promoted by administrators that were appointed
@@ -748,6 +794,7 @@ mod tests {
                 can_pin_messages: true,
                 can_promote_members: true,
                 can_manage_direct_messages: true,
+                can_manage_tags: None,
                 can_manage_topics: false,
             }),
         };
@@ -797,6 +844,7 @@ mod tests {
                 added_to_attachment_menu: false,
             },
             kind: ChatMemberKind::Restricted(Restricted {
+                tag: None,
                 is_member: true,
                 can_send_messages: true,
                 can_send_audios: false,
@@ -809,6 +857,7 @@ mod tests {
                 can_send_polls: true,
                 can_send_other_messages: true,
                 can_add_web_page_previews: true,
+                can_edit_tag: false,
                 can_change_info: true,
                 can_invite_users: true,
                 can_pin_messages: true,
@@ -819,5 +868,121 @@ mod tests {
         };
         let actual = serde_json::from_str::<ChatMember>(json).unwrap();
         assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn bot_api_9_5_tags_and_permissions() {
+        let admin_json = r#"{
+            "user": { "id": 1, "is_bot": false, "first_name": "Admin" },
+            "status": "administrator",
+            "is_anonymous": false,
+            "can_be_edited": false,
+            "can_manage_chat": true,
+            "can_delete_messages": false,
+            "can_manage_video_chats": false,
+            "can_restrict_members": false,
+            "can_promote_members": false,
+            "can_change_info": false,
+            "can_invite_users": false,
+            "can_manage_tags": true
+        }"#;
+        let admin: ChatMember = serde_json::from_str(admin_json).unwrap();
+        assert!(admin.can_manage_tags());
+        assert_eq!(admin.tag(), None);
+        assert!(serde_json::to_string(&admin).unwrap().contains(r#""can_manage_tags":true"#));
+
+        let admin_explicit_false_json = r#"{
+            "user": { "id": 11, "is_bot": false, "first_name": "GroupAdmin" },
+            "status": "administrator",
+            "is_anonymous": false,
+            "can_be_edited": false,
+            "can_manage_chat": true,
+            "can_delete_messages": false,
+            "can_manage_video_chats": false,
+            "can_restrict_members": false,
+            "can_promote_members": false,
+            "can_change_info": false,
+            "can_invite_users": false,
+            "can_manage_tags": false
+        }"#;
+        let admin_explicit_false: ChatMember =
+            serde_json::from_str(admin_explicit_false_json).unwrap();
+        assert!(!admin_explicit_false.can_manage_tags());
+        match &admin_explicit_false.kind {
+            ChatMemberKind::Administrator(a) => assert_eq!(a.can_manage_tags, Some(false)),
+            other => panic!("expected administrator, got {other:?}"),
+        }
+        assert!(serde_json::to_string(&admin_explicit_false)
+            .unwrap()
+            .contains(r#""can_manage_tags":false"#));
+
+        let channel_admin_omitted_json = r#"{
+            "user": { "id": 12, "is_bot": false, "first_name": "ChannelAdmin" },
+            "status": "administrator",
+            "is_anonymous": false,
+            "can_be_edited": false,
+            "can_manage_chat": true,
+            "can_delete_messages": false,
+            "can_manage_video_chats": false,
+            "can_restrict_members": false,
+            "can_promote_members": false,
+            "can_change_info": false,
+            "can_invite_users": false
+        }"#;
+        let channel_admin: ChatMember = serde_json::from_str(channel_admin_omitted_json).unwrap();
+        assert!(!channel_admin.can_manage_tags());
+        match &channel_admin.kind {
+            ChatMemberKind::Administrator(a) => assert_eq!(a.can_manage_tags, None),
+            other => panic!("expected administrator, got {other:?}"),
+        }
+        assert!(!serde_json::to_string(&channel_admin).unwrap().contains("can_manage_tags"));
+
+        let owner: ChatMember = serde_json::from_str(
+            r#"{"user":{"id":2,"is_bot":false,"first_name":"Owner"},"status":"creator","is_anonymous":false}"#,
+        )
+        .unwrap();
+        assert!(owner.can_manage_tags());
+
+        let member_with_tag: ChatMember = serde_json::from_str(
+            r#"{"user":{"id":3,"is_bot":false,"first_name":"Dev"},"status":"member","tag":"dev"}"#,
+        )
+        .unwrap();
+        assert_eq!(member_with_tag.tag(), Some("dev"));
+        assert!(!member_with_tag.can_manage_tags());
+
+        let member_without_tag: ChatMember = serde_json::from_str(
+            r#"{"user":{"id":4,"is_bot":false,"first_name":"Plain"},"status":"member"}"#,
+        )
+        .unwrap();
+        assert_eq!(member_without_tag.tag(), None);
+
+        let restricted_json = r#"{
+            "user": { "id": 5, "is_bot": false, "first_name": "Restr" },
+            "status": "restricted",
+            "tag": "muted",
+            "is_member": true,
+            "can_send_messages": true,
+            "can_send_audios": true,
+            "can_send_documents": true,
+            "can_send_photos": true,
+            "can_send_videos": true,
+            "can_send_video_notes": true,
+            "can_send_voice_notes": true,
+            "can_send_polls": true,
+            "can_send_other_messages": true,
+            "can_add_web_page_previews": true,
+            "can_edit_tag": true,
+            "can_change_info": false,
+            "can_invite_users": true,
+            "can_pin_messages": false,
+            "can_manage_topics": false,
+            "until_date": 0
+        }"#;
+        let restricted: ChatMember = serde_json::from_str(restricted_json).unwrap();
+        assert_eq!(restricted.tag(), Some("muted"));
+        match &restricted.kind {
+            ChatMemberKind::Restricted(r) => assert!(r.can_edit_tag),
+            other => panic!("expected restricted, got {other:?}"),
+        }
     }
 }

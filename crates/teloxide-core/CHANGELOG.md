@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## unreleased
 
+## 0.17.0 - 2026-11-27
+
+### Added
+
+- Support for TBA 9.5 (March 1, 2026)
+  - Add `set_chat_member_tag` method to `Requester` (also implemented on `Bot`, `CacheMe`, `Trace`, `ErasedRequester`, `DefaultParseMode`, and `Throttle`) [**BC**]
+  - Add `tag` field to `Member` and `Restricted`, `can_edit_tag` field to `Restricted`, `can_manage_tags: Option<bool>` field to `Administrator`, and `ChatMemberKind::{tag, can_manage_tags}` getters [**BC**]
+  - Add `can_manage_tags: Option<bool>` and make `can_manage_direct_messages` optional (`Option<bool>`) on `ChatAdministratorRights` [**BC**]
+  - Add `ChatPermissions::EDIT_TAG` (`1 << 14`) bitflag and `ChatPermissions::can_edit_tag()` helper, plus `can_edit_tag` serialization in `ChatPermissionsRaw`
+  - Add `sender_tag` field to `Message` [**BC**]
+  - Add `can_manage_tags` parameter to `promote_chat_member` (`PromoteChatMember::can_manage_tags`) [**BC**]
+  - Complete Bot API 9.5 schema alignment (`date_time` entity docs in `ParseMode`, `send_message_draft` docs reflecting availability to all bots in private chats)
+
 ## 0.16.0 - 2026-11-27
 
 ### Added

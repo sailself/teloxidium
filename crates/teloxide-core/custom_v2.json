@@ -1,13 +1,13 @@
 {
   "version": {
     "major": 9,
-    "minor": 4,
+    "minor": 5,
     "patch": 0
   },
   "recent_changes": {
     "year": 2026,
-    "month": 2,
-    "day": 9
+    "month": 3,
+    "day": 1
   },
   "methods": [
     {
@@ -398,7 +398,7 @@
     },
     {
       "name": "sendMessageDraft",
-      "description": "Use this method to stream a partial message to a user while the message is being generated. You must not use this method more than once per a few seconds on the same draft. Returns *True* on success.",
+      "description": "Use this method to stream a partial message to a user while the message is being generated. All bots can use this method in private chats. Returns *True* on success.",
       "arguments": [
         {
           "name": "chat_id",
@@ -4461,6 +4461,14 @@
           "type_info": {
             "type": "bool"
           }
+        },
+        {
+          "name": "can_manage_tags",
+          "description": "Pass *True* if the administrator can edit the tags of regular members; for groups and supergroups only",
+          "required": false,
+          "type_info": {
+            "type": "bool"
+          }
         }
       ],
       "maybe_multipart": false,
@@ -4519,6 +4527,56 @@
         "default": true
       },
       "documentation_link": "https://core.telegram.org/bots/api#setchatadministratorcustomtitle"
+    },
+    {
+      "name": "setChatMemberTag",
+      "description": "Use this method to set a tag for a regular member in a group or a supergroup. The bot must be an administrator in the chat for this to work and must have the *can\\_manage\\_tags* administrator right. Returns *True* on success.",
+      "arguments": [
+        {
+          "name": "chat_id",
+          "description": "Unique identifier for the target chat or username of the target supergroup (in the format `@supergroupusername`)",
+          "required": true,
+          "type_info": {
+            "type": "any_of",
+            "any_of": [
+              {
+                "type": "integer",
+                "enumeration": []
+              },
+              {
+                "type": "string",
+                "enumeration": []
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_id",
+          "description": "Unique identifier of the target user",
+          "required": true,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "tag",
+          "description": "New tag for the member; 0-16 characters, emoji are not allowed",
+          "required": false,
+          "type_info": {
+            "type": "string",
+            "min_len": 0,
+            "max_len": 16,
+            "enumeration": []
+          }
+        }
+      ],
+      "maybe_multipart": false,
+      "return_type": {
+        "type": "bool",
+        "default": true
+      },
+      "documentation_link": "https://core.telegram.org/bots/api#setchatmembertag"
     },
     {
       "name": "banChatSenderChat",
@@ -12768,6 +12826,15 @@
             "type": "reference",
             "reference": "ChatOwnerChanged"
           }
+        },
+        {
+          "name": "sender_tag",
+          "description": "*Optional*. Tag or custom title of the sender of the message; for supergroups only",
+          "required": false,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
         }
       ],
       "documentation_link": "https://core.telegram.org/bots/api#message"
@@ -17582,6 +17649,14 @@
           "type_info": {
             "type": "bool"
           }
+        },
+        {
+          "name": "can_manage_tags",
+          "description": "*Optional*. *True*, if the administrator can edit the tags of regular members; for groups and supergroups only",
+          "required": false,
+          "type_info": {
+            "type": "bool"
+          }
         }
       ],
       "documentation_link": "https://core.telegram.org/bots/api#chatadministratorrights"
@@ -17908,6 +17983,14 @@
             "type": "string",
             "enumeration": []
           }
+        },
+        {
+          "name": "can_manage_tags",
+          "description": "*Optional*. *True*, if the administrator can edit the tags of regular members; for groups and supergroups only",
+          "required": false,
+          "type_info": {
+            "type": "bool"
+          }
         }
       ],
       "documentation_link": "https://core.telegram.org/bots/api#chatmemberadministrator"
@@ -17942,6 +18025,15 @@
           "required": false,
           "type_info": {
             "type": "integer",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "tag",
+          "description": "*Optional*. Tag of the member",
+          "required": false,
+          "type_info": {
+            "type": "string",
             "enumeration": []
           }
         }
@@ -18099,6 +18191,23 @@
           "type_info": {
             "type": "integer",
             "enumeration": []
+          }
+        },
+        {
+          "name": "tag",
+          "description": "*Optional*. Tag of the member",
+          "required": false,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "can_edit_tag",
+          "description": "*True*, if the user is allowed to edit their own tag",
+          "required": true,
+          "type_info": {
+            "type": "bool"
           }
         }
       ],
@@ -18341,6 +18450,14 @@
         {
           "name": "can_manage_topics",
           "description": "*Optional*. *True*, if the user is allowed to create forum topics. If omitted defaults to the value of can\\_pin\\_messages",
+          "required": false,
+          "type_info": {
+            "type": "bool"
+          }
+        },
+        {
+          "name": "can_edit_tag",
+          "description": "*Optional*. *True*, if the user is allowed to edit their own tag. If omitted, defaults to the value of *can\\_pin\\_messages*.",
           "required": false,
           "type_info": {
             "type": "bool"
