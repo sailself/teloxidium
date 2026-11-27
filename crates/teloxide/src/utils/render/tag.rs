@@ -81,6 +81,7 @@ pub enum Kind<'a> {
     TextLink(&'a str),
     TextMention(u64),
     CustomEmoji(&'a CustomEmojiId),
+    DateTime { unix_time: i64, date_time_format: Option<&'a str> },
 }
 
 pub struct SimpleTag {
@@ -129,6 +130,31 @@ impl NewLineRepeatedTag {
     }
 }
 
+pub struct DateTimeTag {
+    pub start: &'static str,
+    pub format_prefix: &'static str,
+    pub middle: &'static str,
+    pub end: &'static str,
+}
+
+impl DateTimeTag {
+    #[inline]
+    pub const fn new(
+        start: &'static str,
+        format_prefix: &'static str,
+        middle: &'static str,
+        end: &'static str,
+    ) -> Self {
+        Self { start, format_prefix, middle, end }
+    }
+}
+
+fn i64_decimal_len(n: i64) -> usize {
+    let sign = usize::from(n < 0);
+    let digits = n.unsigned_abs().checked_ilog10().map_or(1, |d| d as usize + 1);
+    sign + digits
+}
+
 pub struct TagWriter {
     pub bold: SimpleTag,
     pub blockquote: NewLineRepeatedTag,
@@ -143,6 +169,7 @@ pub struct TagWriter {
     pub text_link: ComplexTag,
     pub text_mention: ComplexTag,
     pub custom_emoji: ComplexTag,
+    pub date_time: DateTimeTag,
     pub write_tag_fn: fn(&Tag, buf: &mut String),
     pub write_char_fn: fn(char, buf: &mut String),
 }
@@ -189,6 +216,17 @@ impl TagWriter {
                     Place::Start => self.custom_emoji.start.len() + custom_emoji_id.0.len(),
                     Place::MidNewLine => unreachable!(),
                     Place::End => self.custom_emoji.middle.len() + self.custom_emoji.end.len(),
+                },
+                Kind::DateTime { unix_time, date_time_format } => match tag.place {
+                    Place::Start => {
+                        self.date_time.start.len()
+                            + i64_decimal_len(unix_time)
+                            + date_time_format
+                                .map_or(0, |fmt| self.date_time.format_prefix.len() + fmt.len())
+                            + self.date_time.middle.len()
+                    }
+                    Place::MidNewLine => unreachable!(),
+                    Place::End => self.date_time.end.len(),
                 },
             })
             .sum()

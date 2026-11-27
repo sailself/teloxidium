@@ -107,6 +107,33 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_send_photo_date_time_caption_entities() {
+        use futures::TryStreamExt;
+
+        let ts1 = chrono::DateTime::from_timestamp(1_700_000_000, 0).unwrap();
+        let ts2 = chrono::DateTime::from_timestamp(1_700_003_600, 0).unwrap();
+
+        let form = to_form_ref(
+            &payloads::SendPhoto::new(ChatId(0), InputFile::file_id("0".into())).caption_entities(
+                [
+                    MessageEntity::date_time(ts1, Some("wDT".to_owned()), 0, 5),
+                    MessageEntity::date_time(ts2, None, 6, 4),
+                ],
+            ),
+        )
+        .unwrap()
+        .await;
+
+        let chunks: Vec<bytes::Bytes> = form.into_stream().try_collect().await.unwrap();
+        let body = String::from_utf8(chunks.concat()).unwrap();
+        let expected_json = r#"[{"type":"date_time","unix_time":1700000000,"date_time_format":"wDT","offset":0,"length":5},{"type":"date_time","unix_time":1700003600,"offset":6,"length":4}]"#;
+        assert!(
+            body.contains(&format!("name=\"caption_entities\"\r\n\r\n{expected_json}\r\n")),
+            "unexpected multipart body:\n{body}"
+        );
+    }
+
+    #[tokio::test]
     async fn test_send_media_group() {
         const CAPTION: &str = "caption";
 

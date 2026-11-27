@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use super::{ComplexTag, Kind, NewLineRepeatedTag, Place, SimpleTag, Tag, TagWriter};
+use super::{ComplexTag, DateTimeTag, Kind, NewLineRepeatedTag, Place, SimpleTag, Tag, TagWriter};
 
 pub static HTML: TagWriter = TagWriter {
     bold: SimpleTag::new("<b>", "</b>"),
@@ -16,6 +16,7 @@ pub static HTML: TagWriter = TagWriter {
     text_link: ComplexTag::new("<a href=\"", "\">", "</a>"),
     text_mention: ComplexTag::new("<a href=\"tg://user?id=", "\">", "</a>"),
     custom_emoji: ComplexTag::new("<tg-emoji emoji-id=\"", "\">", "</tg-emoji>"),
+    date_time: DateTimeTag::new("<tg-time unix=\"", "\" format=\"", "\">", "</tg-time>"),
     write_tag_fn: write_tag,
     write_char_fn: write_char,
 };
@@ -71,6 +72,30 @@ fn write_tag(tag: &Tag, buf: &mut String) {
             Place::MidNewLine => unreachable!(),
             Place::End => buf.push_str(HTML.custom_emoji.end),
         },
+        Kind::DateTime { unix_time, date_time_format } => match tag.place {
+            Place::Start => {
+                write!(buf, "{}{unix_time}", HTML.date_time.start).unwrap();
+                if let Some(fmt) = date_time_format {
+                    buf.push_str(HTML.date_time.format_prefix);
+                    write_attr_escaped(fmt, buf);
+                }
+                buf.push_str(HTML.date_time.middle);
+            }
+            Place::MidNewLine => unreachable!(),
+            Place::End => buf.push_str(HTML.date_time.end),
+        },
+    }
+}
+
+fn write_attr_escaped(s: &str, buf: &mut String) {
+    for ch in s.chars() {
+        match ch {
+            '&' => buf.push_str("&amp;"),
+            '<' => buf.push_str("&lt;"),
+            '>' => buf.push_str("&gt;"),
+            '"' => buf.push_str("&quot;"),
+            c => buf.push(c),
+        }
     }
 }
 

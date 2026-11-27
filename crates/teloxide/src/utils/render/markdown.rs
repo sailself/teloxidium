@@ -1,8 +1,8 @@
 use std::fmt::Write;
 
-use crate::utils::markdown::ESCAPE_CHARS;
+use crate::utils::markdown::{escape_link_url, ESCAPE_CHARS};
 
-use super::{ComplexTag, Kind, NewLineRepeatedTag, Place, SimpleTag, Tag, TagWriter};
+use super::{ComplexTag, DateTimeTag, Kind, NewLineRepeatedTag, Place, SimpleTag, Tag, TagWriter};
 
 pub static MARKDOWN: TagWriter = TagWriter {
     bold: SimpleTag::new("*", "*"),
@@ -18,6 +18,7 @@ pub static MARKDOWN: TagWriter = TagWriter {
     text_link: ComplexTag::new("[", "](", ")"),
     text_mention: ComplexTag::new("[", "](tg://user?id=", ")"),
     custom_emoji: ComplexTag::new("[", "](tg://emoji?id=", ")"),
+    date_time: DateTimeTag::new("![", "&format=", "](tg://time?unix=", ")"),
     write_tag_fn: write_tag,
     write_char_fn: write_char,
 };
@@ -75,6 +76,18 @@ fn write_tag(tag: &Tag, buf: &mut String) {
                 MARKDOWN.custom_emoji.middle, custom_emoji_id, MARKDOWN.custom_emoji.end
             )
             .unwrap(),
+        },
+        Kind::DateTime { unix_time, date_time_format } => match tag.place {
+            Place::Start => buf.push_str(MARKDOWN.date_time.start),
+            Place::MidNewLine => unreachable!(),
+            Place::End => {
+                write!(buf, "{}{unix_time}", MARKDOWN.date_time.middle).unwrap();
+                if let Some(fmt) = date_time_format {
+                    write!(buf, "{}{}", MARKDOWN.date_time.format_prefix, escape_link_url(fmt))
+                        .unwrap();
+                }
+                buf.push_str(MARKDOWN.date_time.end);
+            }
         },
     }
 }

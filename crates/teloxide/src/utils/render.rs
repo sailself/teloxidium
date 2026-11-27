@@ -47,6 +47,7 @@ impl<'a> Renderer<'a> {
                         | MEK::TextLink { .. }
                         | MEK::TextMention { .. }
                         | MEK::CustomEmoji { .. }
+                        | MEK::DateTime { .. }
                 )
             })
             .count()
@@ -68,6 +69,10 @@ impl<'a> Renderer<'a> {
                 MEK::TextLink { url } => Kind::TextLink(url.as_str()),
                 MEK::TextMention { user } => Kind::TextMention(user.id.0),
                 MEK::CustomEmoji { custom_emoji_id } => Kind::CustomEmoji(custom_emoji_id),
+                MEK::DateTime { unix_time, date_time_format } => Kind::DateTime {
+                    unix_time: unix_time.timestamp(),
+                    date_time_format: date_time_format.as_deref(),
+                },
                 _ => continue,
             };
 
@@ -278,6 +283,40 @@ mod test {
              Blockquote\\!\n>\n>Im in a multiline Blockquote\\!\n**>Im in an expandable \
              Blockquote\\!||\n**>Im in an expandable multiline Blockquote\\!\n>\n>Im in an \
              expandable multiline Blockquote\\!||"
+        );
+    }
+
+    #[test]
+    fn test_render_date_time() {
+        let unix_time = chrono::DateTime::from_timestamp(1_700_000_000, 0).unwrap();
+        let text = "2026-03-01 <noon>";
+
+        let with_format = [MessageEntity::date_time(
+            unix_time,
+            Some("wDT".to_owned()),
+            0,
+            text.encode_utf16().count(),
+        )];
+        let render_with_format = Renderer::new(text, &with_format);
+        assert_eq!(
+            render_with_format.as_html(),
+            r#"<tg-time unix="1700000000" format="wDT">2026-03-01 &lt;noon&gt;</tg-time>"#
+        );
+        assert_eq!(
+            render_with_format.as_markdown(),
+            r"![2026\-03\-01 <noon\>](tg://time?unix=1700000000&format=wDT)"
+        );
+
+        let without_format =
+            [MessageEntity::date_time(unix_time, None, 0, text.encode_utf16().count())];
+        let render_without_format = Renderer::new(text, &without_format);
+        assert_eq!(
+            render_without_format.as_html(),
+            r#"<tg-time unix="1700000000">2026-03-01 &lt;noon&gt;</tg-time>"#
+        );
+        assert_eq!(
+            render_without_format.as_markdown(),
+            r"![2026\-03\-01 <noon\>](tg://time?unix=1700000000)"
         );
     }
 }

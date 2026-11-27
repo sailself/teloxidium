@@ -5,6 +5,8 @@ Note that the list of required changes is not fully exhaustive and it may lack s
 
 ### teloxide-core
 
+- Add a `MessageEntityKind::DateTime` arm to exhaustive `MessageEntityKind`
+  matches.
 - When constructing `Message`, initialize `ephemeral_message_id` and
   `receiver_user` to `None` for ordinary messages. Use `Message::receiver_user()`
   to borrow the recipient of an ephemeral message. Its ordinary `Message::id`

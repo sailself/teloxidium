@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `MessageEntityKind::DateTime` and `MessageEntity::date_time` for
+  Bot API 9.5+ `date_time` message entities. [**BC**]
 - Receive rich Telegram messages through the standard update API. Use
   `Message::rich_message()` to access the original blocks and
   `RichMessage::project()` for readable text, link entities, username
