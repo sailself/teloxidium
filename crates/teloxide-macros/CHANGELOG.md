@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## unreleased
 
+## 0.10.1 - 2026-11-26
+
 ### Fixed
 
 - Avoid unreachable-code errors when `BotCommands` parses arguments with an infallible `FromStr` implementation.

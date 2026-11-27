@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## unreleased
 
+## 0.18.0 - 2026-11-26
+
 ### Added
 
 - Support rendering `MessageEntityKind::DateTime` in `utils::render::Renderer` (HTML `<tg-time>` and MarkdownV2 `tg://time`)
