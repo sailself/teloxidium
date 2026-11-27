@@ -35,6 +35,11 @@ pub struct Me {
     /// `true`, if forum topic mode is enabled for the bot in private chats.
     #[serde(default)]
     pub has_topics_enabled: bool,
+
+    /// `true`, if the bot allows users to create and delete topics in private
+    /// chats.
+    #[serde(default)]
+    pub allows_users_to_create_topics: bool,
 }
 
 impl Me {
@@ -91,6 +96,7 @@ mod tests {
             can_connect_to_business: false,
             has_main_web_app: false,
             has_topics_enabled: false,
+            allows_users_to_create_topics: false,
         };
 
         assert_eq!(me.username(), "SomethingSomethingBot");
@@ -112,6 +118,7 @@ mod tests {
         }"#;
         let legacy: Me = serde_json::from_str(legacy_json).unwrap();
         assert!(!legacy.has_topics_enabled);
+        assert!(!legacy.allows_users_to_create_topics);
 
         let modern_json = r#"{
             "id": 42,
@@ -123,10 +130,12 @@ mod tests {
             "supports_inline_queries": false,
             "can_connect_to_business": true,
             "has_main_web_app": false,
-            "has_topics_enabled": true
+            "has_topics_enabled": true,
+            "allows_users_to_create_topics": true
         }"#;
         let modern: Me = serde_json::from_str(modern_json).unwrap();
         assert!(modern.has_topics_enabled);
+        assert!(modern.allows_users_to_create_topics);
         let roundtrip: Me = serde_json::from_str(&serde_json::to_string(&modern).unwrap()).unwrap();
         assert_eq!(modern, roundtrip);
     }

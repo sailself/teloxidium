@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## unreleased
 
+## 0.16.0 - 2026-11-27
+
+### Added
+
+- Support for TBA 9.4 (February 9, 2026)
+  - Add `ButtonStyle`, `ChatOwnerLeft`, `ChatOwnerChanged`, `VideoQuality`, `UserProfileAudios`, and `UniqueGiftModelRarity` types
+  - Add `get_user_profile_audios`, `set_my_profile_photo` (`MultipartRequest`), and `remove_my_profile_photo` methods to `Requester` (also implemented on `Bot`, `CacheMe`, `Trace`, `ErasedRequester`, `DefaultParseMode`, and `Throttle`) [**BC**]
+  - Add `icon_custom_emoji_id` and `style` fields and builder methods to `KeyboardButton` and `InlineKeyboardButton` [**BC**]
+  - Add `allows_users_to_create_topics` field to `Me` struct [**BC**]
+  - Add `qualities` field to `Video` struct [**BC**]
+  - Add `first_profile_audio` field to `ChatFullInfoPrivate` and `ChatFullInfo::first_profile_audio()` getter [**BC**]
+  - Add `is_burned` field to `UniqueGift` and `rarity` field to `UniqueGiftModel` [**BC**]
+  - Add `chat_owner_left` and `chat_owner_changed` service messages (`MessageKind::{ChatOwnerLeft, ChatOwnerChanged}`, `MessageChatOwnerLeft`, `MessageChatOwnerChanged`, and `Message::{chat_owner_left, chat_owner_changed}`) [**BC**]
+  - Update `create_forum_topic` documentation for private-chat forum topics
+
+### Changed
+
+- Support `InputFile` uploads in `set_business_account_profile_photo` and `set_my_profile_photo`:
+  - Implement `InputFileLike` for `InputProfilePhoto` and `SerializeMap` on `serde_multipart`'s `PartSerializer`.
+  - Switch `Bot::SetBusinessAccountProfilePhoto` from `JsonRequest` to `MultipartRequest` (`SetBusinessAccountProfilePhoto` now implements `MultipartPayload`) [**BC**]
+
 ## 0.15.0 - 2026-11-26
 
 ### Added

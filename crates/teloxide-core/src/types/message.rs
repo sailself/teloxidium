@@ -7,19 +7,19 @@ use url::Url;
 
 use crate::types::{
     Animation, Audio, BareChatId, BusinessConnectionId, Chat, ChatBackground, ChatBoostAdded,
-    ChatId, ChatShared, Checklist, ChecklistTaskId, ChecklistTasksAdded, ChecklistTasksDone,
-    Contact, Dice, DirectMessagePriceChanged, DirectMessagesTopic, Document, EphemeralMessageId,
-    ExternalReplyInfo, ForumTopicClosed, ForumTopicCreated, ForumTopicEdited, ForumTopicReopened,
-    Game, GeneralForumTopicHidden, GeneralForumTopicUnhidden, GiftInfo, Giveaway,
-    GiveawayCompleted, GiveawayCreated, GiveawayWinners, InlineKeyboardMarkup, Invoice,
-    LinkPreviewOptions, Location, MaybeInaccessibleMessage, MessageAutoDeleteTimerChanged,
-    MessageEntity, MessageEntityRef, MessageId, MessageOrigin, PaidMediaInfo,
-    PaidMessagePriceChanged, PassportData, PhotoSize, Poll, ProximityAlertTriggered,
-    RefundedPayment, RichMessage, Sticker, Story, SuccessfulPayment, SuggestedPostApprovalFailed,
-    SuggestedPostApproved, SuggestedPostDeclined, SuggestedPostInfo, SuggestedPostPaid,
-    SuggestedPostRefunded, TextQuote, ThreadId, True, UniqueGiftInfo, User, UsersShared, Venue,
-    Video, VideoChatEnded, VideoChatParticipantsInvited, VideoChatScheduled, VideoChatStarted,
-    VideoNote, Voice, WebAppData, WriteAccessAllowed,
+    ChatId, ChatOwnerChanged, ChatOwnerLeft, ChatShared, Checklist, ChecklistTaskId,
+    ChecklistTasksAdded, ChecklistTasksDone, Contact, Dice, DirectMessagePriceChanged,
+    DirectMessagesTopic, Document, EphemeralMessageId, ExternalReplyInfo, ForumTopicClosed,
+    ForumTopicCreated, ForumTopicEdited, ForumTopicReopened, Game, GeneralForumTopicHidden,
+    GeneralForumTopicUnhidden, GiftInfo, Giveaway, GiveawayCompleted, GiveawayCreated,
+    GiveawayWinners, InlineKeyboardMarkup, Invoice, LinkPreviewOptions, Location,
+    MaybeInaccessibleMessage, MessageAutoDeleteTimerChanged, MessageEntity, MessageEntityRef,
+    MessageId, MessageOrigin, PaidMediaInfo, PaidMessagePriceChanged, PassportData, PhotoSize,
+    Poll, ProximityAlertTriggered, RefundedPayment, RichMessage, Sticker, Story, SuccessfulPayment,
+    SuggestedPostApprovalFailed, SuggestedPostApproved, SuggestedPostDeclined, SuggestedPostInfo,
+    SuggestedPostPaid, SuggestedPostRefunded, TextQuote, ThreadId, True, UniqueGiftInfo, User,
+    UsersShared, Venue, Video, VideoChatEnded, VideoChatParticipantsInvited, VideoChatScheduled,
+    VideoChatStarted, VideoNote, Voice, WebAppData, WriteAccessAllowed,
 };
 
 /// This object represents a message.
@@ -150,6 +150,8 @@ pub enum MessageKind {
     VideoChatEnded(MessageVideoChatEnded),
     VideoChatParticipantsInvited(MessageVideoChatParticipantsInvited),
     WebAppData(MessageWebAppData),
+    ChatOwnerLeft(MessageChatOwnerLeft),
+    ChatOwnerChanged(MessageChatOwnerChanged),
     /// An empty, content-less message, that can appear in callback queries
     /// attached to old messages.
     Empty {},
@@ -1008,6 +1010,22 @@ pub struct MessageWebAppData {
     pub web_app_data: WebAppData,
 }
 
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct MessageChatOwnerLeft {
+    /// Service message: chat owner has left.
+    pub chat_owner_left: ChatOwnerLeft,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct MessageChatOwnerChanged {
+    /// Service message: chat owner has changed.
+    pub chat_owner_changed: ChatOwnerChanged,
+}
+
 mod getters {
     use chrono::{DateTime, Utc};
     use std::ops::Deref;
@@ -1031,14 +1049,14 @@ mod getters {
     };
 
     use super::{
-        MediaGroupId, MessageChatBackground, MessageChatBoostAdded, MessageForumTopicClosed,
-        MessageForumTopicCreated, MessageForumTopicEdited, MessageForumTopicReopened,
-        MessageGeneralForumTopicHidden, MessageGeneralForumTopicUnhidden, MessageGiftInfo,
-        MessageGiftUpgradeSent, MessageGiveaway, MessageGiveawayCompleted, MessageGiveawayCreated,
-        MessageGiveawayWinners, MessageMessageAutoDeleteTimerChanged,
-        MessagePaidMessagePriceChanged, MessageUniqueGiftInfo, MessageVideoChatEnded,
-        MessageVideoChatScheduled, MessageVideoChatStarted, MessageWebAppData,
-        MessageWriteAccessAllowed,
+        MediaGroupId, MessageChatBackground, MessageChatBoostAdded, MessageChatOwnerChanged,
+        MessageChatOwnerLeft, MessageForumTopicClosed, MessageForumTopicCreated,
+        MessageForumTopicEdited, MessageForumTopicReopened, MessageGeneralForumTopicHidden,
+        MessageGeneralForumTopicUnhidden, MessageGiftInfo, MessageGiftUpgradeSent, MessageGiveaway,
+        MessageGiveawayCompleted, MessageGiveawayCreated, MessageGiveawayWinners,
+        MessageMessageAutoDeleteTimerChanged, MessagePaidMessagePriceChanged,
+        MessageUniqueGiftInfo, MessageVideoChatEnded, MessageVideoChatScheduled,
+        MessageVideoChatStarted, MessageWebAppData, MessageWriteAccessAllowed,
     };
 
     /// Getters for [Message] fields from [telegram docs].
@@ -2097,6 +2115,24 @@ mod getters {
         }
 
         #[must_use]
+        pub fn chat_owner_left(&self) -> Option<&types::ChatOwnerLeft> {
+            match &self.kind {
+                ChatOwnerLeft(MessageChatOwnerLeft { chat_owner_left }) => Some(chat_owner_left),
+                _ => None,
+            }
+        }
+
+        #[must_use]
+        pub fn chat_owner_changed(&self) -> Option<&types::ChatOwnerChanged> {
+            match &self.kind {
+                ChatOwnerChanged(MessageChatOwnerChanged { chat_owner_changed }) => {
+                    Some(chat_owner_changed)
+                }
+                _ => None,
+            }
+        }
+
+        #[must_use]
         pub fn reply_markup(&self) -> Option<&types::InlineKeyboardMarkup> {
             match &self.kind {
                 Common(MessageCommon { reply_markup, .. }) => reply_markup.as_ref(),
@@ -2359,6 +2395,8 @@ impl Message {
             .chain(flatten(self.poll().map(Poll::mentioned_users)))
             .chain(flatten(self.proximity_alert_triggered().map(|a| [&a.traveler, &a.watcher])))
             .chain(flatten(self.video_chat_participants_invited().map(|i| &i.users)))
+            .chain(self.chat_owner_left().and_then(|l| l.new_owner.as_ref()))
+            .chain(self.chat_owner_changed().map(|c| &c.new_owner))
     }
 
     /// `Message::mentioned_users` is recursive (due to replies), as such we
@@ -3657,5 +3695,64 @@ mod tests {
         }"#;
         let message: Message = from_str(json).unwrap();
         assert!(message.show_caption_above_media())
+    }
+
+    #[test]
+    fn chat_owner_left_and_changed() {
+        let left_with_new_owner = r#"{
+            "message_id": 2801,
+            "chat": {
+                "id": -1002236736395,
+                "title": "Group",
+                "type": "supergroup"
+            },
+            "date": 1770600000,
+            "chat_owner_left": {
+                "new_owner": {
+                    "id": 901,
+                    "is_bot": false,
+                    "first_name": "Alice"
+                }
+            }
+        }"#;
+        let msg_left_with: Message = from_str(left_with_new_owner).unwrap();
+        assert_eq!(
+            msg_left_with.chat_owner_left().and_then(|l| l.new_owner.as_ref()).map(|u| u.id),
+            Some(UserId(901))
+        );
+        assert!(msg_left_with.mentioned_users().any(|u| u.id == UserId(901)));
+
+        let left_without_new_owner = r#"{
+            "message_id": 2802,
+            "chat": {
+                "id": -1002236736395,
+                "title": "Group",
+                "type": "supergroup"
+            },
+            "date": 1770600001,
+            "chat_owner_left": {}
+        }"#;
+        let msg_left_without: Message = from_str(left_without_new_owner).unwrap();
+        assert_eq!(msg_left_without.chat_owner_left(), Some(&ChatOwnerLeft { new_owner: None }));
+
+        let changed = r#"{
+            "message_id": 2803,
+            "chat": {
+                "id": -1002236736395,
+                "title": "Group",
+                "type": "supergroup"
+            },
+            "date": 1770600002,
+            "chat_owner_changed": {
+                "new_owner": {
+                    "id": 902,
+                    "is_bot": false,
+                    "first_name": "Bob"
+                }
+            }
+        }"#;
+        let msg_changed: Message = from_str(changed).unwrap();
+        assert_eq!(msg_changed.chat_owner_changed().map(|c| c.new_owner.id), Some(UserId(902)));
+        assert!(msg_changed.mentioned_users().any(|u| u.id == UserId(902)));
     }
 }

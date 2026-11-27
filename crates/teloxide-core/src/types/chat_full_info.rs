@@ -3,8 +3,8 @@ use derive_more::derive::From;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{
-    AcceptedGiftTypes, Birthdate, BusinessIntro, BusinessLocation, BusinessOpeningHours, Chat,
-    ChatId, ChatLocation, ChatPermissions, ChatPhoto, Message, ReactionType, Seconds,
+    AcceptedGiftTypes, Audio, Birthdate, BusinessIntro, BusinessLocation, BusinessOpeningHours,
+    Chat, ChatId, ChatLocation, ChatPermissions, ChatPhoto, Message, ReactionType, Seconds,
     UniqueGiftColors, User, UserRating,
 };
 
@@ -188,6 +188,9 @@ pub struct ChatFullInfoPrivate {
 
     /// For private chats, the rating of the user if any.
     pub rating: Option<UserRating>,
+
+    /// For private chats, the first audio added to the profile of the user.
+    pub first_profile_audio: Option<Audio>,
 
     /// For private chats with business accounts, the intro of the business.
     pub business_intro: Option<BusinessIntro>,
@@ -622,6 +625,15 @@ impl ChatFullInfo {
         }
     }
 
+    /// For private chats, the first audio added to the profile of the user.
+    #[must_use]
+    pub fn first_profile_audio(&self) -> Option<&Audio> {
+        match &self.kind {
+            ChatFullInfoKind::Private(this) => this.first_profile_audio.as_ref(),
+            _ => None,
+        }
+    }
+
     /// Returns all users that are "contained" in this `Chat`
     /// structure.
     ///
@@ -635,7 +647,7 @@ impl ChatFullInfo {
 
 mod serde_helper {
     use crate::types::{
-        Birthdate, BusinessIntro, BusinessLocation, BusinessOpeningHours, Chat, UserRating,
+        Audio, Birthdate, BusinessIntro, BusinessLocation, BusinessOpeningHours, Chat, UserRating,
     };
     use serde::{Deserialize, Serialize};
 
@@ -665,6 +677,7 @@ mod serde_helper {
         personal_chat: Option<Box<Chat>>,
         birthdate: Option<Birthdate>,
         rating: Option<UserRating>,
+        first_profile_audio: Option<Audio>,
         business_intro: Option<BusinessIntro>,
         business_location: Option<BusinessLocation>,
         business_opening_hours: Option<BusinessOpeningHours>,
@@ -683,6 +696,7 @@ mod serde_helper {
                 personal_chat,
                 birthdate,
                 rating,
+                first_profile_audio,
                 business_intro,
                 business_location,
                 business_opening_hours,
@@ -698,6 +712,7 @@ mod serde_helper {
                 personal_chat,
                 birthdate,
                 rating,
+                first_profile_audio,
                 business_intro,
                 business_location,
                 business_opening_hours,
@@ -717,6 +732,7 @@ mod serde_helper {
                 personal_chat,
                 birthdate,
                 rating,
+                first_profile_audio,
                 business_intro,
                 business_location,
                 business_opening_hours,
@@ -733,6 +749,7 @@ mod serde_helper {
                 personal_chat,
                 birthdate,
                 rating,
+                first_profile_audio,
                 business_intro,
                 business_location,
                 business_opening_hours,
@@ -825,6 +842,7 @@ mod tests {
                 personal_chat: None,
                 birthdate: None,
                 rating: None,
+                first_profile_audio: None,
                 business_intro: None,
                 business_location: None,
                 business_opening_hours: None,
@@ -889,6 +907,7 @@ mod tests {
                 personal_chat: None,
                 birthdate: None,
                 rating: None,
+                first_profile_audio: None,
                 business_intro: None,
                 business_location: None,
                 business_opening_hours: None,
@@ -960,6 +979,40 @@ mod tests {
         assert_eq!(chat.paid_message_star_count, Some(100));
         assert!(chat.unique_gift_colors.is_some());
         assert!(chat.accepted_gift_types.gifts_from_channels);
+
+        let serialized = to_string(&chat).unwrap();
+        let roundtrip: ChatFullInfo = from_str(&serialized).unwrap();
+        assert_eq!(chat, roundtrip);
+    }
+
+    #[test]
+    fn bot_api_9_4_first_profile_audio_roundtrip() {
+        let json = r#"{
+            "id": 12345,
+            "type": "private",
+            "first_name": "Alice",
+            "accent_color_id": 2,
+            "max_reaction_count": 11,
+            "first_profile_audio": {
+                "file_id": "profile-audio-1",
+                "file_unique_id": "uniq-profile-audio-1",
+                "file_size": 2048,
+                "duration": 95,
+                "performer": "Alice",
+                "title": "Intro",
+                "mime_type": "audio/mpeg"
+            },
+            "accepted_gift_types": {
+                "unlimited_gifts": true,
+                "limited_gifts": true,
+                "unique_gifts": true,
+                "premium_subscription": true,
+                "gifts_from_channels": false
+            }
+        }"#;
+
+        let chat: ChatFullInfo = from_str(json).unwrap();
+        assert_eq!(chat.first_profile_audio().and_then(|a| a.title.as_deref()), Some("Intro"));
 
         let serialized = to_string(&chat).unwrap();
         let roundtrip: ChatFullInfo = from_str(&serialized).unwrap();

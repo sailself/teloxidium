@@ -845,6 +845,10 @@ mod tests {
                 object: "User".to_owned(),
                 field_name: "has_topics_enabled".to_owned(),
             },
+            Exception::IgnoreObjectField {
+                object: "User".to_owned(),
+                field_name: "allows_users_to_create_topics".to_owned(),
+            },
             Exception::IgnoreFieldRequiredObjectName {
                 object: "File".to_owned(),
                 field_name: "file_path".to_owned(),
@@ -987,6 +991,10 @@ mod tests {
             Exception::IgnoreObjectField {
                 object: "User".to_owned(),
                 field_name: "has_topics_enabled".to_owned(),
+            },
+            Exception::IgnoreObjectField {
+                object: "User".to_owned(),
+                field_name: "allows_users_to_create_topics".to_owned(),
             },
             // Date is always 0, so we omit it
             Exception::IgnoreObjectField {

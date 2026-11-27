@@ -5,11 +5,11 @@ use serde::Serialize;
 use crate::types::{CustomEmojiId, ForumTopic, Recipient, Rgb};
 
 impl_payload! {
-    /// Use this method to create a topic in a forum supergroup chat. The bot must be an administrator in the chat for this to work and must have the _can\_manage\_topics_ administrator rights. Returns information about the created topic as a `ForumTopic` object.
+    /// Use this method to create a topic in a forum supergroup chat or a private chat with a user. In the case of a supergroup chat the bot must be an administrator in the chat for this to work and must have the _can\_manage\_topics_ administrator right. In the case of a private chat, a link to the topic can be created in the format `https://t.me/<bot_username>/<message_thread_id>`; the link opens the topic only for the user. Returns information about the created topic as a `ForumTopic` object.
     #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize)]
     pub CreateForumTopic (CreateForumTopicSetters) => ForumTopic {
         required {
-            /// Unique identifier for the target chat or username of the target channel (in the format `@channelusername`)
+            /// Unique identifier for the target chat or username of the target supergroup (in the format `@supergroupusername`)
             pub chat_id: Recipient [into],
             /// Topic name, 1-128 characters
             pub name: String [into],

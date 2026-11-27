@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## unreleased
 
+## 0.20.0 - 2026-11-27
+
+### Added
+
+- Support for Telegram Bot API 9.4 (`teloxide-core 0.16.0`): [**BC**]
+  - Add `MessageFilterExt::filter_chat_owner_left` and `MessageFilterExt::filter_chat_owner_changed` for `chat_owner_left` and `chat_owner_changed` service messages.
+  - Re-export new wire types and payloads (`ButtonStyle`, `ChatOwnerLeft`, `ChatOwnerChanged`, `VideoQuality`, `UserProfileAudios`, `UniqueGiftModelRarity`, `GetUserProfileAudios`, `SetMyProfilePhoto`, `RemoveMyProfilePhoto`).
+- Breaking changes in `teloxide-core` (see `MIGRATION_GUIDE.md` for details): [**BC**]
+  - Added `icon_custom_emoji_id` and `style` fields/builders to `KeyboardButton` and `InlineKeyboardButton`.
+  - Added fields on existing structs (`Me::allows_users_to_create_topics`, `Video::qualities`, `ChatFullInfoPrivate::first_profile_audio`, `UniqueGift::is_burned`, `UniqueGiftModel::rarity`) and `MessageKind::{ChatOwnerLeft, ChatOwnerChanged}`.
+  - Updated `Bot::SetBusinessAccountProfilePhoto` to use `MultipartRequest` so `InputProfilePhoto` uploads via `InputFile` work properly alongside `SetMyProfilePhoto`.
+
 ## 0.19.0 - 2026-11-26
 
 ### Added

@@ -402,6 +402,12 @@ impl Requester for Bot {
         Self::GetUserProfilePhotos::new(self.clone(), payloads::GetUserProfilePhotos::new(user_id))
     }
 
+    type GetUserProfileAudios = JsonRequest<payloads::GetUserProfileAudios>;
+
+    fn get_user_profile_audios(&self, user_id: UserId) -> Self::GetUserProfileAudios {
+        Self::GetUserProfileAudios::new(self.clone(), payloads::GetUserProfileAudios::new(user_id))
+    }
+
     type SetUserEmojiStatus = JsonRequest<payloads::SetUserEmojiStatus>;
 
     fn set_user_emoji_status(&self, user_id: UserId) -> Self::SetUserEmojiStatus {
@@ -1003,6 +1009,18 @@ impl Requester for Bot {
 
     fn get_my_commands(&self) -> Self::GetMyCommands {
         Self::GetMyCommands::new(self.clone(), payloads::GetMyCommands::new())
+    }
+
+    type SetMyProfilePhoto = MultipartRequest<payloads::SetMyProfilePhoto>;
+
+    fn set_my_profile_photo(&self, photo: InputProfilePhoto) -> Self::SetMyProfilePhoto {
+        Self::SetMyProfilePhoto::new(self.clone(), payloads::SetMyProfilePhoto::new(photo))
+    }
+
+    type RemoveMyProfilePhoto = JsonRequest<payloads::RemoveMyProfilePhoto>;
+
+    fn remove_my_profile_photo(&self) -> Self::RemoveMyProfilePhoto {
+        Self::RemoveMyProfilePhoto::new(self.clone(), payloads::RemoveMyProfilePhoto::new())
     }
 
     type SetMyName = JsonRequest<payloads::SetMyName>;
@@ -1716,7 +1734,8 @@ impl Requester for Bot {
         )
     }
 
-    type SetBusinessAccountProfilePhoto = JsonRequest<payloads::SetBusinessAccountProfilePhoto>;
+    type SetBusinessAccountProfilePhoto =
+        MultipartRequest<payloads::SetBusinessAccountProfilePhoto>;
 
     fn set_business_account_profile_photo(
         &self,
@@ -2152,12 +2171,14 @@ mod tests {
     use crate::{
         payloads::{
             CopyMessageSetters, ForwardMessageSetters, GetBusinessAccountGiftsSetters,
-            GetChatGiftsSetters, GetUserGiftsSetters, RepostStorySetters, SendMessageDraftSetters,
+            GetChatGiftsSetters, GetUserGiftsSetters, GetUserProfileAudiosSetters,
+            RepostStorySetters, SendMessageDraftSetters,
         },
         prelude::Requester,
         requests::HasPayload,
         types::{
-            BusinessConnectionId, ChatId, DraftId, EffectId, MessageId, ParseMode, Seconds,
+            BusinessConnectionId, ChatId, DraftId, EffectId, InputFile, InputProfilePhoto,
+            InputProfilePhotoAnimated, InputProfilePhotoStatic, MessageId, ParseMode, Seconds,
             StoryId, ThreadId, UserId,
         },
         Bot,
@@ -2285,5 +2306,57 @@ mod tests {
                 "message_effect_id": "effect-cpy"
             })
         );
+    }
+
+    #[test]
+    fn bot_api_9_4_payload_serialization() {
+        let bot = Bot::new("test-token");
+
+        let profile_audios = bot.get_user_profile_audios(UserId(42)).offset(5).limit(20);
+        assert_eq!(
+            serde_json::to_value(profile_audios.payload_ref()).unwrap(),
+            json!({
+                "user_id": 42,
+                "offset": 5,
+                "limit": 20
+            })
+        );
+
+        let static_file = InputFile::memory(b"jpg-bytes".to_vec());
+        let static_id = static_file.id().to_owned();
+        let set_static =
+            bot.set_my_profile_photo(InputProfilePhoto::Static(InputProfilePhotoStatic {
+                photo: static_file,
+            }));
+        assert_eq!(
+            serde_json::to_value(set_static.payload_ref()).unwrap(),
+            json!({
+                "photo": {
+                    "type": "static",
+                    "photo": format!("attach://{static_id}")
+                }
+            })
+        );
+
+        let anim_file = InputFile::memory(b"mp4-bytes".to_vec());
+        let anim_id = anim_file.id().to_owned();
+        let set_anim =
+            bot.set_my_profile_photo(InputProfilePhoto::Animated(InputProfilePhotoAnimated {
+                animation: anim_file,
+                main_frame_timestamp: Some(0.5),
+            }));
+        assert_eq!(
+            serde_json::to_value(set_anim.payload_ref()).unwrap(),
+            json!({
+                "photo": {
+                    "type": "animated",
+                    "animation": format!("attach://{anim_id}"),
+                    "main_frame_timestamp": 0.5
+                }
+            })
+        );
+
+        let remove_photo = bot.remove_my_profile_photo();
+        assert_eq!(serde_json::to_value(remove_photo.payload_ref()).unwrap(), json!({}));
     }
 }
