@@ -1,5 +1,6 @@
 use std::{cmp, ops::Range};
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::types::{CustomEmojiId, User, UserId};
@@ -126,6 +127,20 @@ impl MessageEntity {
         length: usize,
     ) -> Self {
         Self { kind: MessageEntityKind::CustomEmoji { custom_emoji_id }, offset, length }
+    }
+
+    /// Create a message entity representing a formatted date and time.
+    ///
+    /// Note that Telegram's Bot API send path currently requires `unix_time` to
+    /// be a positive signed 32-bit Unix timestamp (`1..=i32::MAX`).
+    #[must_use]
+    pub const fn date_time(
+        unix_time: DateTime<Utc>,
+        date_time_format: Option<String>,
+        offset: usize,
+        length: usize,
+    ) -> Self {
+        Self { kind: MessageEntityKind::DateTime { unix_time, date_time_format }, offset, length }
     }
 
     #[must_use]
@@ -264,10 +279,34 @@ pub enum MessageEntityKind {
     Strikethrough,
     Spoiler,
     Code,
-    Pre { language: Option<String> },
-    TextLink { url: reqwest::Url },
-    TextMention { user: User },
-    CustomEmoji { custom_emoji_id: CustomEmojiId },
+    Pre {
+        language: Option<String>,
+    },
+    TextLink {
+        url: reqwest::Url,
+    },
+    TextMention {
+        user: User,
+    },
+    CustomEmoji {
+        custom_emoji_id: CustomEmojiId,
+    },
+    /// Formatted date and time.
+    DateTime {
+        /// The Unix time associated with the entity.
+        ///
+        /// Telegram's Bot API send path currently expects a positive signed
+        /// 32-bit Unix timestamp (`1..=i32::MAX`).
+        #[serde(with = "crate::types::serde_date_from_unix_timestamp")]
+        #[cfg_attr(test, schemars(with = "i64"))]
+        unix_time: DateTime<Utc>,
+
+        /// The string that defines the formatting of the date and time.
+        ///
+        /// See [date-time entity formatting](https://core.telegram.org/bots/api#date-time-entity-formatting)
+        /// for more details.
+        date_time_format: Option<String>,
+    },
 }
 
 #[cfg(test)]
@@ -423,6 +462,198 @@ mod tests {
         assert_matches!(
             parsed,
             [entity if entity.text() == "" && entity.kind() == &Bold, entity if entity.text() == "" && entity.kind() == &Italic]
+        );
+    }
+
+    #[test]
+    fn date_time() {
+        let unix_time = chrono::DateTime::from_timestamp(1_700_000_000, 0).unwrap();
+        let entity = MessageEntity::date_time(unix_time, Some(String::from("wDT")), 5, 10);
+        let json = r#"{"type":"date_time","offset":5,"length":10,"unix_time":1700000000,"date_time_format":"wDT"}"#;
+
+        assert_eq!(entity, serde_json::from_str::<MessageEntity>(json).unwrap());
+        assert_eq!(
+            serde_json::to_value(&entity).unwrap(),
+            serde_json::from_str::<serde_json::Value>(json).unwrap()
+        );
+    }
+
+    #[test]
+    fn date_time_without_format() {
+        let unix_time = chrono::DateTime::from_timestamp(1_700_000_000, 0).unwrap();
+        let entity = MessageEntity::date_time(unix_time, None, 0, 12);
+        let json = r#"{"type":"date_time","offset":0,"length":12,"unix_time":1700000000}"#;
+
+        assert_eq!(entity, serde_json::from_str::<MessageEntity>(json).unwrap());
+        let serialized = serde_json::to_string(&entity).unwrap();
+        assert_eq!(serialized.find("date_time_format"), None);
+        assert_eq!(entity, serde_json::from_str::<MessageEntity>(&serialized).unwrap());
+    }
+
+    #[test]
+    fn parse_date_time_utf16() {
+        let unix_time = chrono::DateTime::from_timestamp(1_772_366_400, 0).unwrap();
+        let text = "📅 Event: 2026-03-01 12:00";
+        // 📅 takes 2 UTF-16 code units, " Event: " takes 8 => offset 10, length 16
+        let entities = [MessageEntity::date_time(unix_time, Some(String::from("DT")), 10, 16)];
+        let parsed = MessageEntityRef::parse(text, &entities);
+
+        assert_matches!(
+            parsed,
+            [entity if entity.text() == "2026-03-01 12:00"
+                && matches!(
+                    entity.kind(),
+                    MessageEntityKind::DateTime {
+                        unix_time: parsed_time,
+                        date_time_format: Some(fmt),
+                    } if *parsed_time == unix_time && fmt == "DT"
+                )]
+        );
+    }
+
+    #[test]
+    fn update_with_date_time_entity() {
+        use crate::types::{Update, UpdateKind};
+
+        let unix_time = chrono::DateTime::from_timestamp(1_700_000_000, 0).unwrap();
+        let json = r#"{
+            "update_id": 1001,
+            "message": {
+                "message_id": 42,
+                "from": {
+                    "id": 123456,
+                    "is_bot": false,
+                    "first_name": "Test"
+                },
+                "chat": {
+                    "id": 123456,
+                    "first_name": "Test",
+                    "type": "private"
+                },
+                "date": 1700000000,
+                "text": "Meet at noon or later",
+                "entities": [
+                    {
+                        "type": "date_time",
+                        "offset": 8,
+                        "length": 4,
+                        "unix_time": 1700000000,
+                        "date_time_format": "t"
+                    },
+                    {
+                        "type": "date_time",
+                        "offset": 16,
+                        "length": 5,
+                        "unix_time": 1700003600
+                    }
+                ]
+            }
+        }"#;
+
+        let update: Update = serde_json::from_str(json).unwrap();
+        let UpdateKind::Message(msg) = update.kind else {
+            panic!("expected UpdateKind::Message");
+        };
+        let entities = msg.entities().unwrap();
+        assert_eq!(
+            entities,
+            [
+                MessageEntity::date_time(unix_time, Some(String::from("t")), 8, 4),
+                MessageEntity::date_time(
+                    chrono::DateTime::from_timestamp(1_700_003_600, 0).unwrap(),
+                    None,
+                    16,
+                    5,
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn date_time_missing_unix_time_rejected() {
+        assert!(serde_json::from_str::<MessageEntity>(
+            r#"{"type":"date_time","offset":0,"length":4}"#
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn date_time_empty_format_preserved() {
+        let unix_time = chrono::DateTime::from_timestamp(1_700_000_000, 0).unwrap();
+        let json = r#"{"type":"date_time","offset":0,"length":4,"unix_time":1700000000,"date_time_format":""}"#;
+        let entity: MessageEntity = serde_json::from_str(json).unwrap();
+        assert_eq!(entity, MessageEntity::date_time(unix_time, Some(String::new()), 0, 4));
+        assert_eq!(
+            serde_json::to_value(&entity).unwrap(),
+            serde_json::from_str::<serde_json::Value>(json).unwrap()
+        );
+    }
+
+    #[test]
+    fn date_time_zero_and_negative_unix_time_deser() {
+        let zero: MessageEntity =
+            serde_json::from_str(r#"{"type":"date_time","offset":0,"length":4,"unix_time":0}"#)
+                .unwrap();
+        assert_eq!(
+            zero,
+            MessageEntity::date_time(chrono::DateTime::from_timestamp(0, 0).unwrap(), None, 0, 4)
+        );
+
+        let negative: MessageEntity =
+            serde_json::from_str(r#"{"type":"date_time","offset":0,"length":4,"unix_time":-1}"#)
+                .unwrap();
+        assert_eq!(
+            negative,
+            MessageEntity::date_time(chrono::DateTime::from_timestamp(-1, 0).unwrap(), None, 0, 4)
+        );
+    }
+
+    #[test]
+    fn parse_caption_date_time_with_emoji_inside_span() {
+        use crate::types::Message;
+
+        let unix_time = chrono::DateTime::from_timestamp(1_772_366_400, 0).unwrap();
+        let json = r#"{
+            "message_id": 7,
+            "chat": {
+                "id": 123456,
+                "first_name": "Test",
+                "type": "private"
+            },
+            "date": 1700000000,
+            "photo": [
+                {
+                    "file_id": "AgACAgIAAxkBA",
+                    "file_unique_id": "AQADAgAT",
+                    "width": 100,
+                    "height": 100
+                }
+            ],
+            "caption": "See 📅 2026-03-01 soon",
+            "caption_entities": [
+                {
+                    "type": "date_time",
+                    "offset": 4,
+                    "length": 13,
+                    "unix_time": 1772366400,
+                    "date_time_format": "D"
+                }
+            ]
+        }"#;
+
+        let msg: Message = serde_json::from_str(json).unwrap();
+        let parsed = msg.parse_caption_entities().unwrap();
+        assert_matches!(
+            parsed.as_slice(),
+            [entity if entity.text() == "📅 2026-03-01"
+                && entity.range() == (4..19)
+                && matches!(
+                    entity.kind(),
+                    MessageEntityKind::DateTime {
+                        unix_time: parsed_time,
+                        date_time_format: Some(fmt),
+                    } if *parsed_time == unix_time && fmt == "D"
+                )]
         );
     }
 }

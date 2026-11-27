@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support rendering `MessageEntityKind::DateTime` in `utils::render::Renderer` (HTML `<tg-time>` and MarkdownV2 `tg://time`)
 - `MessageToEditHasNoText` variant to `ApiError` ([#1426](https://github.com/teloxide/teloxide/issues/1426))
 - `ParticipantIdInvalid` and `ChatAdminRequired` variants to `ApiError` ([#1349](https://github.com/teloxide/teloxide/issues/1349))
 - Support for TBA 9.2 ([#1403](https://github.com/teloxide/teloxide/pull/1403))
