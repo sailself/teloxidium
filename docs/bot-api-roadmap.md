@@ -84,6 +84,7 @@ Execute this checklist for every milestone **M1–M10**:
      ```
 7. **Version Markers & Release Notes**
    - Update `api_version` in [`crates/teloxide-core/schema.ron`](../crates/teloxide-core/schema.ron), doc comments in [`crates/teloxide-core/src/lib.rs`](../crates/teloxide-core/src/lib.rs) and [`crates/teloxide/src/lib.rs`](../crates/teloxide/src/lib.rs), badges in [`README.md`](../README.md) and [`crates/teloxide-core/README.md`](../crates/teloxide-core/README.md), changelogs, and [`MIGRATION_GUIDE.md`](../MIGRATION_GUIDE.md) (`[**BC**]`).
+   - Bump crate SemVer versions per [`RELEASE_PROCEDURE.md`](../RELEASE_PROCEDURE.md) (minor bump for `[**BC**]`, patch bump for additive releases) and tag `v<teloxide-version>` on `master` after each Bot API milestone merges (no `-m*` tag suffixes).
 
 ---
 

@@ -1,19 +1,56 @@
-# How to release new crate versions
+# Release Procedure (Git Tags & GitHub Releases)
 
-## Prerequisites
+Teloxidium is currently distributed via versioned Git tags (`vX.Y.Z`) and GitHub Releases rather than crates.io.
 
-1. Run `cargo login` if you aren't logged in to crates.io
-2. Make sure that you have push rights both on GitHub repo and crates.io
-3. Make sure you're on the updated master branch and switch to new branch from it: `git switch master && git pull && git switch -c release`
+## Versioning Policy
 
-## Release
+Bump clean SemVer versions whenever merging support for a newer Telegram Bot API version or a breaking hotfix (no `-m*` tag suffixes):
 
-1. `cargo release --package teloxide-core [major|minor|patch]` (if your git remote isn't named `origin`, you need to specify it with `--push-remote <remote_name>`)
-2. Analyze the output and if everything is OK, re-run the same command with the `--execute` flag (this will publish release on crates.io and push commit+tag to GitHub repo)
-3. Repeat 1 and 2 with the `teloxide-macros` crate if there were any changes
-4. Make sure all dependencies in `crates/teloxide/Cargo.toml` point to the released versions from crates.io, including teloxide-core and teloxide-macros. Commit the change if this isn't the case
-5. Add the release version in `MIGRATION_GUIDE.md` if it's a breaking release
-6. `cargo release --package teloxide [major|minor|patch]` (use `--push-remote <remote_name>` if necessary)
-7. If everything is OK, run again with the `--execute` flag
-8. Open Pull Request and wait for the merge to complete
-9. Publish the teloxide release on GitHub Releases with the specified changelog link
+- **Breaking changes (`[**BC**]`):** Bump the **minor** version (`0.x.y` → `0.(x+1).0`) for `teloxide` and `teloxide-core` (and `teloxide-macros` only when it changes).
+- **Non-breaking / additive Bot API releases & fixes:** Bump the **patch** version (`0.x.y` → `0.x.(y+1)`) for `teloxide` and `teloxide-core`.
+- **Git tag format:** `v<teloxide-version>` (for example, `v0.18.0`, `v0.18.1`, `v0.19.0`), matching `version` in `crates/teloxide/Cargo.toml`.
+
+## Release Steps
+
+1. Prepare the version bump on a feature or milestone branch from `master`:
+   - Update `version` in `crates/teloxide/Cargo.toml` and `crates/teloxide-core/Cargo.toml` (plus `crates/teloxide-macros/Cargo.toml` if changed).
+   - Refresh `Cargo.lock` by running `cargo check --workspace`.
+   - Move entries from `## unreleased` under `## <version> - YYYY-MM-DD` in `CHANGELOG.md` and `crates/teloxide-core/CHANGELOG.md` (and update `MIGRATION_GUIDE.md` if breaking), leaving a fresh empty `## unreleased` heading at the top.
+2. Open a Pull Request, wait for CI (`ci-pass`) to succeed, and merge into `master`.
+3. Create and push the annotated Git tag from updated `master`:
+   ```powershell
+   git checkout master
+   git pull --ff-only origin master
+   git tag -a vX.Y.Z -m "Release vX.Y.Z"
+   git push origin vX.Y.Z
+   ```
+4. Pushing `vX.Y.Z` triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which verifies that the tag matches `crates/teloxide/Cargo.toml`, runs the workspace verification suite, and publishes the GitHub Release with changelog notes.
+
+## Using a Release in Other Projects
+
+### Direct Git Tag Dependency (Recommended)
+
+In your bot's `Cargo.toml`:
+
+```toml
+[dependencies]
+teloxide = { git = "https://github.com/sailself/teloxidium", tag = "vX.Y.Z", features = ["macros"] }
+```
+
+Because `crates/teloxide/Cargo.toml` references `teloxide-core` and `teloxide-macros` via workspace `path` dependencies, Cargo resolves all three crates from the same Git tag automatically while keeping `use teloxide::...` unchanged.
+
+### Overriding Upstream `teloxide` via `[patch.crates-io]`
+
+If another dependency in your workspace pulls in upstream `teloxide` or `teloxide-core` from crates.io, add a `[patch.crates-io]` section in your root `Cargo.toml`:
+
+```toml
+[dependencies]
+teloxide = { version = "0.18", features = ["macros"] }
+
+[patch.crates-io]
+teloxide = { git = "https://github.com/sailself/teloxidium", tag = "vX.Y.Z" }
+teloxide-core = { git = "https://github.com/sailself/teloxidium", tag = "vX.Y.Z" }
+teloxide-macros = { git = "https://github.com/sailself/teloxidium", tag = "vX.Y.Z" }
+```
+
+> **Note:** `[patch.crates-io]` requires the `teloxide` version requested in `[dependencies]` to be SemVer-compatible with `crates/teloxide/Cargo.toml` at that tag (for example, `version = "0.18"` when the tag is `v0.18.x`).

@@ -19,6 +19,7 @@ env:
   # When updating this, also update:
   # - crates/teloxide-core/src/codegen.rs
   # - rust-toolchain.toml
+  # - .github/workflows/release.yml
   # - below in the test matrix
   rust_nightly: nightly-2025-06-12
   # When updating this, also update:
