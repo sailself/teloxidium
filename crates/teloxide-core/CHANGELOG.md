@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## unreleased
 
+## 0.14.0 - 2026-11-26
+
 ### Added
 
 - Add `MessageEntityKind::DateTime` and `MessageEntity::date_time` for

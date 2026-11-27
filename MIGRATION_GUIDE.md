@@ -3,6 +3,8 @@ Note that the list of required changes is not fully exhaustive and it may lack s
 
 ## unreleased
 
+## 0.17 -> 0.18
+
 ### teloxide-core
 
 - Add a `MessageEntityKind::DateTime` arm to exhaustive `MessageEntityKind`
