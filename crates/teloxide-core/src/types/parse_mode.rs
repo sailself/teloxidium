@@ -48,6 +48,10 @@ use serde::{Deserialize, Serialize};
 /// [inline URL](http://www.example.com/)
 /// [inline mention of a user](tg://user?id=123456789)
 /// ![👍](tg://emoji?id=5368324170671202286)
+/// ![22:45 tomorrow](tg://time?unix=1647531900&format=wDT)
+/// ![22:45 tomorrow](tg://time?unix=1647531900&format=t)
+/// ![22:45 tomorrow](tg://time?unix=1647531900&format=r)
+/// ![22:45 tomorrow](tg://time?unix=1647531900)
 /// `inline fixed-width code`
 /// ```
 /// pre-formatted fixed-width code block
@@ -105,6 +109,10 @@ use serde::{Deserialize, Serialize};
 /// <a href="http://www.example.com/">inline URL</a>
 /// <a href="tg://user?id=123456789">inline mention of a user</a>
 /// <tg-emoji emoji-id="5368324170671202286">👍</tg-emoji>
+/// <tg-time unix="1647531900" format="wDT">22:45 tomorrow</tg-time>
+/// <tg-time unix="1647531900" format="t">22:45 tomorrow</tg-time>
+/// <tg-time unix="1647531900" format="r">22:45 tomorrow</tg-time>
+/// <tg-time unix="1647531900">22:45 tomorrow</tg-time>
 /// <code>inline fixed-width code</code>
 /// <pre>pre-formatted fixed-width code block</pre>
 #[doc = "<pre><code class=\"language-rust\">pre-formatted fixed-width code block written in the \

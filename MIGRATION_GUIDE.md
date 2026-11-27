@@ -3,6 +3,17 @@ Note that the list of required changes is not fully exhaustive and it may lack s
 
 ## unreleased
 
+## 0.20 -> 0.21
+
+### teloxide-core
+
+- **`ChatMember` fields:** Added `tag: Option<String>` to `Member` and `Restricted`, `can_edit_tag: bool` (`#[serde(default)]`) to `Restricted`, and `can_manage_tags: Option<bool>` to `Administrator`; update exhaustive struct literals (also exposed via `ChatMemberKind::{tag, can_manage_tags}`).
+- **`ChatAdministratorRights` fields:** Added `can_manage_tags: Option<bool>` and changed `can_manage_direct_messages` from `bool` to `Option<bool>` (matching group responses that omit it); update struct literals and callers reading `can_manage_direct_messages`.
+- **`ChatPermissions::EDIT_TAG`:** Added `EDIT_TAG = 1 << 14`; JSON serialization now includes `"can_edit_tag":false` when unset (matching `can_manage_topics` so Telegram does not default omitted values to `can_pin_messages`).
+- **`Message::sender_tag`:** Added `sender_tag: Option<String>`; initialize to `None` in struct literals.
+- **`PromoteChatMember::can_manage_tags`:** Added `can_manage_tags: Option<bool>`; initialize to `None` in exhaustive `PromoteChatMember` struct literals.
+- **Custom `Requester` implementations:** Must implement `SetChatMemberTag` associated type and `set_chat_member_tag` method.
+
 ## 0.19 -> 0.20
 
 ### teloxide-core

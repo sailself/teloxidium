@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## unreleased
 
+## 0.21.0 - 2026-11-27
+
+### Added
+
+- Support for Telegram Bot API 9.5 (`teloxide-core 0.17.0`): [**BC**]
+  - Add `SetChatMemberTag` payload, `Requester::set_chat_member_tag`, and `ChatPermissions::EDIT_TAG` (`can_edit_tag()`).
+  - Add chat member tag and tag-management fields across `ChatMember` (`Member::tag`, `Restricted::tag`, `Restricted::can_edit_tag`, `Administrator::can_manage_tags: Option<bool>`, `ChatMemberKind::tag()`, `ChatMemberKind::can_manage_tags()`), `ChatAdministratorRights::can_manage_tags`, `Message::sender_tag`, and `PromoteChatMember::can_manage_tags`.
+  - Make `ChatAdministratorRights::can_manage_direct_messages` optional (`Option<bool>`) so group `getMyDefaultAdministratorRights` responses omitting the channel-only field deserialize properly.
+  - Complete Bot API 9.5 schema alignment for `date_time` message entities and update `sendMessageDraft` (all bots allowed in private chats) and `ParseMode` documentation.
+
 ## 0.20.0 - 2026-11-27
 
 ### Added

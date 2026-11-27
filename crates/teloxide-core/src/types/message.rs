@@ -89,6 +89,9 @@ pub struct Message {
     /// connected business account.
     pub sender_business_bot: Option<User>,
 
+    /// Tag or custom title of the sender of the message; for supergroups only.
+    pub sender_tag: Option<String>,
+
     #[serde(flatten)]
     pub kind: MessageKind,
 }
@@ -2511,6 +2514,7 @@ mod tests {
                     }),
                 },
                 sender_business_bot: None,
+                sender_tag: None,
                 kind: MessageKind::ChatShared(MessageChatShared {
                     chat_shared: ChatShared {
                         request_id: RequestId(348349),
@@ -3130,6 +3134,7 @@ mod tests {
                     },
                     via_bot: None,
                     sender_business_bot: None,
+                    sender_tag: None,
                     suggested_post_info: None,
                     kind: MessageKind::Giveaway(MessageGiveaway {
                         giveaway: Giveaway {
@@ -3754,5 +3759,37 @@ mod tests {
         let msg_changed: Message = from_str(changed).unwrap();
         assert_eq!(msg_changed.chat_owner_changed().map(|c| c.new_owner.id), Some(UserId(902)));
         assert!(msg_changed.mentioned_users().any(|u| u.id == UserId(902)));
+    }
+
+    #[test]
+    fn sender_tag_and_legacy_fallback() {
+        let legacy_json = r#"{
+            "message_id": 2901,
+            "chat": {
+                "id": -1002236736395,
+                "title": "Group",
+                "type": "supergroup"
+            },
+            "date": 1772323200,
+            "text": "hello"
+        }"#;
+        let legacy: Message = from_str(legacy_json).unwrap();
+        assert_eq!(legacy.sender_tag, None);
+
+        let modern_json = r#"{
+            "message_id": 2902,
+            "chat": {
+                "id": -1002236736395,
+                "title": "Group",
+                "type": "supergroup"
+            },
+            "date": 1772323201,
+            "sender_tag": "maintainer",
+            "text": "hello"
+        }"#;
+        let modern: Message = from_str(modern_json).unwrap();
+        assert_eq!(modern.sender_tag.as_deref(), Some("maintainer"));
+        let roundtrip: Message = from_str(&serde_json::to_string(&modern).unwrap()).unwrap();
+        assert_eq!(modern, roundtrip);
     }
 }

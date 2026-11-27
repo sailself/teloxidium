@@ -494,6 +494,15 @@ impl Requester for Bot {
         )
     }
 
+    type SetChatMemberTag = JsonRequest<payloads::SetChatMemberTag>;
+
+    fn set_chat_member_tag<C>(&self, chat_id: C, user_id: UserId) -> Self::SetChatMemberTag
+    where
+        C: Into<Recipient>,
+    {
+        Self::SetChatMemberTag::new(self.clone(), payloads::SetChatMemberTag::new(chat_id, user_id))
+    }
+
     type BanChatSenderChat = JsonRequest<payloads::BanChatSenderChat>;
 
     fn ban_chat_sender_chat<C, S>(&self, chat_id: C, sender_chat_id: S) -> Self::BanChatSenderChat
@@ -2172,14 +2181,15 @@ mod tests {
         payloads::{
             CopyMessageSetters, ForwardMessageSetters, GetBusinessAccountGiftsSetters,
             GetChatGiftsSetters, GetUserGiftsSetters, GetUserProfileAudiosSetters,
-            RepostStorySetters, SendMessageDraftSetters,
+            PromoteChatMemberSetters, RepostStorySetters, SendMessageDraftSetters,
+            SetChatMemberTagSetters,
         },
         prelude::Requester,
         requests::HasPayload,
         types::{
-            BusinessConnectionId, ChatId, DraftId, EffectId, InputFile, InputProfilePhoto,
-            InputProfilePhotoAnimated, InputProfilePhotoStatic, MessageId, ParseMode, Seconds,
-            StoryId, ThreadId, UserId,
+            BusinessConnectionId, ChatId, ChatPermissions, DraftId, EffectId, InputFile,
+            InputProfilePhoto, InputProfilePhotoAnimated, InputProfilePhotoStatic, MessageId,
+            ParseMode, Seconds, StoryId, ThreadId, UserId,
         },
         Bot,
     };
@@ -2358,5 +2368,76 @@ mod tests {
 
         let remove_photo = bot.remove_my_profile_photo();
         assert_eq!(serde_json::to_value(remove_photo.payload_ref()).unwrap(), json!({}));
+    }
+
+    #[test]
+    fn bot_api_9_5_payload_serialization() {
+        let bot = Bot::new("test-token");
+
+        let set_tag = bot.set_chat_member_tag(ChatId(-1001), UserId(77)).tag("core-dev");
+        assert_eq!(
+            serde_json::to_value(set_tag.payload_ref()).unwrap(),
+            json!({
+                "chat_id": -1001,
+                "user_id": 77,
+                "tag": "core-dev"
+            })
+        );
+
+        let clear_tag = bot.set_chat_member_tag("@mygroup".to_owned(), UserId(77));
+        assert_eq!(
+            serde_json::to_value(clear_tag.payload_ref()).unwrap(),
+            json!({
+                "chat_id": "@mygroup",
+                "user_id": 77
+            })
+        );
+
+        let promote = bot.promote_chat_member(ChatId(-1001), UserId(77)).can_manage_tags(true);
+        assert_eq!(
+            serde_json::to_value(promote.payload_ref()).unwrap(),
+            json!({
+                "chat_id": -1001,
+                "user_id": 77,
+                "can_manage_tags": true
+            })
+        );
+
+        let perms_without_tag =
+            bot.set_chat_permissions(ChatId(-1001), ChatPermissions::PIN_MESSAGES);
+        assert_eq!(
+            serde_json::to_value(perms_without_tag.payload_ref()).unwrap()["permissions"]
+                ["can_edit_tag"],
+            json!(false)
+        );
+
+        let perms_with_tag = bot.set_chat_permissions(
+            ChatId(-1001),
+            ChatPermissions::PIN_MESSAGES | ChatPermissions::EDIT_TAG,
+        );
+        assert_eq!(
+            serde_json::to_value(perms_with_tag.payload_ref()).unwrap()["permissions"]
+                ["can_edit_tag"],
+            json!(true)
+        );
+
+        let restrict_without_tag =
+            bot.restrict_chat_member(ChatId(-1001), UserId(77), ChatPermissions::PIN_MESSAGES);
+        assert_eq!(
+            serde_json::to_value(restrict_without_tag.payload_ref()).unwrap()["permissions"]
+                ["can_edit_tag"],
+            json!(false)
+        );
+
+        let restrict_with_tag = bot.restrict_chat_member(
+            ChatId(-1001),
+            UserId(77),
+            ChatPermissions::PIN_MESSAGES | ChatPermissions::EDIT_TAG,
+        );
+        assert_eq!(
+            serde_json::to_value(restrict_with_tag.payload_ref()).unwrap()["permissions"]
+                ["can_edit_tag"],
+            json!(true)
+        );
     }
 }

@@ -63,5 +63,57 @@ pub struct ChatAdministratorRights {
 
     /// `true`, if the administrator can manage direct messages of the channel
     /// and decline suggested posts; for channels only
-    pub can_manage_direct_messages: bool,
+    pub can_manage_direct_messages: Option<bool>,
+
+    /// `true`, if the administrator can edit the tags of regular members; for
+    /// groups and supergroups only
+    pub can_manage_tags: Option<bool>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn roundtrip_and_group_channel_fallbacks() {
+        let group_json = r#"{
+            "is_anonymous": false,
+            "can_manage_chat": true,
+            "can_delete_messages": true,
+            "can_manage_video_chats": false,
+            "can_restrict_members": false,
+            "can_promote_members": false,
+            "can_change_info": false,
+            "can_invite_users": true,
+            "can_manage_tags": true
+        }"#;
+        let group_rights: ChatAdministratorRights = serde_json::from_str(group_json).unwrap();
+        assert_eq!(group_rights.can_manage_direct_messages, None);
+        assert_eq!(group_rights.can_manage_tags, Some(true));
+        let serialized_group = serde_json::to_string(&group_rights).unwrap();
+        assert!(!serialized_group.contains("can_manage_direct_messages"));
+        let group_roundtrip: ChatAdministratorRights =
+            serde_json::from_str(&serialized_group).unwrap();
+        assert_eq!(group_rights, group_roundtrip);
+
+        let channel_json = r#"{
+            "is_anonymous": false,
+            "can_manage_chat": true,
+            "can_delete_messages": true,
+            "can_manage_video_chats": false,
+            "can_restrict_members": false,
+            "can_promote_members": false,
+            "can_change_info": false,
+            "can_invite_users": true,
+            "can_manage_direct_messages": true
+        }"#;
+        let channel_rights: ChatAdministratorRights = serde_json::from_str(channel_json).unwrap();
+        assert_eq!(channel_rights.can_manage_direct_messages, Some(true));
+        assert_eq!(channel_rights.can_manage_tags, None);
+        let serialized_channel = serde_json::to_string(&channel_rights).unwrap();
+        assert!(!serialized_channel.contains("can_manage_tags"));
+        let channel_roundtrip: ChatAdministratorRights =
+            serde_json::from_str(&serialized_channel).unwrap();
+        assert_eq!(channel_rights, channel_roundtrip);
+    }
 }
