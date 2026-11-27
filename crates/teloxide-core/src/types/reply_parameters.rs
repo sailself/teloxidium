@@ -27,8 +27,8 @@ pub struct ReplyParameters {
     /// Quoted part of the message to be replied to; 0-1024 characters after
     /// entities parsing. The quote must be an exact substring of the message to
     /// be replied to, including _bold_, _italic_, _underline_, _strikethrough_,
-    /// _spoiler_, and _custom_emoji_ entities. The message will fail to send if
-    /// the quote isn't found in the original message.
+    /// _spoiler_, _custom_emoji_, and _date_time_ entities. The message will
+    /// fail to send if the quote isn't found in the original message.
     pub quote: Option<String>,
     /// Mode for parsing entities in the quote. See [formatting options] for
     /// more details.
@@ -42,6 +42,8 @@ pub struct ReplyParameters {
     pub quote_position: Option<u32>,
     /// Identifier of the specific checklist task to be replied to
     pub checklist_task_id: Option<ChecklistTaskId>,
+    /// Persistent identifier of the specific poll option to be replied to
+    pub poll_option_id: Option<String>,
 }
 
 impl ReplyParameters {
@@ -71,5 +73,31 @@ impl ReplyParameters {
     pub fn checklist_task_id(mut self, checklist_task_id: ChecklistTaskId) -> Self {
         self.checklist_task_id = Some(checklist_task_id);
         self
+    }
+
+    /// Setter for the `poll_option_id` field
+    pub fn poll_option_id<T>(mut self, poll_option_id: T) -> Self
+    where
+        T: Into<String>,
+    {
+        self.poll_option_id = Some(poll_option_id.into());
+        self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn poll_option_id_roundtrip() {
+        let minimal = ReplyParameters::new(MessageId(10));
+        assert_eq!(serde_json::to_string(&minimal).unwrap(), r#"{"message_id":10}"#);
+
+        let with_option = ReplyParameters::new(MessageId(10)).poll_option_id("opt-1");
+        let json = serde_json::to_string(&with_option).unwrap();
+        assert_eq!(json, r#"{"message_id":10,"poll_option_id":"opt-1"}"#);
+        let parsed: ReplyParameters = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, with_option);
     }
 }

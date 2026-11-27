@@ -1288,6 +1288,30 @@ macro_rules! requester_forward {
             $body!(save_prepared_inline_message this (user_id: UserId, result: InlineQueryResult))
         }
     };
+    (@method save_prepared_keyboard_button $body:ident $ty:ident) => {
+        type SavePreparedKeyboardButton = $ty![SavePreparedKeyboardButton];
+
+        fn save_prepared_keyboard_button(&self, user_id: UserId, button: KeyboardButton) -> Self::SavePreparedKeyboardButton {
+            let this = self;
+            $body!(save_prepared_keyboard_button this (user_id: UserId, button: KeyboardButton))
+        }
+    };
+    (@method get_managed_bot_token $body:ident $ty:ident) => {
+        type GetManagedBotToken = $ty![GetManagedBotToken];
+
+        fn get_managed_bot_token(&self, user_id: UserId) -> Self::GetManagedBotToken {
+            let this = self;
+            $body!(get_managed_bot_token this (user_id: UserId))
+        }
+    };
+    (@method replace_managed_bot_token $body:ident $ty:ident) => {
+        type ReplaceManagedBotToken = $ty![ReplaceManagedBotToken];
+
+        fn replace_managed_bot_token(&self, user_id: UserId) -> Self::ReplaceManagedBotToken {
+            let this = self;
+            $body!(replace_managed_bot_token this (user_id: UserId))
+        }
+    };
     (@method edit_message_text $body:ident $ty:ident) => {
         type EditMessageText = $ty![EditMessageText];
 

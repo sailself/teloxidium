@@ -12,8 +12,8 @@ pub struct TextQuote {
     /// message
     pub text: String,
     /// Special entities that appear in the quote. Currently, only _bold_,
-    /// _italic_, _underline_, _strikethrough_, _spoiler_, and
-    /// _custom_emoji_ entities are kept in quotes.
+    /// _italic_, _underline_, _strikethrough_, _spoiler_, _custom_emoji_, and
+    /// _date_time_ entities are kept in quotes.
     #[serde(default)]
     pub entities: Vec<MessageEntity>,
     /// The original rich text fragments if the quote was selected from a

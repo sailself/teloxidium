@@ -8,9 +8,9 @@ use crate::{
         AcceptedGiftTypes, BotCommand, BusinessConnectionId, CallbackQueryId, ChatId,
         ChatPermissions, CustomEmojiId, DraftId, EphemeralMessageId, FileId, GiftId, InlineQueryId,
         InlineQueryResult, InputChecklist, InputFile, InputMedia, InputPaidMedia, InputPollOption,
-        InputProfilePhoto, InputSticker, InputStoryContent, LabeledPrice, MessageId, OwnedGiftId,
-        PreCheckoutQueryId, Recipient, Seconds, ShippingQueryId, StickerFormat, StoryId,
-        TelegramTransactionId, ThreadId, UserId,
+        InputProfilePhoto, InputSticker, InputStoryContent, KeyboardButton, LabeledPrice,
+        MessageId, OwnedGiftId, PreCheckoutQueryId, Recipient, Seconds, ShippingQueryId,
+        StickerFormat, StoryId, TelegramTransactionId, ThreadId, UserId,
     },
     Bot,
 };
@@ -1148,6 +1148,34 @@ impl Requester for Bot {
         )
     }
 
+    type SavePreparedKeyboardButton = JsonRequest<payloads::SavePreparedKeyboardButton>;
+
+    fn save_prepared_keyboard_button(
+        &self,
+        user_id: UserId,
+        button: KeyboardButton,
+    ) -> Self::SavePreparedKeyboardButton {
+        Self::SavePreparedKeyboardButton::new(
+            self.clone(),
+            payloads::SavePreparedKeyboardButton::new(user_id, button),
+        )
+    }
+
+    type GetManagedBotToken = JsonRequest<payloads::GetManagedBotToken>;
+
+    fn get_managed_bot_token(&self, user_id: UserId) -> Self::GetManagedBotToken {
+        Self::GetManagedBotToken::new(self.clone(), payloads::GetManagedBotToken::new(user_id))
+    }
+
+    type ReplaceManagedBotToken = JsonRequest<payloads::ReplaceManagedBotToken>;
+
+    fn replace_managed_bot_token(&self, user_id: UserId) -> Self::ReplaceManagedBotToken {
+        Self::ReplaceManagedBotToken::new(
+            self.clone(),
+            payloads::ReplaceManagedBotToken::new(user_id),
+        )
+    }
+
     type EditMessageText = JsonRequest<payloads::EditMessageText>;
 
     fn edit_message_text<C, T>(
@@ -2181,15 +2209,17 @@ mod tests {
         payloads::{
             CopyMessageSetters, ForwardMessageSetters, GetBusinessAccountGiftsSetters,
             GetChatGiftsSetters, GetUserGiftsSetters, GetUserProfileAudiosSetters,
-            PromoteChatMemberSetters, RepostStorySetters, SendMessageDraftSetters,
+            PromoteChatMemberSetters, RepostStorySetters, SendMessageDraftSetters, SendPollSetters,
             SetChatMemberTagSetters,
         },
         prelude::Requester,
         requests::HasPayload,
         types::{
-            BusinessConnectionId, ChatId, ChatPermissions, DraftId, EffectId, InputFile,
-            InputProfilePhoto, InputProfilePhotoAnimated, InputProfilePhotoStatic, MessageId,
-            ParseMode, Seconds, StoryId, ThreadId, UserId,
+            BusinessConnectionId, ButtonRequest, ChatId, ChatPermissions, DraftId, EffectId,
+            InputFile, InputPollOption, InputProfilePhoto, InputProfilePhotoAnimated,
+            InputProfilePhotoStatic, KeyboardButton, KeyboardButtonRequestManagedBot,
+            MessageEntity, MessageId, ParseMode, PollType, ReplyParameters, RequestId, Seconds,
+            StoryId, ThreadId, UserId,
         },
         Bot,
     };
@@ -2438,6 +2468,198 @@ mod tests {
             serde_json::to_value(restrict_with_tag.payload_ref()).unwrap()["permissions"]
                 ["can_edit_tag"],
             json!(true)
+        );
+    }
+
+    #[test]
+    fn bot_api_9_6_payload_serialization() {
+        let bot = Bot::new("test-token");
+
+        let get_token = bot.get_managed_bot_token(UserId(9901));
+        assert_eq!(
+            serde_json::to_value(get_token.payload_ref()).unwrap(),
+            json!({ "user_id": 9901 })
+        );
+
+        let replace_token = bot.replace_managed_bot_token(UserId(9901));
+        assert_eq!(
+            serde_json::to_value(replace_token.payload_ref()).unwrap(),
+            json!({ "user_id": 9901 })
+        );
+
+        let prepared_btn = bot.save_prepared_keyboard_button(
+            UserId(42),
+            KeyboardButton::new("New Sub-Bot").request(ButtonRequest::RequestManagedBot(
+                KeyboardButtonRequestManagedBot::new(RequestId(7))
+                    .suggested_name("Helper")
+                    .suggested_username("my_helper_bot"),
+            )),
+        );
+        assert_eq!(
+            serde_json::to_value(prepared_btn.payload_ref()).unwrap(),
+            json!({
+                "user_id": 42,
+                "button": {
+                    "text": "New Sub-Bot",
+                    "request_managed_bot": {
+                        "request_id": 7,
+                        "suggested_name": "Helper",
+                        "suggested_username": "my_helper_bot"
+                    }
+                }
+            })
+        );
+
+        let send_poll = bot
+            .send_poll(
+                ChatId(-1001),
+                "Quiz question?",
+                [
+                    InputPollOption::new("Opt 0"),
+                    InputPollOption::new("Opt 1"),
+                    InputPollOption::new("Opt 2"),
+                ],
+            )
+            .type_(PollType::Quiz)
+            .allows_multiple_answers(true)
+            .allows_revoting(false)
+            .shuffle_options(true)
+            .allow_adding_options(false)
+            .hide_results_until_closes(true)
+            .correct_option_ids([0, 2])
+            .open_period(2_628_000)
+            .description("Multi-correct quiz")
+            .description_parse_mode(ParseMode::Html)
+            .description_entities([MessageEntity::bold(0, 5)])
+            .reply_parameters(ReplyParameters::new(MessageId(10)).poll_option_id("opt-a"));
+        assert_eq!(
+            serde_json::to_value(send_poll.payload_ref()).unwrap(),
+            json!({
+                "chat_id": -1001,
+                "question": "Quiz question?",
+                "options": [
+                    { "text": "Opt 0" },
+                    { "text": "Opt 1" },
+                    { "text": "Opt 2" }
+                ],
+                "type": "quiz",
+                "allows_multiple_answers": true,
+                "allows_revoting": false,
+                "shuffle_options": true,
+                "allow_adding_options": false,
+                "hide_results_until_closes": true,
+                "correct_option_ids": [0, 2],
+                "open_period": 2628000,
+                "description": "Multi-correct quiz",
+                "description_parse_mode": "HTML",
+                "description_entities": [
+                    { "type": "bold", "offset": 0, "length": 5 }
+                ],
+                "reply_parameters": {
+                    "message_id": 10,
+                    "poll_option_id": "opt-a"
+                }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn bot_api_9_6_managed_bot_endpoints_and_decoding() {
+        use std::{
+            io::{Read, Write},
+            net::TcpListener,
+            sync::mpsc,
+        };
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let (tx, rx) = mpsc::channel();
+        let responses = vec![
+            r#"{"ok":true,"result":"9901:GET_TOKEN_OK"}"#,
+            r#"{"ok":true,"result":"9901:REPLACE_TOKEN_OK"}"#,
+            r#"{"ok":true,"result":{"id":"prep-kbd-1"}}"#,
+        ];
+
+        std::thread::spawn(move || {
+            for response_body in responses {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut data = Vec::new();
+                let mut buf = [0u8; 1024];
+                let header_end = loop {
+                    let n = stream.read(&mut buf).unwrap();
+                    assert!(n > 0);
+                    data.extend_from_slice(&buf[..n]);
+                    if let Some(pos) = data.windows(4).position(|w| w == b"\r\n\r\n") {
+                        break pos + 4;
+                    }
+                };
+                let headers = String::from_utf8_lossy(&data[..header_end]).into_owned();
+                let req_line = headers.lines().next().unwrap().to_owned();
+                let content_len: usize = headers
+                    .lines()
+                    .find_map(|line| {
+                        let (k, v) = line.split_once(':')?;
+                        k.eq_ignore_ascii_case("content-length").then(|| v.trim().parse().ok())?
+                    })
+                    .unwrap_or(0);
+                while data.len() < header_end + content_len {
+                    let n = stream.read(&mut buf).unwrap();
+                    assert!(n > 0);
+                    data.extend_from_slice(&buf[..n]);
+                }
+                let body: serde_json::Value =
+                    serde_json::from_slice(&data[header_end..header_end + content_len]).unwrap();
+                tx.send((req_line, body)).unwrap();
+
+                let reply = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: \
+                     {}\r\nConnection: close\r\n\r\n{}",
+                    response_body.len(),
+                    response_body
+                );
+                stream.write_all(reply.as_bytes()).unwrap();
+            }
+        });
+
+        let api_url = reqwest::Url::parse(&format!("http://{addr}/")).unwrap();
+        let bot = Bot::with_client("test-token", reqwest::Client::new()).set_api_url(api_url);
+
+        let token = bot.get_managed_bot_token(UserId(9901)).await.unwrap();
+        assert_eq!(token, "9901:GET_TOKEN_OK");
+
+        let new_token = bot.replace_managed_bot_token(UserId(9901)).await.unwrap();
+        assert_eq!(new_token, "9901:REPLACE_TOKEN_OK");
+
+        let prepared = bot
+            .save_prepared_keyboard_button(
+                UserId(42),
+                KeyboardButton::new("Create Bot").request(ButtonRequest::RequestManagedBot(
+                    KeyboardButtonRequestManagedBot::new(RequestId(7)),
+                )),
+            )
+            .await
+            .unwrap();
+        assert_eq!(prepared, crate::types::PreparedKeyboardButton { id: "prep-kbd-1".to_owned() });
+
+        let (line1, body1) = rx.recv().unwrap();
+        assert!(line1.starts_with("POST /bottest-token/GetManagedBotToken "), "{line1}");
+        assert_eq!(body1, json!({ "user_id": 9901 }));
+
+        let (line2, body2) = rx.recv().unwrap();
+        assert!(line2.starts_with("POST /bottest-token/ReplaceManagedBotToken "), "{line2}");
+        assert_eq!(body2, json!({ "user_id": 9901 }));
+
+        let (line3, body3) = rx.recv().unwrap();
+        assert!(line3.starts_with("POST /bottest-token/SavePreparedKeyboardButton "), "{line3}");
+        assert_eq!(
+            body3,
+            json!({
+                "user_id": 42,
+                "button": {
+                    "text": "Create Bot",
+                    "request_managed_bot": { "request_id": 7 }
+                }
+            })
         );
     }
 }

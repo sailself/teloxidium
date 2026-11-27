@@ -143,6 +143,9 @@ define_message_ext! {
     (filter_gift_upgrade_sent, Message::gift_upgrade_sent),
     (filter_chat_owner_left, Message::chat_owner_left),
     (filter_chat_owner_changed, Message::chat_owner_changed),
+    (filter_managed_bot_created, Message::managed_bot_created),
+    (filter_poll_option_added, Message::poll_option_added),
+    (filter_poll_option_deleted, Message::poll_option_deleted),
     (filter_video_chat_scheduled, Message::video_chat_scheduled),
     (filter_video_chat_started, Message::video_chat_started),
     (filter_video_chat_ended, Message::video_chat_ended),
@@ -191,6 +194,7 @@ define_update_ext! {
     (filter_chat_join_request, UpdateKind::ChatJoinRequest, ChatJoinRequest),
     (filter_chat_boost, UpdateKind::ChatBoost, ChatBoost),
     (filter_removed_chat_boost, UpdateKind::RemovedChatBoost, RemovedChatBoost),
+    (filter_managed_bot, UpdateKind::ManagedBot, ManagedBot),
 }
 
 #[cfg(test)]
@@ -303,6 +307,124 @@ mod tests {
         ));
         assert!(matches!(
             changed_handler.dispatch(deps![ordinary_text]).await,
+            ControlFlow::Continue(_)
+        ));
+    }
+
+    #[tokio::test]
+    async fn filter_managed_bot_and_poll_option_service_messages_dispatch() {
+        let managed_bot_update: Update = serde_json::from_str(
+            r#"{
+                "update_id": 10,
+                "managed_bot": {
+                    "user": { "id": 100, "is_bot": false, "first_name": "Alice" },
+                    "bot": { "id": 900, "is_bot": true, "first_name": "Helper", "username": "helper_bot" }
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let managed_bot_created_msg: Update = serde_json::from_str(
+            r#"{
+                "update_id": 11,
+                "message": {
+                    "message_id": 20,
+                    "chat": { "id": 100, "first_name": "Alice", "type": "private" },
+                    "date": 1775174400,
+                    "managed_bot_created": {
+                        "bot": { "id": 901, "is_bot": true, "first_name": "SubBot", "username": "sub_bot" }
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let poll_option_added_msg: Update = serde_json::from_str(
+            r#"{
+                "update_id": 12,
+                "message": {
+                    "message_id": 21,
+                    "chat": { "id": -1001, "title": "Group", "type": "supergroup" },
+                    "date": 1775174401,
+                    "poll_option_added": {
+                        "option_persistent_id": "opt-1",
+                        "option_text": "Choice 1"
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let poll_option_deleted_msg: Update = serde_json::from_str(
+            r#"{
+                "update_id": 13,
+                "message": {
+                    "message_id": 22,
+                    "chat": { "id": -1001, "title": "Group", "type": "supergroup" },
+                    "date": 1775174402,
+                    "poll_option_deleted": {
+                        "option_persistent_id": "opt-1",
+                        "option_text": "Choice 1"
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let managed_bot_handler = dptree::entry().branch(
+            Update::filter_managed_bot()
+                .endpoint(|u: crate::types::ManagedBotUpdated| async move { u.bot.id.0 }),
+        );
+        let created_handler = dptree::entry().branch(
+            Update::filter_message().chain(
+                Message::filter_managed_bot_created()
+                    .endpoint(|c: crate::types::ManagedBotCreated| async move { c.bot.id.0 }),
+            ),
+        );
+        let added_handler = dptree::entry().branch(
+            Update::filter_message().chain(Message::filter_poll_option_added().endpoint(
+                |a: crate::types::PollOptionAdded| async move { a.option_persistent_id },
+            )),
+        );
+        let deleted_handler = dptree::entry().branch(Update::filter_message().chain(
+            Message::filter_poll_option_deleted().endpoint(
+                |d: crate::types::PollOptionDeleted| async move { d.option_persistent_id },
+            ),
+        ));
+
+        assert!(matches!(
+            managed_bot_handler.dispatch(deps![managed_bot_update.clone()]).await,
+            ControlFlow::Break(900)
+        ));
+        assert!(matches!(
+            created_handler.dispatch(deps![managed_bot_update]).await,
+            ControlFlow::Continue(_)
+        ));
+
+        assert!(matches!(
+            created_handler.dispatch(deps![managed_bot_created_msg.clone()]).await,
+            ControlFlow::Break(901)
+        ));
+        assert!(matches!(
+            managed_bot_handler.dispatch(deps![managed_bot_created_msg]).await,
+            ControlFlow::Continue(_)
+        ));
+
+        assert!(matches!(
+            added_handler.dispatch(deps![poll_option_added_msg.clone()]).await,
+            ControlFlow::Break(ref id) if id == "opt-1"
+        ));
+        assert!(matches!(
+            deleted_handler.dispatch(deps![poll_option_added_msg]).await,
+            ControlFlow::Continue(_)
+        ));
+
+        assert!(matches!(
+            deleted_handler.dispatch(deps![poll_option_deleted_msg.clone()]).await,
+            ControlFlow::Break(ref id) if id == "opt-1"
+        ));
+        assert!(matches!(
+            added_handler.dispatch(deps![poll_option_deleted_msg]).await,
             ControlFlow::Continue(_)
         ));
     }

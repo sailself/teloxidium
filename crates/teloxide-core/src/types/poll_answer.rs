@@ -21,6 +21,12 @@ pub struct PollAnswer {
     ///
     /// May be empty if the user retracted their vote.
     pub option_ids: Vec<u8>,
+
+    /// Persistent identifiers of the chosen answer options.
+    ///
+    /// May be empty if the vote was retracted.
+    #[serde(default)]
+    pub option_persistent_ids: Vec<String>,
 }
 
 /// These fields `chat` and `user` from the original [`PollAnswer`] should be
@@ -90,5 +96,30 @@ mod tests {
 
         let poll_answer: PollAnswer = serde_json::from_str(json).unwrap();
         assert!(poll_answer.voter.is_chat());
+    }
+
+    #[test]
+    fn poll_answer_option_persistent_ids_and_legacy_fallback() {
+        let legacy_json = r#"{
+            "poll_id": "POLL_ID",
+            "user": {"id": 42, "is_bot": false, "first_name": "Alice"},
+            "option_ids": [0]
+        }"#;
+        let legacy: PollAnswer = serde_json::from_str(legacy_json).unwrap();
+        assert!(legacy.option_persistent_ids.is_empty());
+
+        let modern_json = r#"{
+            "poll_id": "POLL_ID",
+            "user": {"id": 42, "is_bot": false, "first_name": "Alice"},
+            "option_ids": [0, 2],
+            "option_persistent_ids": ["pid-0", "pid-2"]
+        }"#;
+        let modern: PollAnswer = serde_json::from_str(modern_json).unwrap();
+        assert_eq!(modern.option_ids, vec![0, 2]);
+        assert_eq!(modern.option_persistent_ids, vec!["pid-0", "pid-2"]);
+
+        let serialized = serde_json::to_value(&modern).unwrap();
+        assert_eq!(serialized["option_ids"], serde_json::json!([0, 2]));
+        assert_eq!(serialized["option_persistent_ids"], serde_json::json!(["pid-0", "pid-2"]));
     }
 }

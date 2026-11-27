@@ -21,11 +21,11 @@ impl_payload! {
             pub pay_for_upgrade: bool,
             /// Text that will be shown along with the gift; 0-255 characters
             pub text: String [into],
-            /// Mode for parsing entities in the text. See [formatting options] for more details. Entities other than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, and “custom_emoji” are ignored
+            /// Mode for parsing entities in the text. See [formatting options] for more details. Entities other than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, “custom_emoji”, and “date_time” are ignored
             ///
             /// [formatting options]: https://core.telegram.org/bots/api#formatting-options
             pub text_parse_mode: ParseMode,
-            /// List of special entities that appear in the gift text. It can be specified instead of text_parse_mode. Entities other than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, and “custom_emoji” are ignored.
+            /// List of special entities that appear in the gift text. It can be specified instead of text_parse_mode. Entities other than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, “custom_emoji”, and “date_time” are ignored.
             pub text_entities: Vec<MessageEntity> [collect],
         }
     }

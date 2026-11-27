@@ -220,6 +220,9 @@ where
         answer_inline_query,
         answer_web_app_query,
         save_prepared_inline_message,
+        save_prepared_keyboard_button,
+        get_managed_bot_token,
+        replace_managed_bot_token,
         edit_message_text,
         edit_message_text_inline,
         edit_message_caption,
@@ -330,8 +333,22 @@ where
         R::Err: Debug,
     {
         if self.settings.contains(Settings::TRACE_RESPONSES_VERBOSE) {
-            |response| {
-                log::trace!("Got response from `{}` request: {:?}", R::Payload::NAME, response)
+            if matches!(R::Payload::NAME, "GetManagedBotToken" | "ReplaceManagedBotToken") {
+                |response| match response {
+                    Ok(_) => log::trace!(
+                        "Got response from `{}` request: Ok(\"<redacted>\")",
+                        R::Payload::NAME
+                    ),
+                    Err(err) => log::trace!(
+                        "Got response from `{}` request: Err({:?})",
+                        R::Payload::NAME,
+                        err
+                    ),
+                }
+            } else {
+                |response| {
+                    log::trace!("Got response from `{}` request: {:?}", R::Payload::NAME, response)
+                }
             }
         } else if self.settings.contains(Settings::TRACE_RESPONSES) {
             |_| log::trace!("Got response from `{}` request", R::Payload::NAME)
@@ -419,5 +436,110 @@ where
         let ret = ready!(this.inner.poll(cx));
         (this.trace_fn)(&ret);
         Poll::Ready(ret)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+        sync::{Mutex, Once},
+    };
+
+    use log::{Level, LevelFilter, Log, Metadata, Record};
+
+    use super::*;
+    use crate::Bot;
+
+    struct CaptureLogger;
+
+    static CAPTURED_LOGS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+    static INIT_LOGGER: Once = Once::new();
+    static LOGGER: CaptureLogger = CaptureLogger;
+
+    impl Log for CaptureLogger {
+        fn enabled(&self, metadata: &Metadata) -> bool {
+            metadata.level() <= Level::Trace
+        }
+
+        fn log(&self, record: &Record) {
+            if self.enabled(record.metadata()) {
+                CAPTURED_LOGS.lock().unwrap().push(record.args().to_string());
+            }
+        }
+
+        fn flush(&self) {}
+    }
+
+    fn init_capture_logger() {
+        INIT_LOGGER.call_once(|| {
+            log::set_logger(&LOGGER).unwrap();
+            log::set_max_level(LevelFilter::Trace);
+        });
+        CAPTURED_LOGS.lock().unwrap().clear();
+    }
+
+    fn spawn_ok_json_server(responses: Vec<&'static str>) -> Url {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        std::thread::spawn(move || {
+            for body in responses {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut buf = [0u8; 4096];
+                let _ = stream.read(&mut buf);
+                let reply = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: \
+                     {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+                stream.write_all(reply.as_bytes()).unwrap();
+            }
+        });
+        Url::parse(&format!("http://{addr}/")).unwrap()
+    }
+
+    #[tokio::test]
+    async fn verbose_trace_redacts_managed_bot_tokens() {
+        init_capture_logger();
+
+        let secret_get = "9901:SYNTHETIC_SECRET_TOKEN_GET";
+        let secret_replace = "9901:SYNTHETIC_SECRET_TOKEN_REPLACE";
+        let get_resp = r#"{"ok":true,"result":"9901:SYNTHETIC_SECRET_TOKEN_GET"}"#;
+        let replace_resp = r#"{"ok":true,"result":"9901:SYNTHETIC_SECRET_TOKEN_REPLACE"}"#;
+        let non_secret_resp = r#"{"ok":true,"result":{"id":"btn-1"}}"#;
+
+        let api_url = spawn_ok_json_server(vec![get_resp, replace_resp, non_secret_resp]);
+        let bot = Bot::with_client("test-token", reqwest::Client::new()).set_api_url(api_url);
+        let traced = Trace::new(bot, Settings::TRACE_EVERYTHING_VERBOSE);
+
+        let token1 = traced.get_managed_bot_token(UserId(9901)).await.unwrap();
+        assert_eq!(token1, secret_get);
+
+        let token2 = traced.replace_managed_bot_token(UserId(9901)).await.unwrap();
+        assert_eq!(token2, secret_replace);
+
+        let prepared = traced
+            .save_prepared_keyboard_button(
+                UserId(42),
+                KeyboardButton::new("Btn").request(ButtonRequest::RequestManagedBot(
+                    KeyboardButtonRequestManagedBot::new(RequestId(1)),
+                )),
+            )
+            .await
+            .unwrap();
+        assert_eq!(prepared.id, "btn-1");
+
+        let logs = CAPTURED_LOGS.lock().unwrap().clone();
+        assert!(logs.iter().all(|entry| !entry.contains(secret_get)));
+        assert!(logs.iter().all(|entry| !entry.contains(secret_replace)));
+        assert!(logs
+            .iter()
+            .any(|entry| { entry.contains("GetManagedBotToken") && entry.contains("<redacted>") }));
+        assert!(logs.iter().any(|entry| {
+            entry.contains("ReplaceManagedBotToken") && entry.contains("<redacted>")
+        }));
+        assert!(logs.iter().any(|entry| entry.contains("btn-1")));
     }
 }

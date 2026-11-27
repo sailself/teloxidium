@@ -13,13 +13,14 @@ use crate::types::{
     ForumTopicCreated, ForumTopicEdited, ForumTopicReopened, Game, GeneralForumTopicHidden,
     GeneralForumTopicUnhidden, GiftInfo, Giveaway, GiveawayCompleted, GiveawayCreated,
     GiveawayWinners, InlineKeyboardMarkup, Invoice, LinkPreviewOptions, Location,
-    MaybeInaccessibleMessage, MessageAutoDeleteTimerChanged, MessageEntity, MessageEntityRef,
-    MessageId, MessageOrigin, PaidMediaInfo, PaidMessagePriceChanged, PassportData, PhotoSize,
-    Poll, ProximityAlertTriggered, RefundedPayment, RichMessage, Sticker, Story, SuccessfulPayment,
-    SuggestedPostApprovalFailed, SuggestedPostApproved, SuggestedPostDeclined, SuggestedPostInfo,
-    SuggestedPostPaid, SuggestedPostRefunded, TextQuote, ThreadId, True, UniqueGiftInfo, User,
-    UsersShared, Venue, Video, VideoChatEnded, VideoChatParticipantsInvited, VideoChatScheduled,
-    VideoChatStarted, VideoNote, Voice, WebAppData, WriteAccessAllowed,
+    ManagedBotCreated, MaybeInaccessibleMessage, MessageAutoDeleteTimerChanged, MessageEntity,
+    MessageEntityRef, MessageId, MessageOrigin, PaidMediaInfo, PaidMessagePriceChanged,
+    PassportData, PhotoSize, Poll, PollOptionAdded, PollOptionDeleted, ProximityAlertTriggered,
+    RefundedPayment, RichMessage, Sticker, Story, SuccessfulPayment, SuggestedPostApprovalFailed,
+    SuggestedPostApproved, SuggestedPostDeclined, SuggestedPostInfo, SuggestedPostPaid,
+    SuggestedPostRefunded, TextQuote, ThreadId, True, UniqueGiftInfo, User, UsersShared, Venue,
+    Video, VideoChatEnded, VideoChatParticipantsInvited, VideoChatScheduled, VideoChatStarted,
+    VideoNote, Voice, WebAppData, WriteAccessAllowed,
 };
 
 /// This object represents a message.
@@ -155,6 +156,9 @@ pub enum MessageKind {
     WebAppData(MessageWebAppData),
     ChatOwnerLeft(MessageChatOwnerLeft),
     ChatOwnerChanged(MessageChatOwnerChanged),
+    ManagedBotCreated(MessageManagedBotCreated),
+    PollOptionAdded(MessagePollOptionAdded),
+    PollOptionDeleted(MessagePollOptionDeleted),
     /// An empty, content-less message, that can appear in callback queries
     /// attached to old messages.
     Empty {},
@@ -214,6 +218,10 @@ pub struct MessageCommon {
 
     /// Identifier of the specific checklist task that is being replied to
     pub reply_to_checklist_task_id: Option<ChecklistTaskId>,
+
+    /// Persistent identifier of the specific poll option that is being replied
+    /// to
+    pub reply_to_poll_option_id: Option<String>,
 
     /// If the sender of the message boosted the chat, the number of boosts
     /// added by the user
@@ -1029,6 +1037,31 @@ pub struct MessageChatOwnerChanged {
     pub chat_owner_changed: ChatOwnerChanged,
 }
 
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct MessageManagedBotCreated {
+    /// Service message: user created a bot that will be managed by the current
+    /// bot.
+    pub managed_bot_created: ManagedBotCreated,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct MessagePollOptionAdded {
+    /// Service message: answer option was added to a poll.
+    pub poll_option_added: PollOptionAdded,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct MessagePollOptionDeleted {
+    /// Service message: answer option was deleted from a poll.
+    pub poll_option_deleted: PollOptionDeleted,
+}
+
 mod getters {
     use chrono::{DateTime, Utc};
     use std::ops::Deref;
@@ -1057,7 +1090,8 @@ mod getters {
         MessageForumTopicEdited, MessageForumTopicReopened, MessageGeneralForumTopicHidden,
         MessageGeneralForumTopicUnhidden, MessageGiftInfo, MessageGiftUpgradeSent, MessageGiveaway,
         MessageGiveawayCompleted, MessageGiveawayCreated, MessageGiveawayWinners,
-        MessageMessageAutoDeleteTimerChanged, MessagePaidMessagePriceChanged,
+        MessageManagedBotCreated, MessageMessageAutoDeleteTimerChanged,
+        MessagePaidMessagePriceChanged, MessagePollOptionAdded, MessagePollOptionDeleted,
         MessageUniqueGiftInfo, MessageVideoChatEnded, MessageVideoChatScheduled,
         MessageVideoChatStarted, MessageWebAppData, MessageWriteAccessAllowed,
     };
@@ -1122,6 +1156,16 @@ mod getters {
         pub fn reply_to_story(&self) -> Option<&Story> {
             match &self.kind {
                 Common(MessageCommon { reply_to_story, .. }) => reply_to_story.as_ref(),
+                _ => None,
+            }
+        }
+
+        #[must_use]
+        pub fn reply_to_poll_option_id(&self) -> Option<&str> {
+            match &self.kind {
+                Common(MessageCommon { reply_to_poll_option_id, .. }) => {
+                    reply_to_poll_option_id.as_deref()
+                }
                 _ => None,
             }
         }
@@ -2136,6 +2180,36 @@ mod getters {
         }
 
         #[must_use]
+        pub fn managed_bot_created(&self) -> Option<&types::ManagedBotCreated> {
+            match &self.kind {
+                ManagedBotCreated(MessageManagedBotCreated { managed_bot_created }) => {
+                    Some(managed_bot_created)
+                }
+                _ => None,
+            }
+        }
+
+        #[must_use]
+        pub fn poll_option_added(&self) -> Option<&types::PollOptionAdded> {
+            match &self.kind {
+                PollOptionAdded(MessagePollOptionAdded { poll_option_added }) => {
+                    Some(poll_option_added)
+                }
+                _ => None,
+            }
+        }
+
+        #[must_use]
+        pub fn poll_option_deleted(&self) -> Option<&types::PollOptionDeleted> {
+            match &self.kind {
+                PollOptionDeleted(MessagePollOptionDeleted { poll_option_deleted }) => {
+                    Some(poll_option_deleted)
+                }
+                _ => None,
+            }
+        }
+
+        #[must_use]
         pub fn reply_markup(&self) -> Option<&types::InlineKeyboardMarkup> {
             match &self.kind {
                 Common(MessageCommon { reply_markup, .. }) => reply_markup.as_ref(),
@@ -2400,6 +2474,29 @@ impl Message {
             .chain(flatten(self.video_chat_participants_invited().map(|i| &i.users)))
             .chain(self.chat_owner_left().and_then(|l| l.new_owner.as_ref()))
             .chain(self.chat_owner_changed().map(|c| &c.new_owner))
+            .chain(self.managed_bot_created().map(|m| &m.bot))
+            .chain(flatten(
+                self.poll_option_added()
+                    .and_then(|p| p.option_text_entities.as_deref())
+                    .map(mentioned_users_from_entities),
+            ))
+            .chain(flatten(
+                self.poll_option_added()
+                    .and_then(|p| p.poll_message.as_deref())
+                    .and_then(MaybeInaccessibleMessage::regular_message)
+                    .map(Self::mentioned_users_rec),
+            ))
+            .chain(flatten(
+                self.poll_option_deleted()
+                    .and_then(|p| p.option_text_entities.as_deref())
+                    .map(mentioned_users_from_entities),
+            ))
+            .chain(flatten(
+                self.poll_option_deleted()
+                    .and_then(|p| p.poll_message.as_deref())
+                    .and_then(MaybeInaccessibleMessage::regular_message)
+                    .map(Self::mentioned_users_rec),
+            ))
     }
 
     /// `Message::mentioned_users` is recursive (due to replies), as such we
@@ -3791,5 +3888,176 @@ mod tests {
         assert_eq!(modern.sender_tag.as_deref(), Some("maintainer"));
         let roundtrip: Message = from_str(&serde_json::to_string(&modern).unwrap()).unwrap();
         assert_eq!(modern, roundtrip);
+    }
+
+    #[test]
+    fn managed_bot_created_and_poll_option_service_messages() {
+        let managed_bot_json = r#"{
+            "message_id": 3001,
+            "from": { "id": 100, "is_bot": false, "first_name": "Creator" },
+            "chat": { "id": 100, "first_name": "Creator", "type": "private" },
+            "date": 1775174400,
+            "managed_bot_created": {
+                "bot": {
+                    "id": 9901,
+                    "is_bot": true,
+                    "first_name": "Managed Helper",
+                    "username": "managed_helper_bot"
+                }
+            }
+        }"#;
+        let msg_bot: Message = from_str(managed_bot_json).unwrap();
+        assert_eq!(msg_bot.managed_bot_created().map(|m| m.bot.id), Some(UserId(9901)));
+        assert!(msg_bot.mentioned_users().any(|u| u.id == UserId(9901)));
+        let bot_roundtrip: Message = from_str(&serde_json::to_string(&msg_bot).unwrap()).unwrap();
+        assert_eq!(msg_bot, bot_roundtrip);
+
+        let added_inaccessible_json = r#"{
+            "message_id": 3002,
+            "chat": { "id": -1001, "title": "Group", "type": "supergroup" },
+            "date": 1775174401,
+            "poll_option_added": {
+                "poll_message": {
+                    "message_id": 2999,
+                    "chat": { "id": -1001, "title": "Group", "type": "supergroup" },
+                    "date": 0
+                },
+                "option_persistent_id": "opt-99",
+                "option_text": "Ask @helper",
+                "option_text_entities": [
+                    {
+                        "type": "text_mention",
+                        "offset": 4,
+                        "length": 7,
+                        "user": { "id": 555, "is_bot": false, "first_name": "Helper" }
+                    }
+                ]
+            }
+        }"#;
+        let msg_added_inaccessible: Message = from_str(added_inaccessible_json).unwrap();
+        let added_inaccessible = msg_added_inaccessible.poll_option_added().unwrap();
+        assert_eq!(added_inaccessible.option_persistent_id, "opt-99");
+        assert!(matches!(
+            added_inaccessible.poll_message.as_deref(),
+            Some(MaybeInaccessibleMessage::Inaccessible(_))
+        ));
+        assert!(msg_added_inaccessible.mentioned_users().any(|u| u.id == UserId(555)));
+
+        let added_regular_json = r#"{
+            "message_id": 3005,
+            "chat": { "id": -1001, "title": "Group", "type": "supergroup" },
+            "date": 1775174401,
+            "poll_option_added": {
+                "poll_message": {
+                    "message_id": 2999,
+                    "chat": { "id": -1001, "title": "Group", "type": "supergroup" },
+                    "date": 1775174300,
+                    "poll": {
+                        "id": "poll-nested-1",
+                        "question": "Pick",
+                        "options": [
+                            {
+                                "persistent_id": "opt-1",
+                                "text": "A",
+                                "voter_count": 1,
+                                "added_by_user": { "id": 601, "is_bot": false, "first_name": "Adder" }
+                            }
+                        ],
+                        "total_voter_count": 1,
+                        "is_closed": false,
+                        "is_anonymous": false,
+                        "type": "regular",
+                        "allows_multiple_answers": false,
+                        "allows_revoting": true,
+                        "description": "See @owner",
+                        "description_entities": [
+                            {
+                                "type": "text_mention",
+                                "offset": 4,
+                                "length": 6,
+                                "user": { "id": 602, "is_bot": false, "first_name": "DescUser" }
+                            }
+                        ]
+                    }
+                },
+                "option_persistent_id": "opt-100",
+                "option_text": "Choice 2"
+            }
+        }"#;
+        let msg_added_regular: Message = from_str(added_regular_json).unwrap();
+        assert!(matches!(
+            msg_added_regular.poll_option_added().unwrap().poll_message.as_deref(),
+            Some(MaybeInaccessibleMessage::Regular(_))
+        ));
+        assert!(msg_added_regular.mentioned_users().any(|u| u.id == UserId(601)));
+        assert!(msg_added_regular.mentioned_users().any(|u| u.id == UserId(602)));
+        let added_roundtrip: Message =
+            from_str(&serde_json::to_string(&msg_added_regular).unwrap()).unwrap();
+        assert_eq!(msg_added_regular, added_roundtrip);
+
+        let deleted_regular_json = r#"{
+            "message_id": 3006,
+            "chat": { "id": -1001, "title": "Group", "type": "supergroup" },
+            "date": 1775174402,
+            "poll_option_deleted": {
+                "poll_message": {
+                    "message_id": 2999,
+                    "chat": { "id": -1001, "title": "Group", "type": "supergroup" },
+                    "date": 1775174300,
+                    "poll": {
+                        "id": "poll-nested-2",
+                        "question": "Pick",
+                        "options": [
+                            {
+                                "persistent_id": "opt-2",
+                                "text": "B",
+                                "voter_count": 0,
+                                "added_by_user": { "id": 603, "is_bot": false, "first_name": "DelAdder" }
+                            }
+                        ],
+                        "total_voter_count": 0,
+                        "is_closed": false,
+                        "is_anonymous": false,
+                        "type": "regular",
+                        "allows_multiple_answers": false,
+                        "allows_revoting": true
+                    }
+                },
+                "option_persistent_id": "opt-2",
+                "option_text": "B"
+            }
+        }"#;
+        let msg_deleted_regular: Message = from_str(deleted_regular_json).unwrap();
+        assert!(msg_deleted_regular.mentioned_users().any(|u| u.id == UserId(603)));
+
+        let deleted_json = r#"{
+            "message_id": 3003,
+            "chat": { "id": -1001, "title": "Group", "type": "supergroup" },
+            "date": 1775174402,
+            "poll_option_deleted": {
+                "option_persistent_id": "opt-99",
+                "option_text": "Old choice"
+            }
+        }"#;
+        let msg_deleted: Message = from_str(deleted_json).unwrap();
+        let deleted = msg_deleted.poll_option_deleted().unwrap();
+        assert!(deleted.poll_message.is_none());
+        assert_eq!(deleted.option_text, "Old choice");
+        let deleted_roundtrip: Message =
+            from_str(&serde_json::to_string(&msg_deleted).unwrap()).unwrap();
+        assert_eq!(msg_deleted, deleted_roundtrip);
+
+        let reply_json = r#"{
+            "message_id": 3004,
+            "chat": { "id": -1001, "title": "Group", "type": "supergroup" },
+            "date": 1775174403,
+            "reply_to_poll_option_id": "opt-1",
+            "text": "Replying to option 1"
+        }"#;
+        let msg_reply: Message = from_str(reply_json).unwrap();
+        assert_eq!(msg_reply.reply_to_poll_option_id(), Some("opt-1"));
+        let reply_roundtrip: Message =
+            from_str(&serde_json::to_string(&msg_reply).unwrap()).unwrap();
+        assert_eq!(msg_reply, reply_roundtrip);
     }
 }

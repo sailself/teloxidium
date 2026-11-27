@@ -101,7 +101,8 @@ pub struct InputChecklistTask {
 
     /// List of special entities that appear in the text, which can be specified
     /// instead of parse_mode. Currently, only _bold_, _italic_, _underline_,
-    /// _strikethrough_, _spoiler_, and _custom_emoji_ entities are allowed
+    /// _strikethrough_, _spoiler_, _custom_emoji_, and _date_time_ entities are
+    /// allowed
     pub text_entities: Option<Vec<MessageEntity>>,
 }
 
@@ -123,8 +124,8 @@ pub struct InputChecklist {
 
     /// List of special entities that appear in the title, which can be
     /// specified instead of parse_mode. Currently, only _bold_, _italic_,
-    /// _underline_, _strikethrough_, _spoiler_, and _custom_emoji_ entities
-    /// are allowed
+    /// _underline_, _strikethrough_, _spoiler_, _custom_emoji_, and _date_time_
+    /// entities are allowed
     pub title_entities: Option<Vec<MessageEntity>>,
 
     /// List of 1-30 tasks in the checklist

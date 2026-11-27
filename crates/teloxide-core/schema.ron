@@ -40,7 +40,7 @@
 //! [github]: https://github.com/WaffleLapkin/tg-methods-schema
 
 Schema(
-    api_version: ApiVersion(ver: "9.5", date: "March 1, 2026"),
+    api_version: ApiVersion(ver: "9.6", date: "April 3, 2026"),
     methods: [
         Method(
             names: ("getUpdates", "GetUpdates", "get_updates"),
@@ -484,7 +484,7 @@ Schema(
             names: ("copyMessage", "CopyMessage", "copy_message"),
             return_ty: RawTy("MessageId"),
             doc: Doc(
-                md: "Use this method to copy messages of any kind. Service messages, paid media messages, giveaway messages, giveaway winners messages, and invoice messages can't be copied. A quiz [Poll] can be copied only if the value of the field *correct_option_id* is known to the bot. The method is analogous to the method [forwardMessage], but the copied message doesn't have a link to the original message. Returns the [MessageId] of the sent message on success.",
+                md: "Use this method to copy messages of any kind. Service messages, paid media messages, giveaway messages, giveaway winners messages, and invoice messages can't be copied. A quiz [Poll] can be copied only if the value of the field *correct_option_ids* is known to the bot. The method is analogous to the method [forwardMessage], but the copied message doesn't have a link to the original message. Returns the [MessageId] of the sent message on success.",
                 md_links: {
                     "Poll": "https://core.telegram.org/bots/api#poll",
                     "forwardMessage": "https://core.telegram.org/bots/api#forwardmessage",
@@ -597,7 +597,7 @@ Schema(
             names: ("copyMessages", "CopyMessages", "copy_messages"),
             return_ty: ArrayOf(RawTy("MessageId")),
             doc: Doc(
-                md: "Use this method to copy messages of any kind. If some of the specified messages can't be found or copied, they are skipped. Service messages, paid media messages, giveaway messages, giveaway winners messages, and invoice messages can't be copied. A quiz [Poll] can be copied only if the value of the field *correct_option_id* is known to the bot. The method is analogous to the method [forwardMessages], but the copied messages don't have a link to the original message. Album grouping is kept for copied messages. On success, an array of [MessageId] of the sent messages is returned.",
+                md: "Use this method to copy messages of any kind. If some of the specified messages can't be found or copied, they are skipped. Service messages, paid media messages, giveaway messages, giveaway winners messages, and invoice messages can't be copied. A quiz [Poll] can be copied only if the value of the field *correct_option_ids* is known to the bot. The method is analogous to the method [forwardMessages], but the copied messages don't have a link to the original message. Album grouping is kept for copied messages. On success, an array of [MessageId] of the sent messages is returned.",
                 md_links: {
                     "Poll": "https://core.telegram.org/bots/api#poll",
                     "forwardMessages": "https://core.telegram.org/bots/api#forwardmessages",
@@ -2319,12 +2319,32 @@ Schema(
                 Param(
                     name: "allows_multiple_answers",
                     ty: Option(bool),
-                    descr: Doc(md: "True, if the poll allows multiple answers, ignored for polls in quiz mode, defaults to False")
+                    descr: Doc(md: "Pass True if the poll allows multiple answers, defaults to False")
                 ),
                 Param(
-                    name: "correct_option_id",
-                    ty: Option(u8),
-                    descr: Doc(md: "0-based identifier of the correct answer option, required for polls in quiz mode")
+                    name: "allows_revoting",
+                    ty: Option(bool),
+                    descr: Doc(md: "Pass True if the poll allows changing the chosen answer options, defaults to False for quizzes and to True for regular polls")
+                ),
+                Param(
+                    name: "shuffle_options",
+                    ty: Option(bool),
+                    descr: Doc(md: "Pass True if the poll options must be shown in random order")
+                ),
+                Param(
+                    name: "allow_adding_options",
+                    ty: Option(bool),
+                    descr: Doc(md: "Pass True if answer options can be added to the poll after creation; not supported for anonymous polls and quizzes")
+                ),
+                Param(
+                    name: "hide_results_until_closes",
+                    ty: Option(bool),
+                    descr: Doc(md: "Pass True if poll results must be shown only after the poll closes")
+                ),
+                Param(
+                    name: "correct_option_ids",
+                    ty: Option(ArrayOf(u8)),
+                    descr: Doc(md: "A JSON-serialized list of monotonically increasing 0-based identifiers of the correct answer options, required for polls in quiz mode")
                 ),
                 Param(
                     name: "explanation",
@@ -2346,18 +2366,36 @@ Schema(
                 ),
                 Param(
                     name: "open_period",
-                    ty: Option(u16),
-                    descr: Doc(md: "Amount of time in seconds the poll will be active after creation, 5-600. Can't be used together with close_date.")
+                    ty: Option(u32),
+                    descr: Doc(md: "Amount of time in seconds the poll will be active after creation, 5-2628000. Can't be used together with close_date.")
                 ),
                 Param(
                     name: "close_date",
                     ty: Option(u64),
-                    descr: Doc(md: "Point in time (Unix timestamp) when the poll will be automatically closed. Must be at least 5 and no more than 600 seconds in the future. Can't be used together with open_period.")
+                    descr: Doc(md: "Point in time (Unix timestamp) when the poll will be automatically closed. Must be at least 5 and no more than 2628000 seconds in the future. Can't be used together with open_period.")
                 ),
                 Param(
                     name: "is_closed",
                     ty: Option(bool),
                     descr: Doc(md: "Pass True, if the poll needs to be immediately closed. This can be useful for poll preview.")
+                ),
+                Param(
+                    name: "description",
+                    ty: Option(String),
+                    descr: Doc(md: "Description of the poll to be sent, 0-1024 characters after entities parsing")
+                ),
+                Param(
+                    name: "description_parse_mode",
+                    ty: Option(RawTy("ParseMode")),
+                    descr: Doc(
+                        md: "Mode for parsing entities in the poll description. See [formatting options] for more details.",
+                        md_links: {"formatting options": "https://core.telegram.org/bots/api#formatting-options"}
+                    )
+                ),
+                Param(
+                    name: "description_entities",
+                    ty: Option(ArrayOf(RawTy("MessageEntity"))),
+                    descr: Doc(md: "A JSON-serialized list of special entities that appear in the poll description, which can be specified instead of _description\\_parse\\_mode_")
                 ),
                 Param(
                     name: "disable_notification",
@@ -4230,6 +4268,56 @@ Schema(
             ]
         ),
         Method(
+            names: ("savePreparedKeyboardButton", "SavePreparedKeyboardButton", "save_prepared_keyboard_button"),
+            return_ty: RawTy("PreparedKeyboardButton"),
+            doc: Doc(
+                md: "Stores a keyboard button that can be used by a user within a Mini App. Returns a [PreparedKeyboardButton] object.",
+                md_links: {"PreparedKeyboardButton": "https://core.telegram.org/bots/api#preparedkeyboardbutton"}
+            ),
+            tg_doc: "https://core.telegram.org/bots/api#savepreparedkeyboardbutton",
+            tg_category: "Available methods",
+            params: [
+                Param(
+                    name: "user_id",
+                    ty: RawTy("UserId"),
+                    descr: Doc(md: "Unique identifier of the target user that can use the button"),
+                ),
+                Param(
+                    name: "button",
+                    ty: RawTy("KeyboardButton"),
+                    descr: Doc(md: "A JSON-serialized object describing the button to be saved. The button must be of the type `request_users`, `request_chat`, or `request_managed_bot`."),
+                ),
+            ]
+        ),
+        Method(
+            names: ("getManagedBotToken", "GetManagedBotToken", "get_managed_bot_token"),
+            return_ty: String,
+            doc: Doc(md: "Use this method to get the token of a managed bot. Returns the token as String on success."),
+            tg_doc: "https://core.telegram.org/bots/api#getmanagedbottoken",
+            tg_category: "Available methods",
+            params: [
+                Param(
+                    name: "user_id",
+                    ty: RawTy("UserId"),
+                    descr: Doc(md: "User identifier of the managed bot whose token will be returned"),
+                ),
+            ]
+        ),
+        Method(
+            names: ("replaceManagedBotToken", "ReplaceManagedBotToken", "replace_managed_bot_token"),
+            return_ty: String,
+            doc: Doc(md: "Use this method to revoke the current token of a managed bot and generate a new one. Returns the new token as String on success."),
+            tg_doc: "https://core.telegram.org/bots/api#replacemanagedbottoken",
+            tg_category: "Available methods",
+            params: [
+                Param(
+                    name: "user_id",
+                    ty: RawTy("UserId"),
+                    descr: Doc(md: "User identifier of the managed bot whose token will be replaced"),
+                ),
+            ]
+        ),
+        Method(
             names: ("editMessageText", "EditMessageText", "edit_message_text"),
             return_ty: RawTy("Message"),
             doc: Doc(
@@ -5224,14 +5312,14 @@ Schema(
                     name: "text_parse_mode",
                     ty: Option(RawTy("ParseMode")),
                     descr: Doc(
-                        md: "Mode for parsing entities in the text. See [formatting options] for more details. Entities other than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, and “custom_emoji” are ignored",
+                        md: "Mode for parsing entities in the text. See [formatting options] for more details. Entities other than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, “custom_emoji”, and “date_time” are ignored",
                         md_links: {"formatting options": "https://core.telegram.org/bots/api#formatting-options"}
                     )
                 ),
                 Param(
                     name: "text_entities",
                     ty: Option(ArrayOf(RawTy("MessageEntity"))),
-                    descr: Doc(md: "List of special entities that appear in the gift text. It can be specified instead of text_parse_mode. Entities other than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, and “custom_emoji” are ignored."),
+                    descr: Doc(md: "List of special entities that appear in the gift text. It can be specified instead of text_parse_mode. Entities other than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, “custom_emoji”, and “date_time” are ignored."),
                 ),
             ]
         ),
@@ -5267,14 +5355,14 @@ Schema(
                     name: "text_parse_mode",
                     ty: Option(RawTy("ParseMode")),
                     descr: Doc(
-                        md: "Mode for parsing entities in the text. See [formatting options] for more details. Entities other than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, and “custom_emoji” are ignored",
+                        md: "Mode for parsing entities in the text. See [formatting options] for more details. Entities other than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, “custom_emoji”, and “date_time” are ignored",
                         md_links: {"formatting options": "https://core.telegram.org/bots/api#formatting-options"}
                     )
                 ),
                 Param(
                     name: "text_entities",
                     ty: Option(ArrayOf(RawTy("MessageEntity"))),
-                    descr: Doc(md: "List of special entities that appear in the gift text. It can be specified instead of text_parse_mode. Entities other than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, and “custom_emoji” are ignored."),
+                    descr: Doc(md: "List of special entities that appear in the gift text. It can be specified instead of text_parse_mode. Entities other than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, “custom_emoji”, and “date_time” are ignored."),
                 ),
             ]
         ),
@@ -5435,7 +5523,7 @@ Schema(
                     name: "text_parse_mode",
                     ty: Option(RawTy("ParseMode")),
                     descr: Doc(
-                        md: "Mode for parsing entities in the text. See [formatting options] for more details. Entities other than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, and “custom_emoji” are ignored.",
+                        md: "Mode for parsing entities in the text. See [formatting options] for more details. Entities other than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, “custom_emoji”, and “date_time” are ignored.",
                         md_links: {"formatting options": "https://core.telegram.org/bots/api#formatting-options"}
                     )
                 ),
@@ -5443,7 +5531,7 @@ Schema(
                     name: "text_entities",
                     ty: Option(ArrayOf(RawTy("MessageEntity"))),
                     descr: Doc(
-                        md: "List of special entities that appear in the gift text. It can be specified instead of `text_parse_mode`. See [formatting options] for more details. Entities other than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, and “custom_emoji” are ignored.",
+                        md: "List of special entities that appear in the gift text. It can be specified instead of `text_parse_mode`. See [formatting options] for more details. Entities other than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, “custom_emoji”, and “date_time” are ignored.",
                         md_links: {"formatting options": "https://core.telegram.org/bots/api#formatting-options"}
                     )
                 )

@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## unreleased
 
+## 0.22.0 - 2026-11-27
+
+### Added
+
+- Support for Telegram Bot API 9.6 (`teloxide-core 0.18.0`): [**BC**]
+  - Add Managed Bots types (`KeyboardButtonRequestManagedBot`, `ButtonRequest::RequestManagedBot`, `ManagedBotCreated`, `ManagedBotUpdated`, `PreparedKeyboardButton`), `Me::can_manage_bots`, `UpdateKind::ManagedBot`, `AllowedUpdate::ManagedBot`, and methods `get_managed_bot_token`, `replace_managed_bot_token`, `save_prepared_keyboard_button` (with `Trace` verbose response redaction for managed-bot token endpoints and direct `KeyboardButton` validation for conflicting requests).
+  - Add `UpdateFilterExt::filter_managed_bot` and `MessageFilterExt::{filter_managed_bot_created, filter_poll_option_added, filter_poll_option_deleted}` filters and update `Kind::full_set()`.
+  - Overhaul Polls (v2): replace `Poll::correct_option_id` and `SendPoll::correct_option_id` with `correct_option_ids` (while mapping legacy `correct_option_id` during `Poll` deserialization and preserving Telegram's poll-type default when `allows_revoting` is omitted); add `Poll::allows_revoting`, `Poll::{description, description_entities}`, `PollOption::{persistent_id, added_by_user, added_by_chat, addition_date}`, `PollAnswer::option_persistent_ids`, `ReplyParameters::poll_option_id`, `MessageCommon::reply_to_poll_option_id`, `PollOptionAdded`, `PollOptionDeleted`, and `SendPoll` parameters (`allows_revoting`, `shuffle_options`, `allow_adding_options`, `hide_results_until_closes`, `description`, `description_parse_mode`, `description_entities`, `open_period: u32` up to `2628000`).
+  - Update `DefaultParseMode` on `SendPoll` to apply to both `explanation_parse_mode` and `description_parse_mode` (when their respective `*_entities` fields are unset).
+
 ## 0.21.0 - 2026-11-27
 
 ### Added
