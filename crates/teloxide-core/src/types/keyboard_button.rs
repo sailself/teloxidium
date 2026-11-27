@@ -2,7 +2,7 @@ use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::types::{
     ButtonStyle, CustomEmojiId, KeyboardButtonPollType, KeyboardButtonRequestChat,
-    KeyboardButtonRequestUsers, True, WebAppInfo,
+    KeyboardButtonRequestManagedBot, KeyboardButtonRequestUsers, True, WebAppInfo,
 };
 
 /// This object represents one button of the reply keyboard.
@@ -15,7 +15,7 @@ use crate::types::{
 ///
 /// [The official docs](https://core.telegram.org/bots/api#keyboardbutton).
 #[serde_with::skip_serializing_none]
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct KeyboardButton {
     /// Text of the button. If none of the fields other than `text`,
@@ -107,6 +107,13 @@ pub enum ButtonRequest {
     #[cfg_attr(test, schemars(rename = "request_users"))]
     RequestUsers(KeyboardButtonRequestUsers),
 
+    /// If specified, pressing the button will ask the user to create and share
+    /// a bot that will be managed by the current bot. Available for bots that
+    /// enabled management of other bots in the `@BotFather` Mini App.
+    /// Available in private chats only.
+    #[cfg_attr(test, schemars(rename = "request_managed_bot"))]
+    RequestManagedBot(KeyboardButtonRequestManagedBot),
+
     /// If this variant is used, the user will be asked to create a poll and
     /// send it to the bot when the button is pressed.
     ///
@@ -152,6 +159,12 @@ struct RawRequest {
     #[serde(rename = "request_users")]
     users: Option<KeyboardButtonRequestUsers>,
 
+    /// If specified, pressing the button will ask the user to create and share
+    /// a bot that will be managed by the current bot. Available in private
+    /// chats only.
+    #[serde(rename = "request_managed_bot")]
+    managed_bot: Option<KeyboardButtonRequestManagedBot>,
+
     /// If specified, the user will be asked to create a poll and
     /// send it to the bot when the button is pressed. Available in private
     /// chats only.
@@ -164,30 +177,81 @@ struct RawRequest {
     web_app: Option<WebAppInfo>,
 }
 
-impl<'de> Deserialize<'de> for ButtonRequest {
+#[derive(Deserialize)]
+struct RawKeyboardButton {
+    text: String,
+    icon_custom_emoji_id: Option<CustomEmojiId>,
+    style: Option<ButtonStyle>,
+    #[serde(flatten)]
+    raw_request: RawRequest,
+}
+
+impl<'de> Deserialize<'de> for KeyboardButton {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let raw = RawRequest::deserialize(deserializer)?;
+        let raw = RawKeyboardButton::deserialize(deserializer)?;
+        let request = raw.raw_request.into_optional_button_request()?;
+        Ok(Self {
+            text: raw.text,
+            icon_custom_emoji_id: raw.icon_custom_emoji_id,
+            style: raw.style,
+            request,
+        })
+    }
+}
+
+impl RawRequest {
+    fn is_empty(&self) -> bool {
+        matches!(
+            self,
+            RawRequest {
+                contact: None,
+                location: None,
+                chat: None,
+                users: None,
+                managed_bot: None,
+                poll: None,
+                web_app: None,
+            }
+        )
+    }
+
+    fn into_optional_button_request<E: Error>(self) -> Result<Option<ButtonRequest>, E> {
+        if self.is_empty() {
+            Ok(None)
+        } else {
+            ButtonRequest::try_from_raw(self).map(Some)
+        }
+    }
+}
+
+impl ButtonRequest {
+    fn try_from_raw<E: Error>(raw: RawRequest) -> Result<Self, E> {
         match raw {
-            RawRequest { contact, location, chat, users, poll, web_app }
+            RawRequest { contact, location, chat, users, managed_bot, poll, web_app }
                 if 1 < (contact.is_some() as u8
                     + location.is_some() as u8
                     + chat.is_some() as u8
                     + users.is_some() as u8
+                    + managed_bot.is_some() as u8
                     + poll.is_some() as u8
                     + web_app.is_some() as u8) =>
             {
-                Err(D::Error::custom(
-                    "`request_contact`, `request_location`, `request_chat`, `request_user`, \
-                     `request_poll` and `web_app` fields are mutually exclusive",
+                Err(E::custom(
+                    "`request_contact`, `request_location`, `request_chat`, `request_users`, \
+                     `request_managed_bot`, `request_poll` and `web_app` fields are mutually \
+                     exclusive",
                 ))
             }
             RawRequest { contact: Some(True), .. } => Ok(Self::Contact),
             RawRequest { location: Some(True), .. } => Ok(Self::Location),
             RawRequest { chat: Some(request_chat), .. } => Ok(Self::RequestChat(request_chat)),
             RawRequest { users: Some(request_users), .. } => Ok(Self::RequestUsers(request_users)),
+            RawRequest { managed_bot: Some(request_managed_bot), .. } => {
+                Ok(Self::RequestManagedBot(request_managed_bot))
+            }
             RawRequest { poll: Some(poll_type), .. } => Ok(Self::Poll(poll_type)),
             RawRequest { web_app: Some(web_app), .. } => Ok(Self::WebApp(web_app)),
 
@@ -196,13 +260,24 @@ impl<'de> Deserialize<'de> for ButtonRequest {
                 location: None,
                 chat: None,
                 users: None,
+                managed_bot: None,
                 poll: None,
                 web_app: None,
-            } => Err(D::Error::custom(
+            } => Err(E::custom(
                 "Either one of `request_contact`, `request_chat`, `request_users`, \
-                 `request_location`, `request_poll` and `web_app` fields is required",
+                 `request_managed_bot`, `request_location`, `request_poll` and `web_app` fields \
+                 is required",
             )),
         }
+    }
+}
+
+impl<'de> Deserialize<'de> for ButtonRequest {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Self::try_from_raw(RawRequest::deserialize(deserializer)?)
     }
 }
 
@@ -216,6 +291,7 @@ impl Serialize for ButtonRequest {
             location: None,
             chat: None,
             users: None,
+            managed_bot: None,
             poll: None,
             web_app: None,
         };
@@ -225,6 +301,9 @@ impl Serialize for ButtonRequest {
             Self::Location => raw.location = Some(True),
             Self::RequestChat(request_chat) => raw.chat = Some(request_chat.clone()),
             Self::RequestUsers(request_users) => raw.users = Some(request_users.clone()),
+            Self::RequestManagedBot(request_managed_bot) => {
+                raw.managed_bot = Some(request_managed_bot.clone())
+            }
             Self::Poll(poll_type) => raw.poll = Some(poll_type.clone()),
             Self::WebApp(web_app) => raw.web_app = Some(web_app.clone()),
         };
@@ -294,5 +373,35 @@ mod tests {
         );
         let parsed: KeyboardButton = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed, button);
+    }
+
+    #[test]
+    fn managed_bot_request_roundtrip_and_mutual_exclusion() {
+        let button = KeyboardButton::new("Create Bot").request(ButtonRequest::RequestManagedBot(
+            KeyboardButtonRequestManagedBot::new(RequestId(99))
+                .suggested_name("Agent")
+                .suggested_username("my_agent_bot"),
+        ));
+        let json = serde_json::to_string(&button).unwrap();
+        assert_eq!(
+            json,
+            r#"{"text":"Create Bot","request_managed_bot":{"request_id":99,"suggested_name":"Agent","suggested_username":"my_agent_bot"}}"#
+        );
+        let parsed: KeyboardButton = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, button);
+
+        let conflicting = r#"{
+            "text": "Conflict",
+            "request_contact": true,
+            "request_managed_bot": { "request_id": 1 }
+        }"#;
+        assert!(serde_json::from_str::<KeyboardButton>(conflicting).is_err());
+        assert!(serde_json::from_str::<ButtonRequest>(conflicting).is_err());
+
+        let plain = r#"{"text":"Plain button"}"#;
+        assert_eq!(
+            serde_json::from_str::<KeyboardButton>(plain).unwrap(),
+            KeyboardButton::new("Plain button")
+        );
     }
 }

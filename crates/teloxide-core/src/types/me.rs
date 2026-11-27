@@ -40,6 +40,10 @@ pub struct Me {
     /// chats.
     #[serde(default)]
     pub allows_users_to_create_topics: bool,
+
+    /// `true`, if the bot can be used to manage other bots.
+    #[serde(default)]
+    pub can_manage_bots: bool,
 }
 
 impl Me {
@@ -97,6 +101,7 @@ mod tests {
             has_main_web_app: false,
             has_topics_enabled: false,
             allows_users_to_create_topics: false,
+            can_manage_bots: false,
         };
 
         assert_eq!(me.username(), "SomethingSomethingBot");
@@ -119,6 +124,7 @@ mod tests {
         let legacy: Me = serde_json::from_str(legacy_json).unwrap();
         assert!(!legacy.has_topics_enabled);
         assert!(!legacy.allows_users_to_create_topics);
+        assert!(!legacy.can_manage_bots);
 
         let modern_json = r#"{
             "id": 42,
@@ -131,11 +137,13 @@ mod tests {
             "can_connect_to_business": true,
             "has_main_web_app": false,
             "has_topics_enabled": true,
-            "allows_users_to_create_topics": true
+            "allows_users_to_create_topics": true,
+            "can_manage_bots": true
         }"#;
         let modern: Me = serde_json::from_str(modern_json).unwrap();
         assert!(modern.has_topics_enabled);
         assert!(modern.allows_users_to_create_topics);
+        assert!(modern.can_manage_bots);
         let roundtrip: Me = serde_json::from_str(&serde_json::to_string(&modern).unwrap()).unwrap();
         assert_eq!(modern, roundtrip);
     }

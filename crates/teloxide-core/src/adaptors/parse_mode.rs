@@ -286,6 +286,9 @@ where
         set_my_default_administrator_rights,
         get_my_default_administrator_rights,
         delete_my_commands,
+        save_prepared_keyboard_button,
+        get_managed_bot_token,
+        replace_managed_bot_token,
         edit_message_reply_markup,
         edit_message_reply_markup_inline,
         stop_poll,
@@ -407,7 +410,17 @@ impl_visit_parse_modes! {
     CopyMessage => [parse_mode],
     PostStory => [parse_mode],
     EditStory => [parse_mode],
-    SendPoll => [explanation_parse_mode],
+}
+
+impl VisitParseModes for SendPoll {
+    fn visit_parse_modes(&mut self, mut visitor: impl FnMut(&mut Option<ParseMode>)) {
+        if self.explanation_entities.is_none() {
+            visitor(&mut self.explanation_parse_mode);
+        }
+        if self.description_entities.is_none() {
+            visitor(&mut self.description_parse_mode);
+        }
+    }
 }
 
 impl VisitParseModes for SendMessageDraft {
@@ -545,9 +558,9 @@ fn visit_parse_modes_in_input_media(
 mod tests {
     use super::*;
     use crate::{
-        payloads::SendMessageDraftSetters,
+        payloads::{SendMessageDraftSetters, SendPollSetters},
         requests::HasPayload,
-        types::{ChatId, DraftId, MessageEntity, ParseMode},
+        types::{ChatId, DraftId, InputPollOption, MessageEntity, ParseMode},
         Bot,
     };
 
@@ -574,5 +587,154 @@ mod tests {
         let serialized = serde_json::to_value(with_entities.payload_ref()).unwrap();
         assert!(serialized.get("parse_mode").is_none());
         assert!(serialized.get("entities").is_some());
+    }
+
+    #[test]
+    fn send_poll_uses_default_and_respects_explicit_parse_mode_and_entities() {
+        let bot = DefaultParseMode::new(Bot::new("test-token"), ParseMode::MarkdownV2);
+
+        let mut req = bot
+            .send_poll(
+                ChatId(42),
+                "What *is* this?",
+                [InputPollOption::new("A"), InputPollOption::new("B")],
+            )
+            .explanation("Default _explanation_")
+            .description("Default _description_");
+        req.payload_mut().visit_parse_modes(|mode| _ = mode.get_or_insert(bot.parse_mode()));
+        assert_eq!(req.payload_ref().question_parse_mode, None);
+        assert_eq!(req.payload_ref().explanation_parse_mode, Some(ParseMode::MarkdownV2));
+        assert_eq!(req.payload_ref().description_parse_mode, Some(ParseMode::MarkdownV2));
+
+        let mut explicit = bot
+            .send_poll(ChatId(42), "Pick", [InputPollOption::new("A"), InputPollOption::new("B")])
+            .explanation("<b>exp</b>")
+            .explanation_parse_mode(ParseMode::Html)
+            .description("<b>desc</b>")
+            .description_parse_mode(ParseMode::Html);
+        explicit.payload_mut().visit_parse_modes(|mode| _ = mode.get_or_insert(bot.parse_mode()));
+        assert_eq!(explicit.payload_ref().explanation_parse_mode, Some(ParseMode::Html));
+        assert_eq!(explicit.payload_ref().description_parse_mode, Some(ParseMode::Html));
+
+        let mut with_entities = bot
+            .send_poll(ChatId(42), "Pick", [InputPollOption::new("A"), InputPollOption::new("B")])
+            .explanation("2 < 3")
+            .explanation_entities([MessageEntity::bold(0, 5)])
+            .description("4 > 1")
+            .description_entities([MessageEntity::italic(0, 5)]);
+        with_entities
+            .payload_mut()
+            .visit_parse_modes(|mode| _ = mode.get_or_insert(bot.parse_mode()));
+        assert_eq!(with_entities.payload_ref().explanation_parse_mode, None);
+        assert_eq!(with_entities.payload_ref().description_parse_mode, None);
+    }
+
+    fn spawn_capture_server(
+        responses: Vec<String>,
+    ) -> (Url, std::sync::mpsc::Receiver<(String, serde_json::Value)>) {
+        use std::{
+            io::{Read, Write},
+            net::TcpListener,
+            sync::mpsc,
+        };
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let (tx, rx) = mpsc::channel();
+
+        std::thread::spawn(move || {
+            for response_body in responses {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut data = Vec::new();
+                let mut buf = [0u8; 1024];
+                let header_end = loop {
+                    let n = stream.read(&mut buf).unwrap();
+                    assert!(n > 0, "unexpected EOF reading HTTP headers");
+                    data.extend_from_slice(&buf[..n]);
+                    if let Some(pos) = data.windows(4).position(|w| w == b"\r\n\r\n") {
+                        break pos + 4;
+                    }
+                };
+                let headers = String::from_utf8_lossy(&data[..header_end]).into_owned();
+                let req_line = headers.lines().next().unwrap().to_owned();
+                let content_len: usize = headers
+                    .lines()
+                    .find_map(|line| {
+                        let (k, v) = line.split_once(':')?;
+                        k.eq_ignore_ascii_case("content-length").then(|| v.trim().parse().ok())?
+                    })
+                    .unwrap_or(0);
+                while data.len() < header_end + content_len {
+                    let n = stream.read(&mut buf).unwrap();
+                    assert!(n > 0, "unexpected EOF reading HTTP body");
+                    data.extend_from_slice(&buf[..n]);
+                }
+                let body: serde_json::Value =
+                    serde_json::from_slice(&data[header_end..header_end + content_len]).unwrap();
+                tx.send((req_line, body)).unwrap();
+
+                let reply = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: \
+                     {}\r\nConnection: close\r\n\r\n{}",
+                    response_body.len(),
+                    response_body
+                );
+                stream.write_all(reply.as_bytes()).unwrap();
+            }
+        });
+
+        (Url::parse(&format!("http://{addr}/")).unwrap(), rx)
+    }
+
+    #[tokio::test]
+    async fn send_poll_default_parse_mode_send_and_send_ref_over_transport() {
+        let poll_msg_json = serde_json::json!({
+            "ok": true,
+            "result": {
+                "message_id": 501,
+                "chat": { "id": 42, "first_name": "Alice", "type": "private" },
+                "date": 1775174400,
+                "poll": {
+                    "id": "poll-resp-1",
+                    "question": "Pick",
+                    "options": [
+                        { "persistent_id": "p1", "text": "A", "voter_count": 0 },
+                        { "persistent_id": "p2", "text": "B", "voter_count": 0 }
+                    ],
+                    "total_voter_count": 0,
+                    "is_closed": false,
+                    "is_anonymous": true,
+                    "type": "regular",
+                    "allows_multiple_answers": false,
+                    "allows_revoting": true
+                }
+            }
+        })
+        .to_string();
+
+        let (api_url, rx) = spawn_capture_server(vec![poll_msg_json.clone(), poll_msg_json]);
+        let bot = DefaultParseMode::new(
+            Bot::with_client("test-token", reqwest::Client::new()).set_api_url(api_url),
+            ParseMode::MarkdownV2,
+        );
+
+        let mixed_req = bot
+            .send_poll(ChatId(42), "Pick", [InputPollOption::new("A"), InputPollOption::new("B")])
+            .explanation("Default exp")
+            .description("Raw description")
+            .description_entities([MessageEntity::bold(0, 3)]);
+        let msg1 = mixed_req.send_ref().await.unwrap();
+        assert_eq!(msg1.id, MessageId(501));
+        mixed_req.send().await.unwrap();
+
+        let (line1, body1) = rx.recv().unwrap();
+        let (line2, body2) = rx.recv().unwrap();
+        for (line, body) in [(line1, body1), (line2, body2)] {
+            assert!(line.starts_with("POST /bottest-token/SendPoll "), "{line}");
+            assert_eq!(body.get("question_parse_mode"), None);
+            assert_eq!(body.get("explanation_parse_mode"), Some(&serde_json::json!("MarkdownV2")));
+            assert_eq!(body.get("description_parse_mode"), None);
+            assert!(body.get("description_entities").is_some());
+        }
     }
 }

@@ -4,9 +4,9 @@ use serde_json::Value;
 
 use crate::types::{
     BusinessConnection, BusinessMessagesDeleted, CallbackQuery, Chat, ChatBoostRemoved,
-    ChatBoostUpdated, ChatJoinRequest, ChatMemberUpdated, ChosenInlineResult, InlineQuery, Message,
-    MessageReactionCountUpdated, MessageReactionUpdated, PaidMediaPurchased, Poll, PollAnswer,
-    PreCheckoutQuery, ShippingQuery, User,
+    ChatBoostUpdated, ChatJoinRequest, ChatMemberUpdated, ChosenInlineResult, InlineQuery,
+    ManagedBotUpdated, Message, MessageReactionCountUpdated, MessageReactionUpdated,
+    PaidMediaPurchased, Poll, PollAnswer, PreCheckoutQuery, ShippingQuery, User,
 };
 
 /// This [object] represents an incoming update.
@@ -153,6 +153,10 @@ pub enum UpdateKind {
     /// chat to receive these updates.
     RemovedChatBoost(ChatBoostRemoved),
 
+    /// A new bot was created to be managed by the bot, or the token of a
+    /// managed bot was changed.
+    ManagedBot(ManagedBotUpdated),
+
     /// An error that happened during deserialization.
     ///
     /// This allows `teloxide` to continue working even if telegram adds a new
@@ -196,6 +200,7 @@ impl Update {
             ChatJoinRequest(r) => &r.from,
             ChatBoost(b) => return b.boost.source.user(),
             RemovedChatBoost(b) => return b.source.user(),
+            ManagedBot(m) => &m.user,
 
             MessageReactionCount(_) | DeletedBusinessMessages(_) | Poll(_) | Error(_) => {
                 return None
@@ -235,14 +240,16 @@ impl Update {
         // 2 = LRR
         // 3 = RLL
         // 4 = RLR
-        // 5 = RR
+        // 5 = RRL
+        // 6 = RRR
 
         let i0 = |x| L(L(x));
         let i1 = |x| L(R(L(x)));
         let i2 = |x| L(R(R(x)));
         let i3 = |x| R(L(L(x)));
         let i4 = |x| R(L(R(x)));
-        let i5 = |x| R(R(x));
+        let i5 = |x| R(R(L(x)));
+        let i6 = |x| R(R(R(x)));
 
         match &self.kind {
             UpdateKind::Message(message)
@@ -291,6 +298,8 @@ impl Update {
                 i5(empty())
             }
 
+            UpdateKind::ManagedBot(m) => i6([&m.user, &m.bot].into_iter()),
+
             UpdateKind::ChatJoinRequest(_)
             | UpdateKind::MessageReactionCount(_)
             | UpdateKind::BusinessConnection(_)
@@ -329,6 +338,7 @@ impl Update {
             | PurchasedPaidMedia(_)
             | Poll(_)
             | PollAnswer(_)
+            | ManagedBot(_)
             | Error(_) => return None,
         };
 
@@ -455,6 +465,9 @@ impl<'de> Deserialize<'de> for UpdateKind {
                             .next_value::<ChatBoostRemoved>()
                             .ok()
                             .map(UpdateKind::RemovedChatBoost),
+                        "managed_bot" => {
+                            map.next_value::<ManagedBotUpdated>().ok().map(UpdateKind::ManagedBot)
+                        }
                         _ => Some(empty_error()),
                     })
                     .unwrap_or_else(empty_error);
@@ -529,6 +542,7 @@ impl Serialize for UpdateKind {
             UpdateKind::RemovedChatBoost(v) => {
                 s.serialize_newtype_variant(name, 22, "removed_chat_boost", v)
             }
+            UpdateKind::ManagedBot(v) => s.serialize_newtype_variant(name, 23, "managed_bot", v),
             UpdateKind::Error(v) => v.serialize(s),
         }
     }
@@ -621,6 +635,7 @@ mod test {
                     external_reply: None,
                     quote: None,
                     reply_to_checklist_task_id: None,
+                    reply_to_poll_option_id: None,
                     reply_to_story: None,
                     sender_boost_count: None,
                     edit_date: None,
@@ -1286,5 +1301,35 @@ mod test {
         assert_eq!(qualities.len(), 2);
         assert_eq!(qualities[0].file_size, Some(4_294_967_296));
         assert_eq!(qualities[1].file_size, None);
+    }
+
+    #[test]
+    fn managed_bot_update() {
+        let json = r#"{
+            "update_id": 888001,
+            "managed_bot": {
+                "user": {
+                    "id": 1001,
+                    "is_bot": false,
+                    "first_name": "Alice"
+                },
+                "bot": {
+                    "id": 9901,
+                    "is_bot": true,
+                    "first_name": "Helper",
+                    "username": "alice_helper_bot"
+                }
+            }
+        }"#;
+
+        let update: Update = serde_json::from_str(json).unwrap();
+        assert_eq!(update.from().map(|u| u.id), Some(UserId(1001)));
+        assert!(update.chat().is_none());
+        let mentioned: Vec<UserId> = update.mentioned_users().map(|u| u.id).collect();
+        assert_eq!(mentioned, vec![UserId(1001), UserId(9901)]);
+
+        let roundtrip: Update =
+            serde_json::from_str(&serde_json::to_string(&update).unwrap()).unwrap();
+        assert_eq!(update, roundtrip);
     }
 }

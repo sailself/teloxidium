@@ -38,6 +38,10 @@ fn test_rust_objects() {
         },
         Exception::IgnoreObjectField {
             object: "User".to_owned(),
+            field_name: "can_manage_bots".to_owned(),
+        },
+        Exception::IgnoreObjectField {
+            object: "User".to_owned(),
             field_name: "allows_users_to_create_topics".to_owned(),
         },
         Exception::IgnoreObjectField {
@@ -1845,6 +1849,48 @@ fn test_rust_objects() {
         api_schema.clone(),
         schema_for!(UserProfileAudios),
         "UserProfileAudios".to_owned(),
+        &mut errors,
+        &exceptions,
+    );
+    check_object(
+        api_schema.clone(),
+        schema_for!(KeyboardButtonRequestManagedBot),
+        "KeyboardButtonRequestManagedBot".to_owned(),
+        &mut errors,
+        &exceptions,
+    );
+    check_object(
+        api_schema.clone(),
+        schema_for!(ManagedBotCreated),
+        "ManagedBotCreated".to_owned(),
+        &mut errors,
+        &exceptions,
+    );
+    check_object(
+        api_schema.clone(),
+        schema_for!(ManagedBotUpdated),
+        "ManagedBotUpdated".to_owned(),
+        &mut errors,
+        &exceptions,
+    );
+    check_object(
+        api_schema.clone(),
+        schema_for!(PreparedKeyboardButton),
+        "PreparedKeyboardButton".to_owned(),
+        &mut errors,
+        &exceptions,
+    );
+    check_object(
+        api_schema.clone(),
+        schema_for!(PollOptionAdded),
+        "PollOptionAdded".to_owned(),
+        &mut errors,
+        &exceptions,
+    );
+    check_object(
+        api_schema.clone(),
+        schema_for!(PollOptionDeleted),
+        "PollOptionDeleted".to_owned(),
         &mut errors,
         &exceptions,
     );

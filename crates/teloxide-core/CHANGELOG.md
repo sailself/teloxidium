@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## unreleased
 
+## 0.18.0 - 2026-11-27
+
+### Added
+
+- Support for TBA 9.6 (April 3, 2026)
+  - Add Managed Bots types (`KeyboardButtonRequestManagedBot`, `ManagedBotCreated`, `ManagedBotUpdated`, `PreparedKeyboardButton`), `ButtonRequest::RequestManagedBot`, `Me::can_manage_bots`, `MessageKind::ManagedBotCreated`, `UpdateKind::ManagedBot`, and `AllowedUpdate::ManagedBot` [**BC**]
+  - Add `get_managed_bot_token`, `replace_managed_bot_token`, and `save_prepared_keyboard_button` methods to `Requester` (also implemented on `Bot`, `CacheMe`, `Trace`, `ErasedRequester`, `DefaultParseMode`, and `Throttle`, with `Trace` redacting token payloads under `TRACE_RESPONSES_VERBOSE`) [**BC**]
+  - Validate mutually exclusive request fields when deserializing `KeyboardButton` directly
+  - Overhaul Polls for TBA 9.6: replace `Poll::correct_option_id` and `SendPoll::correct_option_id` with `correct_option_ids` (while deserializing legacy `correct_option_id` and deriving omitted `allows_revoting` from `poll_type`), widen `SendPoll::open_period` to `u32` (max `2628000`), add `Poll::{allows_revoting, description, description_entities}`, `PollOption::{persistent_id, added_by_user, added_by_chat, addition_date}`, `PollAnswer::option_persistent_ids`, `ReplyParameters::poll_option_id`, `MessageCommon::reply_to_poll_option_id`, `PollOptionAdded`/`PollOptionDeleted` (`MessageKind` + `Message::mentioned_users`), and `SendPoll::{allows_revoting, shuffle_options, allow_adding_options, hide_results_until_closes, description, description_parse_mode, description_entities}` [**BC**]
+  - Update `DefaultParseMode` on `SendPoll` to populate both `explanation_parse_mode` and `description_parse_mode` when their corresponding entity lists are absent
+  - Update documentation to note `date_time` entity support in `TextQuote::entities`, `ReplyParameters::quote`, `InputChecklist::title_entities`, `InputChecklistTask::text_entities`, `SendGift`/`SendGiftChat`, and `GiftPremiumSubscription`
+
 ## 0.17.0 - 2026-11-27
 
 ### Added

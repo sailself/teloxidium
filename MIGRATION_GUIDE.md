@@ -3,6 +3,20 @@ Note that the list of required changes is not fully exhaustive and it may lack s
 
 ## unreleased
 
+## 0.21 -> 0.22
+
+### teloxide-core & teloxide
+
+- **Polls v2 (`Poll`, `SendPoll`, `PollOption`, `PollAnswer`):**
+  - Replaced `Poll::correct_option_id: Option<u8>` with `Poll::correct_option_ids: Option<Vec<u8>>` and `SendPoll::correct_option_id: Option<u8>` with `SendPoll::correct_option_ids: Option<Vec<u8>>`. Migrate callers using `.correct_option_id(idx)` to `.correct_option_ids([idx])`.
+  - Widened `SendPoll::open_period` from `Option<u16>` to `Option<u32>` to accommodate the new 2,628,000-second maximum.
+  - Added `allows_revoting: bool`, `description: Option<String>`, and `description_entities: Option<Vec<MessageEntity>>` to `Poll`; added `persistent_id: String` (`#[serde(default)]`), `added_by_user`, `added_by_chat`, and `addition_date` to `PollOption`; added `option_persistent_ids: Vec<String>` (`#[serde(default)]`) to `PollAnswer`; added `allows_revoting`, `shuffle_options`, `allow_adding_options`, `hide_results_until_closes`, `description`, `description_parse_mode`, and `description_entities` to `SendPoll`. Update exhaustive struct literals.
+  - `DefaultParseMode` now skips `explanation_parse_mode` / `description_parse_mode` on `SendPoll` when `explanation_entities` / `description_entities` are provided, respectively, and populates `description_parse_mode` when absent.
+- **`ReplyParameters` & `MessageCommon`:** Added `poll_option_id: Option<String>` to `ReplyParameters` and `reply_to_poll_option_id: Option<String>` to `MessageCommon`; initialize both to `None` in struct literals.
+- **`Me::can_manage_bots`:** Added `can_manage_bots: bool` (`#[serde(default)]`); initialize to `false` in struct literals.
+- **New enum variants:** Added `ButtonRequest::RequestManagedBot(KeyboardButtonRequestManagedBot)`, `MessageKind::{ManagedBotCreated, PollOptionAdded, PollOptionDeleted}`, `UpdateKind::ManagedBot(ManagedBotUpdated)`, and `AllowedUpdate::ManagedBot`. Update exhaustive `match` arms.
+- **Custom `Requester` implementations:** Must implement `SavePreparedKeyboardButton`, `GetManagedBotToken`, and `ReplaceManagedBotToken` associated types and methods.
+
 ## 0.20 -> 0.21
 
 ### teloxide-core

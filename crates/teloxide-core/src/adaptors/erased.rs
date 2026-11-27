@@ -292,6 +292,9 @@ where
         answer_inline_query,
         answer_web_app_query,
         save_prepared_inline_message,
+        save_prepared_keyboard_button,
+        get_managed_bot_token,
+        replace_managed_bot_token,
         edit_message_text,
         edit_message_text_inline,
         edit_message_caption,
@@ -916,6 +919,22 @@ trait ErasableRequester<'a> {
         user_id: UserId,
         result: InlineQueryResult,
     ) -> ErasedRequest<'a, SavePreparedInlineMessage, Self::Err>;
+
+    fn save_prepared_keyboard_button(
+        &self,
+        user_id: UserId,
+        button: KeyboardButton,
+    ) -> ErasedRequest<'a, SavePreparedKeyboardButton, Self::Err>;
+
+    fn get_managed_bot_token(
+        &self,
+        user_id: UserId,
+    ) -> ErasedRequest<'a, GetManagedBotToken, Self::Err>;
+
+    fn replace_managed_bot_token(
+        &self,
+        user_id: UserId,
+    ) -> ErasedRequest<'a, ReplaceManagedBotToken, Self::Err>;
 
     fn edit_message_text(
         &self,
@@ -2100,6 +2119,28 @@ where
         result: InlineQueryResult,
     ) -> ErasedRequest<'a, SavePreparedInlineMessage, Self::Err> {
         Requester::save_prepared_inline_message(self, user_id, result).erase()
+    }
+
+    fn save_prepared_keyboard_button(
+        &self,
+        user_id: UserId,
+        button: KeyboardButton,
+    ) -> ErasedRequest<'a, SavePreparedKeyboardButton, Self::Err> {
+        Requester::save_prepared_keyboard_button(self, user_id, button).erase()
+    }
+
+    fn get_managed_bot_token(
+        &self,
+        user_id: UserId,
+    ) -> ErasedRequest<'a, GetManagedBotToken, Self::Err> {
+        Requester::get_managed_bot_token(self, user_id).erase()
+    }
+
+    fn replace_managed_bot_token(
+        &self,
+        user_id: UserId,
+    ) -> ErasedRequest<'a, ReplaceManagedBotToken, Self::Err> {
+        Requester::replace_managed_bot_token(self, user_id).erase()
     }
 
     fn edit_message_text(
