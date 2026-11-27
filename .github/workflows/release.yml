@@ -1,0 +1,165 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]*.[0-9]*.[0-9]*"
+
+permissions:
+  contents: write
+
+env:
+  RUSTFLAGS: "-Dwarnings"
+  RUST_BACKTRACE: short
+  CARGO_INCREMENTAL: 0
+  CARGO_NET_RETRY: 10
+  RUSTUP_MAX_RETRIES: 10
+
+  # Keep in sync with rust-toolchain.toml and .github/workflows/ci.yml
+  rust_nightly: nightly-2025-06-12
+
+jobs:
+  verify:
+    name: Verify tag & workspace
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate SemVer tag matches teloxide version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Tag '$GITHUB_REF_NAME' must follow vX.Y.Z or vX.Y.Z-prerelease SemVer format."
+            exit 1
+          fi
+
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          CRATE_VERSION="$(awk -F'"' '/^\[package\]/{p=1; next} /^\[/{p=0} p && /^version = /{print $2; exit}' crates/teloxide/Cargo.toml)"
+          if [ "$TAG_VERSION" != "$CRATE_VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME ($TAG_VERSION) does not match crates/teloxide/Cargo.toml version ($CRATE_VERSION)."
+            exit 1
+          fi
+
+      - name: Install Rust ${{ env.rust_nightly }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.rust_nightly }}
+          components: rustfmt, clippy
+
+      - name: Cache Dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Check codegen & schema
+        run: |
+          cargo test --locked -p teloxide-core --features "full nightly" --lib codegen_
+          cargo test --locked -p teloxide-core --features "full nightly" --lib schema_check
+
+      - name: Run workspace unit & integration tests
+        run: cargo test --locked --workspace --features "full nightly" --lib --tests
+
+      - name: Run clippy
+        run: cargo clippy --locked --workspace --all-targets --features "full nightly" -- -D warnings
+
+      - name: Check minimal rustls feature builds
+        run: |
+          cargo check --locked -p teloxide-core --no-default-features --features "rustls"
+          cargo check --locked -p teloxide --no-default-features --features "rustls macros"
+
+  release:
+    name: Publish GitHub Release
+    needs: verify
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          read_version() {
+            awk -F'"' '/^\[package\]/{p=1; next} /^\[/{p=0} p && /^version = /{print $2; exit}' "$1"
+          }
+
+          extract_changelog() {
+            local file="$1"
+            local ver="$2"
+            awk -v ver="$ver" '
+              index($0, "## " ver " ") == 1 || $0 == "## " ver { found=1; print; next }
+              found && /^## / { exit }
+              found { print }
+            ' "$file"
+          }
+
+          TAG="$GITHUB_REF_NAME"
+          TAG_VERSION="${TAG#v}"
+          CORE_VERSION="$(read_version crates/teloxide-core/Cargo.toml)"
+          MACROS_VERSION="$(read_version crates/teloxide-macros/Cargo.toml)"
+
+          ROOT_NOTES="$(extract_changelog CHANGELOG.md "$TAG_VERSION")"
+          CORE_NOTES="$(extract_changelog crates/teloxide-core/CHANGELOG.md "$CORE_VERSION")"
+
+          HAS_CHANGELOG_NOTES=false
+          {
+            echo "## Crate Versions"
+            echo "- \`teloxide\`: \`$TAG_VERSION\`"
+            echo "- \`teloxide-core\`: \`$CORE_VERSION\`"
+            echo "- \`teloxide-macros\`: \`$MACROS_VERSION\`"
+            echo ""
+            echo "## Cargo Usage"
+            echo '```toml'
+            echo "[dependencies]"
+            echo "teloxide = { git = \"https://github.com/${GITHUB_REPOSITORY}\", tag = \"${TAG}\", features = [\"macros\"] }"
+            echo '```'
+
+            if [ -n "$ROOT_NOTES" ]; then
+              HAS_CHANGELOG_NOTES=true
+              echo ""
+              echo "### teloxide"
+              echo "$ROOT_NOTES"
+            fi
+
+            if [ -n "$CORE_NOTES" ]; then
+              HAS_CHANGELOG_NOTES=true
+              echo ""
+              echo "### teloxide-core"
+              echo "$CORE_NOTES"
+            fi
+          } > release-notes.md
+
+          PRERELEASE_FLAG=()
+          if [[ "$TAG" == *-* ]]; then
+            PRERELEASE_FLAG+=(--prerelease)
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" \
+              --title "Teloxidium $TAG" \
+              --notes-file release-notes.md \
+              "${PRERELEASE_FLAG[@]}"
+          elif [ "$HAS_CHANGELOG_NOTES" = true ]; then
+            gh release create "$TAG" \
+              --verify-tag \
+              --title "Teloxidium $TAG" \
+              --notes-file release-notes.md \
+              "${PRERELEASE_FLAG[@]}"
+          else
+            gh release create "$TAG" \
+              --verify-tag \
+              --title "Teloxidium $TAG" \
+              --notes "$(cat release-notes.md)" \
+              --generate-notes \
+              "${PRERELEASE_FLAG[@]}"
+          fi
