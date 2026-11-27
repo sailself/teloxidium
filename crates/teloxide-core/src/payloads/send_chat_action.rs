@@ -32,7 +32,7 @@ impl_payload! {
         optional {
             /// Unique identifier of the business connection on behalf of which the action will be sent
             pub business_connection_id: BusinessConnectionId,
-            /// Unique identifier for the target message thread; supergroups only
+            /// Unique identifier for the target message thread or topic of a forum; for supergroups and private chats of bots with forum topic mode enabled only
             pub message_thread_id: ThreadId,
         }
     }

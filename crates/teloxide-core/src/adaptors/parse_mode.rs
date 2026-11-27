@@ -8,8 +8,8 @@ use crate::{
         EditMessageCaptionInline, EditMessageChecklist, EditMessageMedia, EditMessageMediaInline,
         EditMessageText, EditMessageTextInline, EditStory, GiftPremiumSubscription, PostStory,
         SavePreparedInlineMessage, SendAnimation, SendAudio, SendChecklist, SendDocument, SendGift,
-        SendGiftChat, SendMediaGroup, SendMessage, SendPaidMedia, SendPhoto, SendPoll, SendVideo,
-        SendVoice,
+        SendGiftChat, SendMediaGroup, SendMessage, SendMessageDraft, SendPaidMedia, SendPhoto,
+        SendPoll, SendVideo, SendVoice,
     },
     prelude::Requester,
     requests::{HasPayload, Output, Request},
@@ -136,6 +136,7 @@ impl<B> Requester for DefaultParseMode<B>
 where
     B: Requester,
     B::SendMessage: Clone,
+    B::SendMessageDraft: Clone,
     B::SendPhoto: Clone,
     B::SendVideo: Clone,
     B::SendAudio: Clone,
@@ -167,6 +168,7 @@ where
 
     requester_forward! {
         send_message,
+        send_message_draft,
         send_photo,
         send_video,
         send_audio,
@@ -306,6 +308,8 @@ where
         set_sticker_keywords,
         set_sticker_mask_position,
         get_available_gifts,
+        get_user_gifts,
+        get_chat_gifts,
         verify_user,
         verify_chat,
         remove_user_verification,
@@ -325,6 +329,7 @@ where
         upgrade_gift,
         transfer_gift,
         delete_story,
+        repost_story,
         send_invoice,
         create_invoice_link,
         answer_shipping_query,
@@ -399,6 +404,16 @@ impl_visit_parse_modes! {
     PostStory => [parse_mode],
     EditStory => [parse_mode],
     SendPoll => [explanation_parse_mode],
+}
+
+impl VisitParseModes for SendMessageDraft {
+    fn visit_parse_modes(&mut self, mut visitor: impl FnMut(&mut Option<ParseMode>)) {
+        // Explicit `entities` take precedence over `DefaultParseMode` so Telegram
+        // does not reject or re-parse entity-formatted draft text.
+        if self.entities.is_none() {
+            visitor(&mut self.parse_mode);
+        }
+    }
 }
 
 impl VisitParseModes for AnswerInlineQuery {
@@ -520,4 +535,40 @@ fn visit_parse_modes_in_input_media(
     };
 
     visitor(parse_mode);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        payloads::SendMessageDraftSetters,
+        requests::HasPayload,
+        types::{ChatId, DraftId, MessageEntity, ParseMode},
+        Bot,
+    };
+
+    #[test]
+    fn send_message_draft_uses_default_and_preserves_explicit_parse_mode() {
+        let bot = DefaultParseMode::new(Bot::new("test-token"), ParseMode::MarkdownV2);
+
+        let mut req = bot.send_message_draft(ChatId(42), DraftId(1), "*hello*");
+        req.payload_mut().visit_parse_modes(|mode| _ = mode.get_or_insert(bot.parse_mode()));
+        assert_eq!(req.payload_ref().parse_mode, Some(ParseMode::MarkdownV2));
+
+        let mut explicit =
+            bot.send_message_draft(ChatId(42), DraftId(2), "<b>hi</b>").parse_mode(ParseMode::Html);
+        explicit.payload_mut().visit_parse_modes(|mode| _ = mode.get_or_insert(bot.parse_mode()));
+        assert_eq!(explicit.payload_ref().parse_mode, Some(ParseMode::Html));
+
+        let mut with_entities = bot
+            .send_message_draft(ChatId(42), DraftId(3), "2 < 3")
+            .entities([MessageEntity::bold(0, 5)]);
+        with_entities
+            .payload_mut()
+            .visit_parse_modes(|mode| _ = mode.get_or_insert(bot.parse_mode()));
+        assert_eq!(with_entities.payload_ref().parse_mode, None);
+        let serialized = serde_json::to_value(with_entities.payload_ref()).unwrap();
+        assert!(serialized.get("parse_mode").is_none());
+        assert!(serialized.get("entities").is_some());
+    }
 }

@@ -1,8 +1,8 @@
 # Telegram Bot API Upgrade Roadmap (9.2 → 10.5)
 
-Tracking plan for bringing **Teloxidium** (`crates/teloxide-core`, `crates/teloxide`, `crates/teloxide-macros`) from its current **Bot API 9.2** baseline up to **Bot API 10.5**.
+Tracking plan for bringing **Teloxidium** (`crates/teloxide-core`, `crates/teloxide`, `crates/teloxide-macros`) from its initial **Bot API 9.2** starting baseline up to **Bot API 10.5**.
 
-- **Current Baseline:** Bot API **9.2** (August 15, 2025) declared in [`crates/teloxide-core/schema.ron`](../crates/teloxide-core/schema.ron) and [`crates/teloxide-core/custom_v2.json`](../crates/teloxide-core/custom_v2.json), plus selective Bot API 10.x support from commit `870ba033`:
+- **Current Baseline:** Bot API **9.3** (December 31, 2025) declared in [`crates/teloxide-core/schema.ron`](../crates/teloxide-core/schema.ron) and [`crates/teloxide-core/custom_v2.json`](../crates/teloxide-core/custom_v2.json) (upgraded from the M0 Bot API **9.2** baseline), plus selective Bot API 10.x support from commit `870ba033`:
   - Receive-only `RichMessage` (`Vec<serde_json::Value>`), `RichMessage::project()`, `MediaKind::RichMessage`, `TextQuote::rich_texts`, and optional `ExternalReplyInfo::kind`.
   - Ephemeral text menus (`SendMessage::ephemeral_message_parameters`, `EphemeralMessageId`, `EphemeralMessageParameters`, `Message::receiver_user`, `edit_ephemeral_message_reply_markup`, `delete_ephemeral_message`).
 - **Target Baseline:** Bot API **10.5** (November 22, 2026) — 10 Bot API releases across 11 incremental milestones (**M0–M10**).
@@ -28,7 +28,7 @@ flowchart LR
 | Status | Milestone | Bot API Version & Date | GitHub Ticket | Breaking Changes | Summary |
 | :---: | :--- | :--- | :--- | :---: | :--- |
 | `[x]` | **M0** | Hotfix + Baseline (`9.2`) | [#2](https://github.com/sailself/teloxidium/issues/2) | `[**BC**]` | Add `MessageEntityKind::DateTime` deserialization safety and verify baseline CI |
-| `[ ]` | **M1** | **9.3** (2025-12-31) | [#3](https://github.com/sailself/teloxidium/issues/3) | No | `sendMessageDraft`, `getUserGifts`, `getChatGifts`, `repostStory`, `GiftBackground`, `UniqueGiftColors`, `UserRating`, `has_topics_enabled` |
+| `[x]` | **M1** | **9.3** (2025-12-31) | [#3](https://github.com/sailself/teloxidium/issues/3) | `[**BC**]` | `sendMessageDraft`, `getUserGifts`, `getChatGifts`, `repostStory`, `GiftBackground`, `UniqueGiftColors`, `UserRating`, `has_topics_enabled`, `UniqueGiftInfo`, `getBusinessAccountGifts` |
 | `[ ]` | **M2** | **9.4** (2026-02-09) | [#4](https://github.com/sailself/teloxidium/issues/4) | `[**BC**]` | Button `style` + `icon_custom_emoji_id`, `setMyProfilePhoto`/`removeMyProfilePhoto`, `UserProfileAudios`, `VideoQuality`, `ChatOwnerLeft`/`Changed` |
 | `[ ]` | **M3** | **9.5** (2026-03-01) | [#5](https://github.com/sailself/teloxidium/issues/5) | No | Chat member `tag` / `sender_tag` / `setChatMemberTag` / `EDIT_TAG`, full `9.5` schema refresh, unrestricted `sendMessageDraft` |
 | `[ ]` | **M4** | **9.6** (2026-04-03) | [#6](https://github.com/sailself/teloxidium/issues/6) | `[**BC**]` | Managed Bots (`UpdateKind::ManagedBot`, tokens), `savePreparedKeyboardButton`, Polls v2 (`correct_option_ids`, revoting, persistent IDs) |
@@ -113,8 +113,8 @@ Execute this checklist for every milestone **M1–M10**:
 - **Key changes (`[**BC**]`):** `MessageEntityKind::DateTime { unix_time: DateTime<Utc>, date_time_format: Option<String> }` + `MessageEntity::date_time(...)` + `Renderer` HTML/MarkdownV2 support + UTF-16 `MessageEntityRef::parse` / `Message::parse_caption_entities` / `serde_multipart` tests; `MessageEntity` synced in `custom_v2.json`; `Cargo.toml` fork metadata updated.
 
 ### M1 — Bot API 9.3 ([#3](https://github.com/sailself/teloxidium/issues/3))
-- **Goal:** Support streaming drafts, user/chat gifts, cross-account business story reposts, gift backgrounds, unique gift colors, and user ratings.
-- **Key changes:** `GiftBackground`, `UniqueGiftColors`, `UserRating`, `DraftId`; updates to `Me`, `Gift`, `UniqueGift`, `ChatFullInfo`; methods `sendMessageDraft` (`VisitParseModes`, throttled), `getUserGifts`, `getChatGifts`, `repostStory`; 10,000 Stars docs.
+- **Goal:** Support streaming drafts, user/chat gifts, cross-account business story reposts, gift backgrounds, unique gift color schemes, user ratings, and Bot API 9.3 schema updates.
+- **Key changes (`[**BC**]`):** `DraftId`, `GiftBackground`, `UniqueGiftColors`, `UserRating`; updates to `Me` (`has_topics_enabled`), `Gift`, `UniqueGift` (`gift_id`, `is_premium`, `is_from_blockchain`, `colors`), `GiftInfo` & `OwnedGiftRegular`, `UniqueGiftInfo` (`last_resale_currency`/`last_resale_amount`, `UniqueGiftOrigin::{GiftedUpgrade, Offer}`), `AcceptedGiftTypes::gifts_from_channels`, `ForumTopic*`, `ChecklistTask::completed_by_chat`, `ChatFullInfo`, `MessageKind::GiftUpgradeSent` + `filter_gift_upgrade_sent`; methods `sendMessageDraft` (`VisitParseModes`, throttled), `getUserGifts`, `getChatGifts`, `repostStory`, updated `getBusinessAccountGifts`, `forwardMessage`/`copyMessage::message_effect_id`, and 25,000 Stars paid media docs.
 
 ### M2 — Bot API 9.4 ([#4](https://github.com/sailself/teloxidium/issues/4))
 - **Goal:** Support styled/custom-emoji buttons, bot profile photos, user profile audios, video quality variants, and chat ownership service messages.

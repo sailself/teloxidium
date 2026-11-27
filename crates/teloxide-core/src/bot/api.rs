@@ -6,7 +6,7 @@ use crate::{
     requests::{JsonRequest, MultipartRequest},
     types::{
         AcceptedGiftTypes, BotCommand, BusinessConnectionId, CallbackQueryId, ChatId,
-        ChatPermissions, CustomEmojiId, EphemeralMessageId, FileId, GiftId, InlineQueryId,
+        ChatPermissions, CustomEmojiId, DraftId, EphemeralMessageId, FileId, GiftId, InlineQueryId,
         InlineQueryResult, InputChecklist, InputFile, InputMedia, InputPaidMedia, InputPollOption,
         InputProfilePhoto, InputSticker, InputStoryContent, LabeledPrice, MessageId, OwnedGiftId,
         PreCheckoutQueryId, Recipient, Seconds, ShippingQueryId, StickerFormat, StoryId,
@@ -56,6 +56,24 @@ impl Requester for Bot {
         T: Into<String>,
     {
         Self::SendMessage::new(self.clone(), payloads::SendMessage::new(chat_id, text))
+    }
+
+    type SendMessageDraft = JsonRequest<payloads::SendMessageDraft>;
+
+    fn send_message_draft<C, T>(
+        &self,
+        chat_id: C,
+        draft_id: DraftId,
+        text: T,
+    ) -> Self::SendMessageDraft
+    where
+        C: Into<ChatId>,
+        T: Into<String>,
+    {
+        Self::SendMessageDraft::new(
+            self.clone(),
+            payloads::SendMessageDraft::new(chat_id, draft_id, text),
+        )
     }
 
     type ForwardMessage = JsonRequest<payloads::ForwardMessage>;
@@ -1560,6 +1578,21 @@ impl Requester for Bot {
         Self::SendGiftChat::new(self.clone(), payloads::SendGiftChat::new(chat_id, gift_id))
     }
 
+    type GetUserGifts = JsonRequest<payloads::GetUserGifts>;
+
+    fn get_user_gifts(&self, user_id: UserId) -> Self::GetUserGifts {
+        Self::GetUserGifts::new(self.clone(), payloads::GetUserGifts::new(user_id))
+    }
+
+    type GetChatGifts = JsonRequest<payloads::GetChatGifts>;
+
+    fn get_chat_gifts<C>(&self, chat_id: C) -> Self::GetChatGifts
+    where
+        C: Into<Recipient>,
+    {
+        Self::GetChatGifts::new(self.clone(), payloads::GetChatGifts::new(chat_id))
+    }
+
     type GiftPremiumSubscription = JsonRequest<payloads::GiftPremiumSubscription>;
 
     fn gift_premium_subscription(
@@ -1848,6 +1881,29 @@ impl Requester for Bot {
         )
     }
 
+    type RepostStory = JsonRequest<payloads::RepostStory>;
+
+    fn repost_story<F>(
+        &self,
+        business_connection_id: BusinessConnectionId,
+        from_chat_id: F,
+        from_story_id: StoryId,
+        active_period: Seconds,
+    ) -> Self::RepostStory
+    where
+        F: Into<ChatId>,
+    {
+        Self::RepostStory::new(
+            self.clone(),
+            payloads::RepostStory::new(
+                business_connection_id,
+                from_chat_id,
+                from_story_id,
+                active_period,
+            ),
+        )
+    }
+
     type SendInvoice = JsonRequest<payloads::SendInvoice>;
 
     fn send_invoice<Ch, T, D, Pa, C, Pri>(
@@ -2086,5 +2142,148 @@ impl Requester for Bot {
         C: Into<Recipient>,
     {
         Self::UnpinAllChatMessages::new(self.clone(), payloads::UnpinAllChatMessages::new(chat_id))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use crate::{
+        payloads::{
+            CopyMessageSetters, ForwardMessageSetters, GetBusinessAccountGiftsSetters,
+            GetChatGiftsSetters, GetUserGiftsSetters, RepostStorySetters, SendMessageDraftSetters,
+        },
+        prelude::Requester,
+        requests::HasPayload,
+        types::{
+            BusinessConnectionId, ChatId, DraftId, EffectId, MessageId, ParseMode, Seconds,
+            StoryId, ThreadId, UserId,
+        },
+        Bot,
+    };
+
+    #[test]
+    fn bot_api_9_3_payload_serialization() {
+        let bot = Bot::new("test-token");
+
+        let draft = bot
+            .send_message_draft(ChatId(100), DraftId(42), "Partial text")
+            .message_thread_id(ThreadId(MessageId(7)))
+            .parse_mode(ParseMode::Html);
+        assert_eq!(
+            serde_json::to_value(draft.payload_ref()).unwrap(),
+            json!({
+                "chat_id": 100,
+                "message_thread_id": 7,
+                "draft_id": 42,
+                "text": "Partial text",
+                "parse_mode": "HTML"
+            })
+        );
+
+        let user_gifts = bot
+            .get_user_gifts(UserId(99))
+            .exclude_unlimited(true)
+            .exclude_limited_upgradable(true)
+            .exclude_limited_non_upgradable(false)
+            .exclude_from_blockchain(true)
+            .exclude_unique(false)
+            .sort_by_price(true)
+            .offset("cursor-1")
+            .limit(50);
+        assert_eq!(
+            serde_json::to_value(user_gifts.payload_ref()).unwrap(),
+            json!({
+                "user_id": 99,
+                "exclude_unlimited": true,
+                "exclude_limited_upgradable": true,
+                "exclude_limited_non_upgradable": false,
+                "exclude_from_blockchain": true,
+                "exclude_unique": false,
+                "sort_by_price": true,
+                "offset": "cursor-1",
+                "limit": 50
+            })
+        );
+
+        let chat_gifts = bot
+            .get_chat_gifts("@channel_name".to_owned())
+            .exclude_unsaved(true)
+            .exclude_saved(false)
+            .exclude_from_blockchain(true)
+            .limit(25);
+        assert_eq!(
+            serde_json::to_value(chat_gifts.payload_ref()).unwrap(),
+            json!({
+                "chat_id": "@channel_name",
+                "exclude_unsaved": true,
+                "exclude_saved": false,
+                "exclude_from_blockchain": true,
+                "limit": 25
+            })
+        );
+
+        let biz_gifts = bot
+            .get_business_account_gifts(BusinessConnectionId("biz-1".to_owned()))
+            .exclude_limited_upgradable(true)
+            .exclude_limited_non_upgradable(true)
+            .exclude_from_blockchain(true);
+        assert_eq!(
+            serde_json::to_value(biz_gifts.payload_ref()).unwrap(),
+            json!({
+                "business_connection_id": "biz-1",
+                "exclude_limited_upgradable": true,
+                "exclude_limited_non_upgradable": true,
+                "exclude_from_blockchain": true
+            })
+        );
+
+        let repost = bot
+            .repost_story(
+                BusinessConnectionId("biz-2".to_owned()),
+                ChatId(555),
+                StoryId(88),
+                Seconds::from_seconds(86400),
+            )
+            .post_to_chat_page(true)
+            .protect_content(true);
+        assert_eq!(
+            serde_json::to_value(repost.payload_ref()).unwrap(),
+            json!({
+                "business_connection_id": "biz-2",
+                "from_chat_id": 555,
+                "from_story_id": 88,
+                "active_period": 86400,
+                "post_to_chat_page": true,
+                "protect_content": true
+            })
+        );
+
+        let forward = bot
+            .forward_message(ChatId(1), ChatId(2), MessageId(3))
+            .message_effect_id(EffectId("effect-fwd".to_owned()));
+        assert_eq!(
+            serde_json::to_value(forward.payload_ref()).unwrap(),
+            json!({
+                "chat_id": 1,
+                "from_chat_id": 2,
+                "message_id": 3,
+                "message_effect_id": "effect-fwd"
+            })
+        );
+
+        let copy = bot
+            .copy_message(ChatId(1), ChatId(2), MessageId(3))
+            .message_effect_id(EffectId("effect-cpy".to_owned()));
+        assert_eq!(
+            serde_json::to_value(copy.payload_ref()).unwrap(),
+            json!({
+                "chat_id": 1,
+                "from_chat_id": 2,
+                "message_id": 3,
+                "message_effect_id": "effect-cpy"
+            })
+        );
     }
 }

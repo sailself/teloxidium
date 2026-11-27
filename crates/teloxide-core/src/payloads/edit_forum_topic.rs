@@ -5,7 +5,7 @@ use serde::Serialize;
 use crate::types::{CustomEmojiId, Recipient, ThreadId, True};
 
 impl_payload! {
-    /// Use this method to edit name and icon of a topic in a forum supergroup chat. The bot must be an administrator in the chat for this to work and must have _can\_manage\_topics_ administrator rights, unless it is the creator of the topic. Returns True on success.
+    /// Use this method to edit the name and icon of a topic in a forum supergroup chat or a private chat with a user. In the case of a supergroup chat the bot must be an administrator in the chat for this to work and must have the _can\_manage\_topics_ administrator rights, unless it is the creator of the topic. Returns True on success.
     #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize)]
     pub EditForumTopic (EditForumTopicSetters) => True {
         required {

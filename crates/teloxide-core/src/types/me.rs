@@ -31,10 +31,17 @@ pub struct Me {
 
     /// `true`, if the bot has a main Web App.
     pub has_main_web_app: bool,
+
+    /// `true`, if forum topic mode is enabled for the bot in private chats.
+    #[serde(default)]
+    pub has_topics_enabled: bool,
 }
 
 impl Me {
     /// Returns the username of the bot.
+    ///
+    /// Note that since Bot API 9.3 bots with additional active Fragment
+    /// usernames can disable their main username.
     #[must_use]
     pub fn username(&self) -> &str {
         self.user.username.as_deref().expect("Bots must have usernames")
@@ -83,10 +90,44 @@ mod tests {
             supports_inline_queries: false,
             can_connect_to_business: false,
             has_main_web_app: false,
+            has_topics_enabled: false,
         };
 
         assert_eq!(me.username(), "SomethingSomethingBot");
         assert_eq!(me.mention(), "@SomethingSomethingBot");
         assert_eq!(me.tme_url(), "https://t.me/SomethingSomethingBot".parse().unwrap());
+    }
+
+    #[test]
+    fn deser_has_topics_enabled_and_legacy_fallback() {
+        let legacy_json = r#"{
+            "id": 42,
+            "is_bot": true,
+            "first_name": "First",
+            "username": "SomethingSomethingBot",
+            "can_join_groups": false,
+            "can_read_all_group_messages": false,
+            "supports_inline_queries": false,
+            "has_main_web_app": false
+        }"#;
+        let legacy: Me = serde_json::from_str(legacy_json).unwrap();
+        assert!(!legacy.has_topics_enabled);
+
+        let modern_json = r#"{
+            "id": 42,
+            "is_bot": true,
+            "first_name": "First",
+            "username": "SomethingSomethingBot",
+            "can_join_groups": false,
+            "can_read_all_group_messages": false,
+            "supports_inline_queries": false,
+            "can_connect_to_business": true,
+            "has_main_web_app": false,
+            "has_topics_enabled": true
+        }"#;
+        let modern: Me = serde_json::from_str(modern_json).unwrap();
+        assert!(modern.has_topics_enabled);
+        let roundtrip: Me = serde_json::from_str(&serde_json::to_string(&modern).unwrap()).unwrap();
+        assert_eq!(modern, roundtrip);
     }
 }

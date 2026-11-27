@@ -38,6 +38,10 @@ fn test_rust_objects() {
         },
         Exception::IgnoreObjectField {
             object: "User".to_owned(),
+            field_name: "has_topics_enabled".to_owned(),
+        },
+        Exception::IgnoreObjectField {
+            object: "User".to_owned(),
             field_name: "supports_inline_queries".to_owned(),
         },
         Exception::IgnoreObjectField {
@@ -960,6 +964,13 @@ fn test_rust_objects() {
     );
     check_object(
         api_schema.clone(),
+        schema_for!(UserRating),
+        "UserRating".to_owned(),
+        &mut errors,
+        &exceptions,
+    );
+    check_object(
+        api_schema.clone(),
         schema_for!(ReactionType),
         "ReactionType".to_owned(),
         &mut errors,
@@ -1002,6 +1013,13 @@ fn test_rust_objects() {
     );
     check_object(
         api_schema.clone(),
+        schema_for!(GiftBackground),
+        "GiftBackground".to_owned(),
+        &mut errors,
+        &exceptions,
+    );
+    check_object(
+        api_schema.clone(),
         schema_for!(Gifts),
         "Gifts".to_owned(),
         &mut errors,
@@ -1025,6 +1043,13 @@ fn test_rust_objects() {
         api_schema.clone(),
         schema_for!(UniqueGiftBackdropColors),
         "UniqueGiftBackdropColors".to_owned(),
+        &mut errors,
+        &exceptions,
+    );
+    check_object(
+        api_schema.clone(),
+        schema_for!(UniqueGiftColors),
+        "UniqueGiftColors".to_owned(),
         &mut errors,
         &exceptions,
     );

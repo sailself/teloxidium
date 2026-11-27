@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## unreleased
 
+## 0.19.0 - 2026-11-26
+
+### Added
+
+- Support for Telegram Bot API 9.3 (`teloxide-core 0.15.0`): [**BC**]
+  - Add `MessageFilterExt::filter_gift_upgrade_sent` for `gift_upgrade_sent` service messages.
+  - Re-export new wire types and payloads (`DraftId`, `GiftBackground`, `UniqueGiftColors`, `UserRating`, `SendMessageDraft`, `GetUserGifts`, `GetChatGifts`, `RepostStory`).
+- Breaking changes in `teloxide-core` (see `MIGRATION_GUIDE.md` for details): [**BC**]
+  - Replaced `UniqueGiftInfo::last_resale_star_count` with `last_resale_currency` / `last_resale_amount` and added `UniqueGiftOrigin::{GiftedUpgrade, Offer}`.
+  - Replaced `GetBusinessAccountGifts::exclude_limited` with `exclude_limited_upgradable` / `exclude_limited_non_upgradable` and added `exclude_from_blockchain`.
+  - Added fields on existing structs (`Me::has_topics_enabled`, `AcceptedGiftTypes::gifts_from_channels`, `UniqueGift::gift_id`, `Gift`, `GiftInfo`, `OwnedGiftRegular`, `ForumTopic*`, `ChecklistTask`, `ChatFullInfo`) and `MessageKind::GiftUpgradeSent`.
+
 ## 0.18.0 - 2026-11-26
 
 ### Added
