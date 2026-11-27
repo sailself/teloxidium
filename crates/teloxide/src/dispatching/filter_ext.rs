@@ -141,6 +141,8 @@ define_message_ext! {
     (filter_gift_info, Message::gift_info),
     (filter_unique_gift_info, Message::unique_gift_info),
     (filter_gift_upgrade_sent, Message::gift_upgrade_sent),
+    (filter_chat_owner_left, Message::chat_owner_left),
+    (filter_chat_owner_changed, Message::chat_owner_changed),
     (filter_video_chat_scheduled, Message::video_chat_scheduled),
     (filter_video_chat_started, Message::video_chat_started),
     (filter_video_chat_ended, Message::video_chat_ended),
@@ -189,4 +191,119 @@ define_update_ext! {
     (filter_chat_join_request, UpdateKind::ChatJoinRequest, ChatJoinRequest),
     (filter_chat_boost, UpdateKind::ChatBoost, ChatBoost),
     (filter_removed_chat_boost, UpdateKind::RemovedChatBoost, RemovedChatBoost),
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ops::ControlFlow;
+
+    use dptree::deps;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn filter_chat_owner_left_and_changed_dispatch() {
+        let left_with_new_owner: Update = serde_json::from_str(
+            r#"{
+                "update_id": 1,
+                "message": {
+                    "message_id": 10,
+                    "chat": { "id": -1001, "title": "Group", "type": "supergroup" },
+                    "date": 1770600000,
+                    "chat_owner_left": {
+                        "new_owner": { "id": 42, "is_bot": false, "first_name": "Alice" }
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let left_without_new_owner: Update = serde_json::from_str(
+            r#"{
+                "update_id": 2,
+                "message": {
+                    "message_id": 11,
+                    "chat": { "id": -1001, "title": "Group", "type": "supergroup" },
+                    "date": 1770600001,
+                    "chat_owner_left": {}
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let owner_changed: Update = serde_json::from_str(
+            r#"{
+                "update_id": 3,
+                "message": {
+                    "message_id": 12,
+                    "chat": { "id": -1001, "title": "Group", "type": "supergroup" },
+                    "date": 1770600002,
+                    "chat_owner_changed": {
+                        "new_owner": { "id": 99, "is_bot": false, "first_name": "Bob" }
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let ordinary_text: Update = serde_json::from_str(
+            r#"{
+                "update_id": 4,
+                "message": {
+                    "message_id": 13,
+                    "chat": { "id": -1001, "title": "Group", "type": "supergroup" },
+                    "date": 1770600003,
+                    "text": "hello"
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let left_handler = dptree::entry().branch(Update::filter_message().chain(
+            Message::filter_chat_owner_left().endpoint(
+                |left: crate::types::ChatOwnerLeft| async move { left.new_owner.map(|u| u.id.0) },
+            ),
+        ));
+        let changed_handler = dptree::entry().branch(Update::filter_message().chain(
+            Message::filter_chat_owner_changed().endpoint(
+                |changed: crate::types::ChatOwnerChanged| async move { changed.new_owner.id.0 },
+            ),
+        ));
+
+        assert!(matches!(
+            left_handler.dispatch(deps![left_with_new_owner.clone()]).await,
+            ControlFlow::Break(Some(42))
+        ));
+        assert!(matches!(
+            changed_handler.dispatch(deps![left_with_new_owner]).await,
+            ControlFlow::Continue(_)
+        ));
+
+        assert!(matches!(
+            left_handler.dispatch(deps![left_without_new_owner.clone()]).await,
+            ControlFlow::Break(None)
+        ));
+        assert!(matches!(
+            changed_handler.dispatch(deps![left_without_new_owner]).await,
+            ControlFlow::Continue(_)
+        ));
+
+        assert!(matches!(
+            changed_handler.dispatch(deps![owner_changed.clone()]).await,
+            ControlFlow::Break(99)
+        ));
+        assert!(matches!(
+            left_handler.dispatch(deps![owner_changed]).await,
+            ControlFlow::Continue(_)
+        ));
+
+        assert!(matches!(
+            left_handler.dispatch(deps![ordinary_text.clone()]).await,
+            ControlFlow::Continue(_)
+        ));
+        assert!(matches!(
+            changed_handler.dispatch(deps![ordinary_text]).await,
+            ControlFlow::Continue(_)
+        ));
+    }
 }

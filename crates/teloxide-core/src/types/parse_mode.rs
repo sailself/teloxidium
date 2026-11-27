@@ -89,7 +89,7 @@ use serde::{Deserialize, Serialize};
 ///   a custom emoji cannot be displayed (e.g., system notifications) or if the
 ///   message is forwarded by a non-premium user. It is recommended to use the
 ///   emoji from the emoji field of the custom emoji [sticker](https://core.telegram.org/bots/api#sticker).
-/// - Custom emoji entities can only be used by bots that purchased additional usernames on [Fragment](https://fragment.com/).
+/// - Custom emoji entities can only be used by bots that purchased additional usernames on [Fragment](https://fragment.com/) or in the messages directly sent by the bot to private, group and supergroup chats if the owner of the bot has a Telegram Premium subscription.
 ///
 /// ## HTML style
 ///
@@ -130,7 +130,7 @@ use serde::{Deserialize, Serialize};
 ///   entity.
 /// - Programming language can't be specified for standalone `code` tags.
 /// - A valid emoji must be used as the content of the `tg-emoji` tag. The emoji will be shown instead of the custom emoji in places where a custom emoji cannot be displayed (e.g., system notifications) or if the message is forwarded by a non-premium user. It is recommended to use the emoji from the emoji field of the custom emoji [sticker](https://core.telegram.org/bots/api#sticker).
-/// - Custom emoji entities can only be used by bots that purchased additional usernames on [Fragment](https://fragment.com/).
+/// - Custom emoji entities can only be used by bots that purchased additional usernames on [Fragment](https://fragment.com/) or in the messages directly sent by the bot to private, group and supergroup chats if the owner of the bot has a Telegram Premium subscription.
 ///
 /// ## Markdown style
 ///

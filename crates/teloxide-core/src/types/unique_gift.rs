@@ -36,6 +36,11 @@ pub struct UniqueGift {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub is_premium: bool,
 
+    /// `true`, if the gift was used to craft another gift and isn't available
+    /// anymore
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub is_burned: bool,
+
     /// `true`, if the gift is assigned from the TON blockchain and can't be
     /// resold or transferred in Telegram
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -48,6 +53,17 @@ pub struct UniqueGift {
 
     /// Information about the chat that published the gift
     pub publisher_chat: Option<Chat>,
+}
+
+/// Rarity of a crafted [`UniqueGiftModel`].
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(rename_all = "snake_case")]
+pub enum UniqueGiftModelRarity {
+    Uncommon,
+    Rare,
+    Epic,
+    Legendary,
 }
 
 /// This object describes the model of a unique gift.
@@ -63,9 +79,12 @@ pub struct UniqueGiftModel {
     /// The sticker that represents the unique gift
     pub sticker: Sticker,
 
-    /// The number of unique gifts that receive this model for every 1000 gifts
-    /// upgraded
+    /// The number of unique gifts that receive this model for every 1000 gift
+    /// upgrades. Always `0` for crafted gifts.
     pub rarity_per_mille: u32,
+
+    /// Rarity of the model if it is a crafted model.
+    pub rarity: Option<UniqueGiftModelRarity>,
 }
 
 /// This object describes the symbol shown on the pattern of a unique gift.
@@ -157,6 +176,7 @@ mod tests {
                 name: "name".to_owned(),
                 sticker: sticker.clone(),
                 rarity_per_mille: 123,
+                rarity: None,
             },
             symbol: UniqueGiftSymbol {
                 name: "name".to_owned(),
@@ -174,6 +194,7 @@ mod tests {
                 rarity_per_mille: 123,
             },
             is_premium: false,
+            is_burned: false,
             is_from_blockchain: false,
             colors: None,
             publisher_chat: None,
@@ -231,7 +252,13 @@ mod tests {
         assert_eq!(serde_json::from_str::<UniqueGift>(unique_gift_json).unwrap(), unique_gift);
 
         let full = UniqueGift {
+            model: UniqueGiftModel {
+                rarity_per_mille: 0,
+                rarity: Some(UniqueGiftModelRarity::Legendary),
+                ..unique_gift.model.clone()
+            },
             is_premium: true,
+            is_burned: true,
             is_from_blockchain: true,
             colors: Some(UniqueGiftColors {
                 model_custom_emoji_id: CustomEmojiId("1001".to_owned()),
@@ -246,5 +273,20 @@ mod tests {
         let roundtrip: UniqueGift =
             serde_json::from_str(&serde_json::to_string(&full).unwrap()).unwrap();
         assert_eq!(full, roundtrip);
+    }
+
+    #[test]
+    fn model_rarity_variants() {
+        for (rarity, expected) in [
+            (UniqueGiftModelRarity::Uncommon, r#""uncommon""#),
+            (UniqueGiftModelRarity::Rare, r#""rare""#),
+            (UniqueGiftModelRarity::Epic, r#""epic""#),
+            (UniqueGiftModelRarity::Legendary, r#""legendary""#),
+        ] {
+            let json = serde_json::to_string(&rarity).unwrap();
+            assert_eq!(json, expected);
+            let parsed: UniqueGiftModelRarity = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed, rarity);
+        }
     }
 }

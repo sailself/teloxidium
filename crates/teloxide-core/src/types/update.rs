@@ -1233,4 +1233,57 @@ mod test {
             _ => panic!("Expected `PurchasedPaidMedia`"),
         }
     }
+
+    #[test]
+    fn video_qualities_large_and_omitted_file_size() {
+        let json = r#"{
+            "update_id": 777001,
+            "message": {
+                "message_id": 42,
+                "chat": {
+                    "id": 1001,
+                    "first_name": "Alice",
+                    "type": "private"
+                },
+                "date": 1770600100,
+                "video": {
+                    "file_id": "main-vid",
+                    "file_unique_id": "u-main-vid",
+                    "file_size": 1024,
+                    "width": 1920,
+                    "height": 1080,
+                    "duration": 30,
+                    "mime_type": "video/mp4",
+                    "qualities": [
+                        {
+                            "file_id": "q-4k",
+                            "file_unique_id": "uq-4k",
+                            "width": 3840,
+                            "height": 2160,
+                            "codec": "h265",
+                            "file_size": 4294967296
+                        },
+                        {
+                            "file_id": "q-720",
+                            "file_unique_id": "uq-720",
+                            "width": 1280,
+                            "height": 720,
+                            "codec": "av01"
+                        }
+                    ]
+                }
+            }
+        }"#;
+
+        let update: Update = serde_json::from_str(json).unwrap();
+        let msg = match &update.kind {
+            UpdateKind::Message(msg) => msg,
+            other => panic!("Expected `UpdateKind::Message`, got {other:?}"),
+        };
+        let video = msg.video().expect("Expected `MediaKind::Video`, not `MessageKind::Empty`");
+        let qualities = video.qualities.as_deref().expect("Expected video qualities");
+        assert_eq!(qualities.len(), 2);
+        assert_eq!(qualities[0].file_size, Some(4_294_967_296));
+        assert_eq!(qualities[1].file_size, None);
+    }
 }

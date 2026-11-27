@@ -224,6 +224,7 @@ where
         send_chat_action,
         set_message_reaction,
         get_user_profile_photos,
+        get_user_profile_audios,
         set_user_emoji_status,
         get_file,
         kick_chat_member,
@@ -274,6 +275,8 @@ where
         set_my_commands,
         get_business_connection,
         get_my_commands,
+        set_my_profile_photo,
+        remove_my_profile_photo,
         set_my_name,
         get_my_name,
         set_my_description,
@@ -571,6 +574,11 @@ trait ErasableRequester<'a> {
         user_id: UserId,
     ) -> ErasedRequest<'a, GetUserProfilePhotos, Self::Err>;
 
+    fn get_user_profile_audios(
+        &self,
+        user_id: UserId,
+    ) -> ErasedRequest<'a, GetUserProfileAudios, Self::Err>;
+
     fn set_user_emoji_status(
         &self,
         user_id: UserId,
@@ -850,6 +858,13 @@ trait ErasableRequester<'a> {
     ) -> ErasedRequest<'a, GetBusinessConnection, Self::Err>;
 
     fn get_my_commands(&self) -> ErasedRequest<'a, GetMyCommands, Self::Err>;
+
+    fn set_my_profile_photo(
+        &self,
+        photo: InputProfilePhoto,
+    ) -> ErasedRequest<'a, SetMyProfilePhoto, Self::Err>;
+
+    fn remove_my_profile_photo(&self) -> ErasedRequest<'a, RemoveMyProfilePhoto, Self::Err>;
 
     fn set_my_name(&self) -> ErasedRequest<'a, SetMyName, Self::Err>;
 
@@ -1592,6 +1607,13 @@ where
         Requester::get_user_profile_photos(self, user_id).erase()
     }
 
+    fn get_user_profile_audios(
+        &self,
+        user_id: UserId,
+    ) -> ErasedRequest<'a, GetUserProfileAudios, Self::Err> {
+        Requester::get_user_profile_audios(self, user_id).erase()
+    }
+
     fn set_user_emoji_status(
         &self,
         user_id: UserId,
@@ -1980,6 +2002,17 @@ where
 
     fn get_my_commands(&self) -> ErasedRequest<'a, GetMyCommands, Self::Err> {
         Requester::get_my_commands(self).erase()
+    }
+
+    fn set_my_profile_photo(
+        &self,
+        photo: InputProfilePhoto,
+    ) -> ErasedRequest<'a, SetMyProfilePhoto, Self::Err> {
+        Requester::set_my_profile_photo(self, photo).erase()
+    }
+
+    fn remove_my_profile_photo(&self) -> ErasedRequest<'a, RemoveMyProfilePhoto, Self::Err> {
+        Requester::remove_my_profile_photo(self).erase()
     }
 
     fn set_my_name(&self) -> ErasedRequest<'a, SetMyName, Self::Err> {

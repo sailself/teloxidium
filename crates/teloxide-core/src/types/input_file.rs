@@ -19,7 +19,7 @@ use std::{
     sync::Arc, task,
 };
 
-use crate::types::{self, InputSticker};
+use crate::types::{self, InputProfilePhoto, InputSticker};
 
 /// This object represents the contents of a file to be uploaded.
 ///
@@ -425,5 +425,21 @@ impl InputFileLike for InputSticker {
 
     fn move_into(&mut self, into: &mut dyn FnMut(InputFile)) {
         self.sticker.move_into(into)
+    }
+}
+
+impl InputFileLike for InputProfilePhoto {
+    fn copy_into(&self, into: &mut dyn FnMut(InputFile)) {
+        match self {
+            InputProfilePhoto::Static(photo) => photo.photo.copy_into(into),
+            InputProfilePhoto::Animated(photo) => photo.animation.copy_into(into),
+        }
+    }
+
+    fn move_into(&mut self, into: &mut dyn FnMut(InputFile)) {
+        match self {
+            InputProfilePhoto::Static(photo) => photo.photo.move_into(into),
+            InputProfilePhoto::Animated(photo) => photo.animation.move_into(into),
+        }
     }
 }

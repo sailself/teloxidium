@@ -1,22 +1,37 @@
 use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::types::{
-    KeyboardButtonPollType, KeyboardButtonRequestChat, KeyboardButtonRequestUsers, True, WebAppInfo,
+    ButtonStyle, CustomEmojiId, KeyboardButtonPollType, KeyboardButtonRequestChat,
+    KeyboardButtonRequestUsers, True, WebAppInfo,
 };
 
 /// This object represents one button of the reply keyboard.
 ///
-/// For filter text buttons String can be used instead of this object to specify
-/// text of the button.
+/// At most one of the fields other than `text`, `icon_custom_emoji_id`, and
+/// `style` must be used to specify the type of the button.
+///
+/// For simple text buttons `String` can be used instead of this object to
+/// specify text of the button.
 ///
 /// [The official docs](https://core.telegram.org/bots/api#keyboardbutton).
 #[serde_with::skip_serializing_none]
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct KeyboardButton {
-    /// Text of the button. If none of the optional fields are used, it will
-    /// be sent as a message when the button is pressed.
+    /// Text of the button. If none of the fields other than `text`,
+    /// `icon_custom_emoji_id`, and `style` are used, it will be sent as a
+    /// message when the button is pressed.
     pub text: String,
+
+    /// Unique identifier of the custom emoji shown before the text of the
+    /// button. Can only be used by bots that purchased additional usernames
+    /// on Fragment or in the messages directly sent by the bot to private,
+    /// group and supergroup chats if the owner of the bot has a Telegram
+    /// Premium subscription.
+    pub icon_custom_emoji_id: Option<CustomEmojiId>,
+
+    /// Style of the button. If omitted, then an app-specific style is used.
+    pub style: Option<ButtonStyle>,
 
     /// Request something from user. This is available in private chats only.
     ///
@@ -31,7 +46,20 @@ impl KeyboardButton {
     where
         T: Into<String>,
     {
-        Self { text: text.into(), request: None }
+        Self { text: text.into(), icon_custom_emoji_id: None, style: None, request: None }
+    }
+
+    pub fn icon_custom_emoji_id<T>(mut self, val: T) -> Self
+    where
+        T: Into<CustomEmojiId>,
+    {
+        self.icon_custom_emoji_id = Some(val.into());
+        self
+    }
+
+    pub fn style(mut self, val: ButtonStyle) -> Self {
+        self.style = Some(val);
+        self
     }
 
     pub fn request<T>(mut self, val: T) -> Self
@@ -213,7 +241,7 @@ mod tests {
 
     #[test]
     fn serialize_no_request() {
-        let button = KeyboardButton { text: String::from(""), request: None };
+        let button = KeyboardButton::new("");
         let expected = r#"{"text":""}"#;
         let actual = serde_json::to_string(&button).unwrap();
         assert_eq!(expected, actual);
@@ -221,8 +249,7 @@ mod tests {
 
     #[test]
     fn serialize_request_contact() {
-        let button =
-            KeyboardButton { text: String::from(""), request: Some(ButtonRequest::Contact) };
+        let button = KeyboardButton::new("").request(ButtonRequest::Contact);
         let expected = r#"{"text":"","request_contact":true}"#;
         let actual = serde_json::to_string(&button).unwrap();
         assert_eq!(expected, actual);
@@ -230,13 +257,9 @@ mod tests {
 
     #[test]
     fn serialize_chat_request() {
-        let button = KeyboardButton {
-            text: String::from(""),
-            request: Some(ButtonRequest::RequestChat(KeyboardButtonRequestChat::new(
-                RequestId(0),
-                false,
-            ))),
-        };
+        let button = KeyboardButton::new("").request(ButtonRequest::RequestChat(
+            KeyboardButtonRequestChat::new(RequestId(0), false),
+        ));
         let expected = r#"{"text":"","request_chat":{"request_id":0,"chat_is_channel":false}}"#;
         let actual = serde_json::to_string(&button).unwrap();
         assert_eq!(expected, actual);
@@ -245,7 +268,7 @@ mod tests {
     #[test]
     fn deserialize_no_request() {
         let json = r#"{"text":""}"#;
-        let expected = KeyboardButton { text: String::from(""), request: None };
+        let expected = KeyboardButton::new("");
         let actual = serde_json::from_str(json).unwrap();
         assert_eq!(expected, actual);
     }
@@ -253,9 +276,23 @@ mod tests {
     #[test]
     fn deserialize_request_contact() {
         let json = r#"{"text":"","request_contact":true}"#;
-        let expected =
-            KeyboardButton { text: String::from(""), request: Some(ButtonRequest::Contact) };
+        let expected = KeyboardButton::new("").request(ButtonRequest::Contact);
         let actual = serde_json::from_str(json).unwrap();
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn styled_and_icon_roundtrip() {
+        let button = KeyboardButton::new("Confirm")
+            .icon_custom_emoji_id("5312536423851630001")
+            .style(ButtonStyle::Success)
+            .request(ButtonRequest::Contact);
+        let json = serde_json::to_string(&button).unwrap();
+        assert_eq!(
+            json,
+            r#"{"text":"Confirm","icon_custom_emoji_id":"5312536423851630001","style":"success","request_contact":true}"#
+        );
+        let parsed: KeyboardButton = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, button);
     }
 }

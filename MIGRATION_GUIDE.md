@@ -3,6 +3,19 @@ Note that the list of required changes is not fully exhaustive and it may lack s
 
 ## unreleased
 
+## 0.19 -> 0.20
+
+### teloxide-core
+
+- **`KeyboardButton` & `InlineKeyboardButton`:** Added `icon_custom_emoji_id: Option<CustomEmojiId>` and `style: Option<ButtonStyle>`. Existing constructors (`new`, `callback`, `url`, etc.) initialize both to `None`, and new `.icon_custom_emoji_id(...)` / `.style(...)` builder methods are provided; update exhaustive struct literals.
+- **`Video::qualities`:** Added `qualities: Option<Vec<VideoQuality>>`; initialize to `None` in struct literals.
+- **`ChatFullInfoPrivate::first_profile_audio`:** Added `first_profile_audio: Option<Audio>` (also accessible via `ChatFullInfo::first_profile_audio()`); initialize to `None` in struct literals.
+- **`Me::allows_users_to_create_topics`:** Added `allows_users_to_create_topics: bool` (`#[serde(default)]`); initialize to `false` in struct literals.
+- **`UniqueGift` & `UniqueGiftModel`:** Added `is_burned: bool` (`#[serde(default, skip_serializing_if = "std::ops::Not::not")]`) to `UniqueGift` and `rarity: Option<UniqueGiftModelRarity>` to `UniqueGiftModel`; update struct literals.
+- **`MessageKind` variants:** Added `MessageKind::ChatOwnerLeft(MessageChatOwnerLeft)` and `MessageKind::ChatOwnerChanged(MessageChatOwnerChanged)`; update exhaustive `match` expressions on `MessageKind`.
+- **`Bot::SetBusinessAccountProfilePhoto`:** Switched from `JsonRequest<payloads::SetBusinessAccountProfilePhoto>` to `MultipartRequest<payloads::SetBusinessAccountProfilePhoto>`, and `SetBusinessAccountProfilePhoto` now implements `MultipartPayload` for `InputFile` uploads.
+- **Custom `Requester` implementations:** Must implement `GetUserProfileAudios`, `SetMyProfilePhoto`, and `RemoveMyProfilePhoto` associated types and methods.
+
 ## 0.18 -> 0.19
 
 ### teloxide-core

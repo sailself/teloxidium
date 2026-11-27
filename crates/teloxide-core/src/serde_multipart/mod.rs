@@ -84,13 +84,14 @@ where
 mod tests {
     use tokio::fs::File;
 
-    use super::to_form_ref;
+    use super::{to_form, to_form_ref};
     use crate::{
         payloads::{self, setters::*},
         types::{
-            ChatId, InputFile, InputMedia, InputMediaAnimation, InputMediaAudio,
-            InputMediaDocument, InputMediaPhoto, InputMediaVideo, InputSticker, MessageEntity,
-            MessageEntityKind, ParseMode, StickerFormat, UserId,
+            BusinessConnectionId, ChatId, InputFile, InputMedia, InputMediaAnimation,
+            InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo,
+            InputProfilePhoto, InputProfilePhotoAnimated, InputProfilePhotoStatic, InputSticker,
+            MessageEntity, MessageEntityKind, ParseMode, StickerFormat, UserId,
         },
     };
 
@@ -205,6 +206,129 @@ mod tests {
         )
         .unwrap()
         .await;
+    }
+
+    #[tokio::test]
+    async fn test_set_my_profile_photo_multipart() {
+        use futures::TryStreamExt;
+
+        let static_file = InputFile::memory(b"fake-jpg-bytes".to_vec());
+        let attach_id = static_file.id().to_owned();
+        let mut payload =
+            payloads::SetMyProfilePhoto::new(InputProfilePhoto::Static(InputProfilePhotoStatic {
+                photo: static_file,
+            }));
+
+        let form_ref = to_form_ref(&payload).unwrap().await;
+        let body_ref = String::from_utf8(
+            form_ref.into_stream().try_collect::<Vec<bytes::Bytes>>().await.unwrap().concat(),
+        )
+        .unwrap();
+        let expected_static_json = format!(r#"{{"type":"static","photo":"attach://{attach_id}"}}"#);
+        assert!(
+            body_ref.contains(&format!("name=\"photo\"\r\n\r\n{expected_static_json}\r\n")),
+            "unexpected multipart body:\n{body_ref}"
+        );
+        assert!(
+            body_ref.contains(&format!("name=\"{attach_id}\""))
+                && body_ref.contains("fake-jpg-bytes"),
+            "missing attached file part:\n{body_ref}"
+        );
+
+        let form_owned = to_form(&mut payload).unwrap().await;
+        let body_owned = String::from_utf8(
+            form_owned.into_stream().try_collect::<Vec<bytes::Bytes>>().await.unwrap().concat(),
+        )
+        .unwrap();
+        assert!(body_owned.contains(&expected_static_json));
+        assert!(body_owned.contains("fake-jpg-bytes"));
+
+        let anim_file = InputFile::memory(b"fake-mp4-bytes".to_vec());
+        let anim_id = anim_file.id().to_owned();
+        let anim_payload = payloads::SetMyProfilePhoto::new(InputProfilePhoto::Animated(
+            InputProfilePhotoAnimated { animation: anim_file, main_frame_timestamp: Some(1.5) },
+        ));
+        let anim_form = to_form_ref(&anim_payload).unwrap().await;
+        let anim_body = String::from_utf8(
+            anim_form.into_stream().try_collect::<Vec<bytes::Bytes>>().await.unwrap().concat(),
+        )
+        .unwrap();
+        let expected_anim_json = format!(
+            r#"{{"type":"animated","animation":"attach://{anim_id}","main_frame_timestamp":1.5}}"#
+        );
+        assert!(
+            anim_body.contains(&format!("name=\"photo\"\r\n\r\n{expected_anim_json}\r\n")),
+            "unexpected animated multipart body:\n{anim_body}"
+        );
+        assert!(
+            anim_body.contains(&format!("name=\"{anim_id}\""))
+                && anim_body.contains("fake-mp4-bytes"),
+            "missing animated file part:\n{anim_body}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_set_business_account_profile_photo_multipart() {
+        use futures::TryStreamExt;
+
+        let static_file = InputFile::memory(b"biz-jpg-bytes".to_vec());
+        let attach_id = static_file.id().to_owned();
+        let mut payload = payloads::SetBusinessAccountProfilePhoto::new(
+            BusinessConnectionId("biz-conn-1".to_owned()),
+            InputProfilePhoto::Static(InputProfilePhotoStatic { photo: static_file }),
+        )
+        .is_public(true);
+
+        let form = to_form(&mut payload).unwrap().await;
+        let body = String::from_utf8(
+            form.into_stream().try_collect::<Vec<bytes::Bytes>>().await.unwrap().concat(),
+        )
+        .unwrap();
+        let expected_json = format!(r#"{{"type":"static","photo":"attach://{attach_id}"}}"#);
+        assert!(body.contains("name=\"business_connection_id\"\r\n\r\nbiz-conn-1\r\n"));
+        assert!(body.contains(&format!("name=\"photo\"\r\n\r\n{expected_json}\r\n")));
+        assert!(body.contains("name=\"is_public\"\r\n\r\ntrue\r\n"));
+        assert!(body.contains(&format!("name=\"{attach_id}\"")) && body.contains("biz-jpg-bytes"));
+    }
+
+    #[tokio::test]
+    async fn test_multipart_integer_keyed_map() {
+        use std::collections::BTreeMap;
+
+        use futures::TryStreamExt;
+        use serde::Serialize;
+
+        use crate::requests::{MultipartPayload, Payload};
+
+        #[derive(Serialize)]
+        struct MapPayload {
+            map: BTreeMap<u32, String>,
+        }
+
+        impl Payload for MapPayload {
+            type Output = ();
+            const NAME: &'static str = "TestMapPayload";
+        }
+
+        impl MultipartPayload for MapPayload {
+            fn copy_files(&self, _into: &mut dyn FnMut(InputFile)) {}
+
+            fn move_files(&mut self, _into: &mut dyn FnMut(InputFile)) {}
+        }
+
+        let mut map = BTreeMap::new();
+        map.insert(1, "one".to_owned());
+        map.insert(2, "two".to_owned());
+
+        let form = to_form_ref(&MapPayload { map }).unwrap().await;
+        let body = String::from_utf8(
+            form.into_stream().try_collect::<Vec<bytes::Bytes>>().await.unwrap().concat(),
+        )
+        .unwrap();
+        assert!(
+            body.contains("name=\"map\"\r\n\r\n{\"1\":\"one\",\"2\":\"two\"}\r\n"),
+            "unexpected multipart map body:\n{body}"
+        );
     }
 
     fn entities() -> impl Iterator<Item = MessageEntity> {

@@ -1,9 +1,13 @@
 use crate::types::{
-    CallbackGame, CopyTextButton, LoginUrl, SwitchInlineQueryChosenChat, True, WebAppInfo,
+    ButtonStyle, CallbackGame, CopyTextButton, CustomEmojiId, LoginUrl,
+    SwitchInlineQueryChosenChat, True, WebAppInfo,
 };
 use serde::{Deserialize, Serialize};
 
 /// This object represents one button of an inline keyboard.
+///
+/// Exactly one of the fields other than `text`, `icon_custom_emoji_id`, and
+/// `style` must be used to specify the type of the button.
 ///
 /// [The official docs](https://core.telegram.org/bots/api#inlinekeyboardbutton).
 #[serde_with::skip_serializing_none]
@@ -12,6 +16,16 @@ use serde::{Deserialize, Serialize};
 pub struct InlineKeyboardButton {
     /// Label text on the button.
     pub text: String,
+
+    /// Unique identifier of the custom emoji shown before the text of the
+    /// button. Can only be used by bots that purchased additional usernames
+    /// on Fragment or in the messages directly sent by the bot to private,
+    /// group and supergroup chats if the owner of the bot has a Telegram
+    /// Premium subscription.
+    pub icon_custom_emoji_id: Option<CustomEmojiId>,
+
+    /// Style of the button. If omitted, then an app-specific style is used.
+    pub style: Option<ButtonStyle>,
 
     #[serde(flatten)]
     pub kind: InlineKeyboardButtonKind,
@@ -113,7 +127,22 @@ impl InlineKeyboardButton {
     where
         S: Into<String>,
     {
-        Self { text: text.into(), kind }
+        Self { text: text.into(), icon_custom_emoji_id: None, style: None, kind }
+    }
+
+    /// Sets the `icon_custom_emoji_id` on this button.
+    pub fn icon_custom_emoji_id<T>(mut self, val: T) -> Self
+    where
+        T: Into<CustomEmojiId>,
+    {
+        self.icon_custom_emoji_id = Some(val.into());
+        self
+    }
+
+    /// Sets the `style` on this button.
+    pub fn style(mut self, val: ButtonStyle) -> Self {
+        self.style = Some(val);
+        self
     }
 
     /// Constructor for `InlineKeyboardButton` with [`Url`] kind.
@@ -217,5 +246,29 @@ impl InlineKeyboardButton {
         T: Into<String>,
     {
         Self::new(text, InlineKeyboardButtonKind::Pay(True))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn styled_and_legacy_roundtrip() {
+        let button = InlineKeyboardButton::callback("Delete", "delete_1")
+            .icon_custom_emoji_id("5312536423851630009")
+            .style(ButtonStyle::Danger);
+        let json = serde_json::to_string(&button).unwrap();
+        assert_eq!(
+            json,
+            r#"{"text":"Delete","icon_custom_emoji_id":"5312536423851630009","style":"danger","callback_data":"delete_1"}"#
+        );
+        let parsed: InlineKeyboardButton = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, button);
+
+        let legacy_json = r#"{"text":"Go","callback_data":"go"}"#;
+        let parsed_legacy: InlineKeyboardButton = serde_json::from_str(legacy_json).unwrap();
+        assert_eq!(parsed_legacy, InlineKeyboardButton::callback("Go", "go"));
+        assert_eq!(serde_json::to_string(&parsed_legacy).unwrap(), legacy_json);
     }
 }

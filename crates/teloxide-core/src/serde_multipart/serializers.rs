@@ -282,12 +282,12 @@ impl Serializer for PartSerializer {
 
     type SerializeStruct = JsonPartSerializer;
     type SerializeSeq = JsonPartSerializer;
+    type SerializeMap = JsonPartSerializer;
 
     // Unimplemented
     type SerializeTuple = Impossible<Self::Ok, Self::Error>;
     type SerializeTupleStruct = Impossible<Self::Ok, Self::Error>;
     type SerializeTupleVariant = Impossible<Self::Ok, Self::Error>;
-    type SerializeMap = Impossible<Self::Ok, Self::Error>;
     type SerializeStructVariant = Impossible<Self::Ok, Self::Error>;
 
     fn serialize_bool(self, v: bool) -> Result<Self::Ok, Self::Error> {
@@ -438,7 +438,7 @@ impl Serializer for PartSerializer {
     }
 
     fn serialize_map(self, _: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
-        unimplemented!()
+        Ok(JsonPartSerializer { buf: String::new(), state: PartSerializerStructState::Empty })
     }
 
     fn serialize_struct_variant(
@@ -484,7 +484,71 @@ impl SerializeStruct for JsonPartSerializer {
         use PartSerializerStructState::*;
 
         match self.state {
-            Empty => Ok(Part::text("{{}}")),
+            Empty => Ok(Part::text("{}")),
+            Rest => {
+                self.buf += "}";
+
+                Ok(Part::text(self.buf))
+            }
+        }
+    }
+}
+
+struct SingleEntryKey<'a, T: ?Sized>(&'a T);
+
+impl<T: Serialize + ?Sized> Serialize for SingleEntryKey<'_, T> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(Some(1))?;
+        map.serialize_entry(self.0, &())?;
+        map.end()
+    }
+}
+
+impl SerializeMap for JsonPartSerializer {
+    type Ok = Part;
+    type Error = Error;
+
+    fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<(), Self::Error>
+    where
+        T: Serialize,
+    {
+        use std::fmt::Write;
+        use PartSerializerStructState::*;
+
+        let encoded_pair = serde_json::to_string(&SingleEntryKey(key))?;
+        let key = encoded_pair
+            .strip_prefix('{')
+            .and_then(|s| s.strip_suffix(":null}"))
+            .ok_or_else(|| Error::Custom("unexpected encoded map key format".to_owned()))?;
+        match self.state {
+            Empty => {
+                self.state = Rest;
+
+                write!(&mut self.buf, "{{{key}:")?
+            }
+            Rest => write!(&mut self.buf, ",{key}:")?,
+        }
+
+        Ok(())
+    }
+
+    fn serialize_value<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
+    where
+        T: Serialize,
+    {
+        use std::fmt::Write;
+
+        let value = serde_json::to_string(value)?;
+        write!(&mut self.buf, "{value}")?;
+
+        Ok(())
+    }
+
+    fn end(mut self) -> Result<Self::Ok, Self::Error> {
+        use PartSerializerStructState::*;
+
+        match self.state {
+            Empty => Ok(Part::text("{}")),
             Rest => {
                 self.buf += "}";
 
