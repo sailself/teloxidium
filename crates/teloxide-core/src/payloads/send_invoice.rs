@@ -32,7 +32,7 @@ impl_payload! {
             pub prices: Vec<LabeledPrice> [collect],
         }
         optional {
-            /// Unique identifier for the target message thread (topic) of the forum; for forum supergroups only
+            /// Unique identifier for the target message thread (topic) of a forum; for forum supergroups and private chats of bots with forum topic mode enabled only
             pub message_thread_id: ThreadId,
             /// Identifier of the direct messages topic to which the message will be sent; required if the message is sent to a direct messages chat
             pub direct_messages_topic_id: TopicId,

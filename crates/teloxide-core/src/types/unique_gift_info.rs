@@ -12,11 +12,19 @@ pub struct UniqueGiftInfo {
 
     /// Origin of the gift. Currently, either `Upgrade` for gifts upgraded from
     /// regular gifts, `Transfer` for gifts transferred from other users or
-    /// channels, or `Resale` for gifts bought from other users
+    /// channels, `Resale` for gifts bought from other users, `GiftedUpgrade`
+    /// for upgrades purchased after the gift was sent, or `Offer` for gifts
+    /// bought or sold through gift purchase offers
     pub origin: UniqueGiftOrigin,
 
-    /// For gifts bought from other users, the price paid for the gift
-    pub last_resale_star_count: Option<u32>,
+    /// For gifts bought from other users, the currency in which the payment for
+    /// the gift was done. Currently, one of `"XTR"` for Telegram Stars or
+    /// `"TON"` for TON grams
+    pub last_resale_currency: Option<String>,
+
+    /// For gifts bought from other users, the price paid for the gift in either
+    /// Telegram Stars or nanograms
+    pub last_resale_amount: Option<u64>,
 
     /// Unique identifier of the received gift for the bot; only present for
     /// gifts received on behalf of business accounts
@@ -35,7 +43,9 @@ pub struct UniqueGiftInfo {
 
 /// Origin of the gift. Currently, either `Upgrade` for gifts upgraded from
 /// regular gifts, `Transfer` for gifts transferred from other users or
-/// channels, or `Resale` for gifts bought from other users
+/// channels, `Resale` for gifts bought from other users, `GiftedUpgrade` for
+/// upgrades purchased after the gift was sent, or `Offer` for gifts bought or
+/// sold through gift purchase offers.
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
@@ -43,6 +53,8 @@ pub enum UniqueGiftOrigin {
     Upgrade,
     Transfer,
     Resale,
+    GiftedUpgrade,
+    Offer,
 }
 
 #[cfg(test)]
@@ -53,6 +65,7 @@ mod tests {
     fn deserialize() {
         let data = r#"{
             "gift": {
+                "gift_id": "gift-1",
                 "base_name": "name",
                 "name": "name",
                 "number": 123,
@@ -106,5 +119,21 @@ mod tests {
         assert_eq!(unique_gift_info.origin, UniqueGiftOrigin::Upgrade);
         assert_eq!(unique_gift_info.gift.name, "name");
         assert_eq!(unique_gift_info.gift.backdrop.rarity_per_mille, 123);
+        assert_eq!(unique_gift_info.last_resale_currency, None);
+        assert_eq!(unique_gift_info.last_resale_amount, None);
+
+        let offer_ton = data.replace(
+            r#""origin": "upgrade""#,
+            r#""origin": "offer", "last_resale_currency": "TON", "last_resale_amount": 5000000000"#,
+        );
+        let parsed_offer: UniqueGiftInfo = serde_json::from_str(&offer_ton).unwrap();
+        assert_eq!(parsed_offer.origin, UniqueGiftOrigin::Offer);
+        assert_eq!(parsed_offer.last_resale_currency.as_deref(), Some("TON"));
+        assert_eq!(parsed_offer.last_resale_amount, Some(5_000_000_000));
+
+        let gifted_upgrade =
+            data.replace(r#""origin": "upgrade""#, r#""origin": "gifted_upgrade""#);
+        let parsed_gifted: UniqueGiftInfo = serde_json::from_str(&gifted_upgrade).unwrap();
+        assert_eq!(parsed_gifted.origin, UniqueGiftOrigin::GiftedUpgrade);
     }
 }

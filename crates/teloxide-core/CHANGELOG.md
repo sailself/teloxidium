@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## unreleased
 
+## 0.15.0 - 2026-11-26
+
+### Added
+
+- Support for TBA 9.3 (December 31, 2025)
+  - Add `DraftId`, `GiftBackground`, `UniqueGiftColors`, and `UserRating` structs
+  - Add `send_message_draft` (`VisitParseModes`, throttled), `get_user_gifts`, `get_chat_gifts`, and `repost_story` methods to `Requester` (also implemented on `Bot`, `CacheMe`, `Trace`, `ErasedRequester`, `DefaultParseMode`, and `Throttle`) [**BC**]
+  - Add `has_topics_enabled` field to `Me` struct [**BC**]
+  - Add `is_name_implicit` field to `ForumTopic` and `ForumTopicCreated` structs [**BC**]
+  - Add `gifts_from_channels` field to `AcceptedGiftTypes` struct [**BC**]
+  - Add `is_premium`, `has_colors`, `personal_total_count`, `personal_remaining_count`, `background`, and `unique_gift_variant_count` fields to `Gift` struct [**BC**]
+  - Add `gift_id`, `is_premium`, `is_from_blockchain`, and `colors` fields to `UniqueGift` struct [**BC**]
+  - Add `is_upgrade_separate` and `unique_gift_number` fields to `GiftInfo` and `OwnedGiftRegular` structs [**BC**]
+  - Add `GiftedUpgrade` and `Offer` variants to `UniqueGiftOrigin` enum [**BC**]
+  - Add `completed_by_chat` field to `ChecklistTask` struct [**BC**]
+  - Add `unique_gift_colors` and `paid_message_star_count` fields to `ChatFullInfo`, `rating` field to `ChatFullInfoPrivate`, and `ChatFullInfo::rating()` getter [**BC**]
+  - Add `gift_upgrade_sent` service message (`MessageKind::GiftUpgradeSent`, `MessageGiftUpgradeSent`, and `Message::gift_upgrade_sent()`) [**BC**]
+  - Add `exclude_from_blockchain` parameter to `get_business_account_gifts` method
+  - Add `message_effect_id` parameter to `forward_message` and `copy_message` methods
+  - Update docs for private-chat forum topics (`Message::thread_id`, `Message::is_topic_message`), Fragment usernames (`Me::username`), and increased `send_paid_media` limit (`1-25000` Telegram Stars)
+
+### Changed
+
+- Support for TBA 9.3 (December 31, 2025)
+  - Replaced `last_resale_star_count` field in `UniqueGiftInfo` with `last_resale_currency: Option<String>` and `last_resale_amount: Option<u64>` [**BC**]
+  - Replaced `exclude_limited` parameter in `get_business_account_gifts` with `exclude_limited_upgradable` and `exclude_limited_non_upgradable` [**BC**]
+
 ## 0.14.0 - 2026-11-26
 
 ### Added

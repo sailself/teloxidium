@@ -1,4 +1,4 @@
-use crate::types::{Chat, Rgb, Sticker};
+use crate::types::{Chat, GiftId, Rgb, Sticker, UniqueGiftColors};
 use serde::{Deserialize, Serialize};
 
 /// This object describes a unique gift that was upgraded from a regular gift.
@@ -8,6 +8,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct UniqueGift {
+    /// Identifier of the regular gift from which the gift was upgraded
+    pub gift_id: GiftId,
+
     /// Human-readable name of the regular gift from which this unique gift was
     /// upgraded
     pub base_name: String,
@@ -27,6 +30,21 @@ pub struct UniqueGift {
 
     /// Backdrop of the gift
     pub backdrop: UniqueGiftBackdrop,
+
+    /// `true`, if the original regular gift was exclusively purchasable by
+    /// Telegram Premium subscribers
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub is_premium: bool,
+
+    /// `true`, if the gift is assigned from the TON blockchain and can't be
+    /// resold or transferred in Telegram
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub is_from_blockchain: bool,
+
+    /// The color scheme that can be used by the gift's owner for the chat's
+    /// name, replies to messages and link previews; for business account gifts
+    /// and gifts that are currently on sale only
+    pub colors: Option<UniqueGiftColors>,
 
     /// Information about the chat that published the gift
     pub publisher_chat: Option<Chat>,
@@ -110,7 +128,7 @@ pub struct UniqueGiftBackdropColors {
 mod tests {
     use super::*;
 
-    use crate::types::{FileMeta, StickerFormatFlags, StickerKind};
+    use crate::types::{CustomEmojiId, FileMeta, StickerFormatFlags, StickerKind};
 
     #[test]
     fn deserialize() {
@@ -131,6 +149,7 @@ mod tests {
         };
 
         let unique_gift = UniqueGift {
+            gift_id: GiftId("gift-1".to_owned()),
             base_name: "name".to_owned(),
             name: "name".to_owned(),
             number: 123,
@@ -154,10 +173,14 @@ mod tests {
                 },
                 rarity_per_mille: 123,
             },
+            is_premium: false,
+            is_from_blockchain: false,
+            colors: None,
             publisher_chat: None,
         };
 
         let unique_gift_json = r#"{
+            "gift_id": "gift-1",
             "base_name": "name",
             "name": "name",
             "number": 123,
@@ -206,5 +229,22 @@ mod tests {
         }"#;
 
         assert_eq!(serde_json::from_str::<UniqueGift>(unique_gift_json).unwrap(), unique_gift);
+
+        let full = UniqueGift {
+            is_premium: true,
+            is_from_blockchain: true,
+            colors: Some(UniqueGiftColors {
+                model_custom_emoji_id: CustomEmojiId("1001".to_owned()),
+                symbol_custom_emoji_id: CustomEmojiId("1002".to_owned()),
+                light_theme_main_color: Rgb { r: 1, g: 2, b: 3 },
+                light_theme_other_colors: vec![Rgb { r: 4, g: 5, b: 6 }],
+                dark_theme_main_color: Rgb { r: 10, g: 20, b: 30 },
+                dark_theme_other_colors: vec![Rgb { r: 40, g: 50, b: 60 }],
+            }),
+            ..unique_gift
+        };
+        let roundtrip: UniqueGift =
+            serde_json::from_str(&serde_json::to_string(&full).unwrap()).unwrap();
+        assert_eq!(full, roundtrip);
     }
 }

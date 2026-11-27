@@ -32,6 +32,10 @@ pub struct GiftInfo {
     /// ability to upgrade the gift
     pub prepaid_upgrade_star_count: Option<u32>,
 
+    /// `true`, if the gift's upgrade was purchased after the gift was sent
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub is_upgrade_separate: bool,
+
     /// `true`, if the gift can be upgraded to a unique gift
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub can_be_upgraded: bool,
@@ -46,6 +50,12 @@ pub struct GiftInfo {
     /// otherwise, everyone will be able to see them
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub is_private: bool,
+
+    /// Unique number reserved for this gift when upgraded. See the `number`
+    /// field in [`UniqueGift`].
+    ///
+    /// [`UniqueGift`]: crate::types::UniqueGift
+    pub unique_gift_number: Option<u64>,
 }
 
 #[cfg(test)]
@@ -84,6 +94,33 @@ mod tests {
         assert_eq!(gift_info.gift.star_count, 10);
         assert_eq!(gift_info.can_be_upgraded, false);
         assert_eq!(gift_info.is_private, false);
+        assert_eq!(gift_info.is_upgrade_separate, false);
+        assert_eq!(gift_info.unique_gift_number, None);
         assert_eq!(gift_info.gift.id, "1234".into());
+
+        let data_9_3 = r#"{
+            "gift": {
+                "id": "1234",
+                "sticker": {
+                    "width": 512,
+                    "height": 512,
+                    "is_animated": true,
+                    "is_video": false,
+                    "type": "regular",
+                    "file_id": "CAACAgIAAxkBAAESLdBjMImep-J0W8XaTN6S_Lz1-j1QIQACIwADsND4DGmmygHGlyggKQQ",
+                    "file_unique_id": "AgADIwADsND4DA",
+                    "file_size": 16639
+                },
+                "star_count": 10
+            },
+            "is_upgrade_separate": true,
+            "unique_gift_number": 42069
+        }"#;
+        let parsed: GiftInfo = serde_json::from_str(data_9_3).unwrap();
+        assert!(parsed.is_upgrade_separate);
+        assert_eq!(parsed.unique_gift_number, Some(42069));
+        let roundtrip: GiftInfo =
+            serde_json::from_str(&serde_json::to_string(&parsed).unwrap()).unwrap();
+        assert_eq!(parsed, roundtrip);
     }
 }

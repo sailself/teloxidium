@@ -3,7 +3,7 @@
 use serde::Serialize;
 
 use crate::types::{
-    Message, MessageId, Recipient, Seconds, SuggestedPostParameters, ThreadId, TopicId,
+    EffectId, Message, MessageId, Recipient, Seconds, SuggestedPostParameters, ThreadId, TopicId,
 };
 
 impl_payload! {
@@ -22,7 +22,7 @@ impl_payload! {
             pub message_id: MessageId,
         }
         optional {
-            /// Unique identifier for the target message thread (topic) of the forum; for forum supergroups only
+            /// Unique identifier for the target message thread (topic) of a forum; for forum supergroups and private chats of bots with forum topic mode enabled only
             pub message_thread_id: ThreadId,
             /// Identifier of the direct messages topic to which the message will be sent; required if the message is sent to a direct messages chat
             pub direct_messages_topic_id: TopicId,
@@ -34,6 +34,8 @@ impl_payload! {
             pub disable_notification: bool,
             /// Protects the contents of sent messages from forwarding and saving
             pub protect_content: bool,
+            /// Unique identifier of the message effect to be added to the message; only available when forwarding to private chats
+            pub message_effect_id: EffectId,
             /// An object containing the parameters of the suggested post to send; for direct messages chats only. If the message is sent as a reply to another suggested post, then that suggested post is automatically declined.
             pub suggested_post_parameters: SuggestedPostParameters,
         }

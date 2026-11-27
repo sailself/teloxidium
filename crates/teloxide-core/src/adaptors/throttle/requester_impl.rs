@@ -42,6 +42,7 @@ where
     B::Err: AsResponseParameters,
 
     B::SendMessage: Clone + Send + Sync + 'static,
+    B::SendMessageDraft: Clone + Send + Sync + 'static,
     B::ForwardMessage: Clone + Send + Sync + 'static,
     B::ForwardMessages: Clone + Send + Sync + 'static,
     B::CopyMessage: Clone + Send + Sync + 'static,
@@ -91,6 +92,7 @@ where
     }
 
     requester_forward! {
+        send_message_draft,
         forward_message,
         forward_messages,
         copy_message,
@@ -229,6 +231,8 @@ where
         get_available_gifts,
         send_gift,
         send_gift_chat,
+        get_user_gifts,
+        get_chat_gifts,
         gift_premium_subscription,
         verify_user,
         verify_chat,
@@ -251,6 +255,7 @@ where
         post_story,
         edit_story,
         delete_story,
+        repost_story,
         answer_shipping_query,
         create_invoice_link,
         answer_pre_checkout_query,
@@ -280,7 +285,7 @@ mod tests {
         adaptors::{throttle::Limits, Throttle},
         payloads::SendMessageSetters,
         requests::{HasPayload, Requester},
-        types::{ChatId, EphemeralMessageParameters, UserId},
+        types::{ChatId, DraftId, EphemeralMessageParameters, UserId},
         Bot,
     };
 
@@ -297,6 +302,14 @@ mod tests {
 
         let request =
             request.ephemeral_message_parameters(callback.with_receiver_user_id(UserId(42)));
+        assert_eq!((request.chat_id)(request.payload_ref()), Some((&chat).into()));
+    }
+
+    #[test]
+    fn send_message_draft_uses_chat_id_hash() {
+        let (bot, _worker) = Throttle::new(Bot::new("test-token"), Limits::default());
+        let chat = ChatId(987654);
+        let request = bot.send_message_draft(chat, DraftId(7), "Streaming...");
         assert_eq!((request.chat_id)(request.payload_ref()), Some((&chat).into()));
     }
 }

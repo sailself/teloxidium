@@ -11,7 +11,7 @@
     <img src="https://img.shields.io/crates/v/teloxide.svg">
   </a>
   <a href="https://core.telegram.org/bots/api">
-    <img src="https://img.shields.io/badge/API%20coverage-Up%20to%209.2%20(inclusively)-green.svg">
+    <img src="https://img.shields.io/badge/API%20coverage-Up%20to%209.3%20(inclusively)-green.svg">
   </a>
   <a href="https://t.me/teloxide">
     <img src="https://img.shields.io/badge/support-t.me%2Fteloxide-blueviolet">
@@ -73,7 +73,7 @@ $ rustup override set nightly
  5. Run `cargo new my_bot`, enter the directory and put these lines into your `Cargo.toml`:
 ```toml
 [dependencies]
-teloxide = { version = "0.18.0", features = ["macros"] }
+teloxide = { git = "https://github.com/sailself/teloxidium", tag = "v0.19.0", features = ["macros"] }
 log = "0.4"
 pretty_env_logger = "0.5"
 tokio = { version =  "1.39", features = ["rt-multi-thread", "macros"] }
@@ -82,7 +82,7 @@ tokio = { version =  "1.39", features = ["rt-multi-thread", "macros"] }
 _Note: if there is functionality in master that is not released yet, you can pull the Git repository as follows:_
 
 ```toml
-teloxide = { git = "https://github.com/teloxide/teloxide.git", features = ["macros"] }
+teloxide = { git = "https://github.com/sailself/teloxidium.git", features = ["macros"] }
 ```
 
 ## API overview

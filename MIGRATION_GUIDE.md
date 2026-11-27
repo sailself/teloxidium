@@ -3,6 +3,19 @@ Note that the list of required changes is not fully exhaustive and it may lack s
 
 ## unreleased
 
+## 0.18 -> 0.19
+
+### teloxide-core
+
+- **`UniqueGiftInfo` resale fields:** Replaced `last_resale_star_count: Option<u32>` with `last_resale_currency: Option<String>` (`"XTR"` or `"TON"`) and `last_resale_amount: Option<u64>`.
+- **`UniqueGiftOrigin` variants:** Added `UniqueGiftOrigin::GiftedUpgrade` and `UniqueGiftOrigin::Offer`; update exhaustive matches on `UniqueGiftOrigin`.
+- **`GetBusinessAccountGifts` parameters:** Replaced `exclude_limited` setter/field with `exclude_limited_upgradable` and `exclude_limited_non_upgradable`, and added `exclude_from_blockchain`.
+- **`MessageKind::GiftUpgradeSent`:** Added `MessageKind::GiftUpgradeSent(MessageGiftUpgradeSent)` (`gift_upgrade_sent: GiftInfo`); update exhaustive matches on `MessageKind`.
+- **`UniqueGift::gift_id`:** `UniqueGift` now requires `gift_id: GiftId` alongside new optional fields (`is_premium`, `is_from_blockchain`, `colors`).
+- **`AcceptedGiftTypes::gifts_from_channels`:** Added `gifts_from_channels: bool` (defaults to `false` on deserialization of older JSON payloads, serialized unconditionally for outgoing requests).
+- **Struct literals:** Initialize newly added fields (`has_topics_enabled` on `Me`, `is_name_implicit` on `ForumTopic`/`ForumTopicCreated`, `is_premium`/`has_colors`/`personal_total_count`/`personal_remaining_count`/`background`/`unique_gift_variant_count` on `Gift`, `is_upgrade_separate`/`unique_gift_number` on `GiftInfo`/`OwnedGiftRegular`, `completed_by_chat` on `ChecklistTask`, `unique_gift_colors`/`paid_message_star_count` on `ChatFullInfo`, and `rating` on `ChatFullInfoPrivate`).
+- **Custom `Requester` implementations:** Must implement `SendMessageDraft`, `GetUserGifts`, `GetChatGifts`, and `RepostStory` associated types and methods.
+
 ## 0.17 -> 0.18
 
 ### teloxide-core

@@ -1,4 +1,4 @@
-use crate::types::{Message, MessageEntity, ParseMode, User};
+use crate::types::{Chat, Message, MessageEntity, ParseMode, User};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -28,8 +28,13 @@ pub struct ChecklistTask {
     /// Special entities that appear in the task text
     pub text_entities: Option<Vec<MessageEntity>>,
 
-    /// User that completed the task; omitted if the task wasn't completed
+    /// User that completed the task; omitted if the task wasn't completed by a
+    /// user
     pub completed_by_user: Option<User>,
+
+    /// Chat that completed the task; omitted if the task wasn't completed by a
+    /// chat
+    pub completed_by_chat: Option<Chat>,
 
     /// Point in time (Unix timestamp) when the task was completed; 0 if the
     /// task wasn't completed
@@ -167,4 +172,34 @@ pub struct ChecklistTasksAdded {
 
     /// List of tasks added to the checklist
     pub tasks: Vec<ChecklistTask>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn checklist_task_completed_by_chat_and_legacy() {
+        let legacy_json = r#"{"id":1,"text":"Buy milk"}"#;
+        let legacy: ChecklistTask = serde_json::from_str(legacy_json).unwrap();
+        assert_eq!(legacy.completed_by_chat, None);
+        assert!(!legacy.is_completed());
+
+        let completed_json = r#"{
+            "id": 2,
+            "text": "Publish post",
+            "completed_by_chat": {
+                "id": -1001234567890,
+                "title": "Channel",
+                "type": "channel"
+            },
+            "completion_date": 1735689600
+        }"#;
+        let completed: ChecklistTask = serde_json::from_str(completed_json).unwrap();
+        assert!(completed.completed_by_chat.is_some());
+        assert!(completed.is_completed());
+        let roundtrip: ChecklistTask =
+            serde_json::from_str(&serde_json::to_string(&completed).unwrap()).unwrap();
+        assert_eq!(completed, roundtrip);
+    }
 }

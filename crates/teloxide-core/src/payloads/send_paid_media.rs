@@ -16,7 +16,7 @@ impl_payload! {
         required {
             /// Unique identifier for the target chat or username of the target channel (in the format `@channelusername`)
             pub chat_id: Recipient [into],
-            /// The number of Telegram Stars that must be paid to buy access to the media
+            /// The number of Telegram Stars that must be paid to buy access to the media; 1-25000
             pub star_count: u32,
             /// A JSON-serialized array describing the media to be sent; up to 10 items
             pub media: Vec<InputPaidMedia> [collect],
@@ -24,7 +24,7 @@ impl_payload! {
         optional {
             /// Unique identifier of the business connection on behalf of which the message will be sent
             pub business_connection_id: BusinessConnectionId,
-            /// Unique identifier for the target message thread (topic) of the forum; for forum supergroups only
+            /// Unique identifier for the target message thread (topic) of a forum; for forum supergroups and private chats of bots with forum topic mode enabled only
             pub message_thread_id: ThreadId,
             /// Identifier of the direct messages topic to which the message will be sent; required if the message is sent to a direct messages chat
             pub direct_messages_topic_id: TopicId,

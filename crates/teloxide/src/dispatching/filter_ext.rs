@@ -140,6 +140,7 @@ define_message_ext! {
     (filter_suggested_post_refunded, Message::suggested_post_refunded),
     (filter_gift_info, Message::gift_info),
     (filter_unique_gift_info, Message::unique_gift_info),
+    (filter_gift_upgrade_sent, Message::gift_upgrade_sent),
     (filter_video_chat_scheduled, Message::video_chat_scheduled),
     (filter_video_chat_started, Message::video_chat_started),
     (filter_video_chat_ended, Message::video_chat_ended),

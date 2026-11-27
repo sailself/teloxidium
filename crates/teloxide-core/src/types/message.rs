@@ -40,8 +40,8 @@ pub struct Message {
     /// User who received this ephemeral message.
     pub receiver_user: Option<Box<User>>,
 
-    /// Unique identifier of a message thread to which the message belongs; for
-    /// supergroups only.
+    /// Unique identifier of a message thread or forum topic to which the
+    /// message belongs; for supergroups and private chats only.
     #[serde(rename = "message_thread_id")]
     pub thread_id: Option<ThreadId>,
 
@@ -66,7 +66,8 @@ pub struct Message {
     /// Conversation the message belongs to.
     pub chat: Chat,
 
-    /// `true`, if the message is sent to a forum topic.
+    /// `true`, if the message is sent to a topic in a forum supergroup or a
+    /// private chat with the bot.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub is_topic_message: bool,
 
@@ -143,6 +144,7 @@ pub enum MessageKind {
     SuggestedPostRefunded(MessageSuggestedPostRefunded),
     GiftInfo(MessageGiftInfo),
     UniqueGiftInfo(MessageUniqueGiftInfo),
+    GiftUpgradeSent(MessageGiftUpgradeSent),
     VideoChatScheduled(MessageVideoChatScheduled),
     VideoChatStarted(MessageVideoChatStarted),
     VideoChatEnded(MessageVideoChatEnded),
@@ -961,6 +963,14 @@ pub struct MessageUniqueGiftInfo {
 #[serde_with::skip_serializing_none]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct MessageGiftUpgradeSent {
+    /// Service message: upgrade of a gift was purchased after the gift was sent
+    pub gift_upgrade_sent: GiftInfo,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct MessageVideoChatScheduled {
     /// Service message: video chat scheduled
     pub video_chat_scheduled: VideoChatScheduled,
@@ -1024,10 +1034,11 @@ mod getters {
         MediaGroupId, MessageChatBackground, MessageChatBoostAdded, MessageForumTopicClosed,
         MessageForumTopicCreated, MessageForumTopicEdited, MessageForumTopicReopened,
         MessageGeneralForumTopicHidden, MessageGeneralForumTopicUnhidden, MessageGiftInfo,
-        MessageGiveaway, MessageGiveawayCompleted, MessageGiveawayCreated, MessageGiveawayWinners,
-        MessageMessageAutoDeleteTimerChanged, MessagePaidMessagePriceChanged,
-        MessageUniqueGiftInfo, MessageVideoChatEnded, MessageVideoChatScheduled,
-        MessageVideoChatStarted, MessageWebAppData, MessageWriteAccessAllowed,
+        MessageGiftUpgradeSent, MessageGiveaway, MessageGiveawayCompleted, MessageGiveawayCreated,
+        MessageGiveawayWinners, MessageMessageAutoDeleteTimerChanged,
+        MessagePaidMessagePriceChanged, MessageUniqueGiftInfo, MessageVideoChatEnded,
+        MessageVideoChatScheduled, MessageVideoChatStarted, MessageWebAppData,
+        MessageWriteAccessAllowed,
     };
 
     /// Getters for [Message] fields from [telegram docs].
@@ -2026,6 +2037,16 @@ mod getters {
         }
 
         #[must_use]
+        pub fn gift_upgrade_sent(&self) -> Option<&types::GiftInfo> {
+            match &self.kind {
+                GiftUpgradeSent(MessageGiftUpgradeSent { gift_upgrade_sent }) => {
+                    Some(gift_upgrade_sent)
+                }
+                _ => None,
+            }
+        }
+
+        #[must_use]
         pub fn video_chat_scheduled(&self) -> Option<&types::VideoChatScheduled> {
             match &self.kind {
                 VideoChatScheduled(MessageVideoChatScheduled { video_chat_scheduled }) => {
@@ -2325,6 +2346,16 @@ impl Message {
             .chain(flatten(self.game().map(Game::mentioned_users)))
             .chain(flatten(self.entities().map(mentioned_users_from_entities)))
             .chain(flatten(self.caption_entities().map(mentioned_users_from_entities)))
+            .chain(flatten(
+                self.gift_info()
+                    .and_then(|g| g.entities.as_deref())
+                    .map(mentioned_users_from_entities),
+            ))
+            .chain(flatten(
+                self.gift_upgrade_sent()
+                    .and_then(|g| g.entities.as_deref())
+                    .map(mentioned_users_from_entities),
+            ))
             .chain(flatten(self.poll().map(Poll::mentioned_users)))
             .chain(flatten(self.proximity_alert_triggered().map(|a| [&a.traveler, &a.watcher])))
             .chain(flatten(self.video_chat_participants_invited().map(|i| &i.users)))
@@ -3428,6 +3459,7 @@ mod tests {
             "date": 1721162577,
             "unique_gift": {
                 "gift": {
+                    "gift_id": "gift-1",
                     "base_name": "name",
                     "name": "name",
                     "number": 123,
@@ -3481,6 +3513,56 @@ mod tests {
         assert_eq!(message.unique_gift_info().unwrap().origin, UniqueGiftOrigin::Resale);
         assert_eq!(message.unique_gift_info().unwrap().gift.name, "name");
         assert_eq!(message.unique_gift_info().unwrap().gift.backdrop.rarity_per_mille, 123);
+    }
+
+    #[test]
+    fn gift_upgrade_sent() {
+        let json = r#"{
+            "message_id": 2701,
+            "chat": {
+                "id": 123456,
+                "first_name": "Alice",
+                "type": "private"
+            },
+            "date": 1735689600,
+            "gift_upgrade_sent": {
+                "gift": {
+                    "id": "gift-upg-1",
+                    "sticker": {
+                        "width": 512,
+                        "height": 512,
+                        "is_animated": true,
+                        "is_video": false,
+                        "type": "regular",
+                        "file_id": "CAACAgIAAxkBAAESLdBjMImep-J0W8XaTN6S_Lz1-j1QIQACIwADsND4DGmmygHGlyggKQQ",
+                        "file_unique_id": "AgADIwADsND4DA",
+                        "file_size": 16639
+                    },
+                    "star_count": 25
+                },
+                "text": "Congrats Alice",
+                "entities": [
+                    {
+                        "type": "text_mention",
+                        "offset": 9,
+                        "length": 5,
+                        "user": {
+                            "id": 777,
+                            "is_bot": false,
+                            "first_name": "Alice"
+                        }
+                    }
+                ],
+                "is_upgrade_separate": true,
+                "unique_gift_number": 99
+            }
+        }"#;
+        let message: Message = from_str(json).unwrap();
+        let info = message.gift_upgrade_sent().unwrap();
+        assert_eq!(info.gift.id, "gift-upg-1".into());
+        assert!(info.is_upgrade_separate);
+        assert_eq!(info.unique_gift_number, Some(99));
+        assert!(message.mentioned_users().any(|u| u.id == UserId(777)));
     }
 
     #[test]
