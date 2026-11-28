@@ -62,12 +62,13 @@ pub struct Poll {
     #[serde(default)]
     pub allows_revoting: bool,
 
-    /// `true`, if only members of the chat can vote in the poll.
+    /// `true`, if only members of the chat can vote in the poll (available only
+    /// for channel chats).
     #[serde(default)]
     pub members_only: bool,
 
     /// List of two-letter ISO 3166-1 alpha-2 country codes of users allowed to
-    /// vote in the poll, or `"FT"` for Fragment anonymous numbers.
+    /// vote in the poll, or `"FT"` for Fragment anonymous numbers; 0-12 codes.
     pub country_codes: Option<Vec<String>>,
 
     /// Array of 0-based identifiers of the correct answer options. Available

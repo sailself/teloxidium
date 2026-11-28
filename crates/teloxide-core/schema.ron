@@ -2454,12 +2454,12 @@ Schema(
                 Param(
                     name: "members_only",
                     ty: Option(bool),
-                    descr: Doc(md: "Pass True if only members of the chat can vote in the poll")
+                    descr: Doc(md: "Pass True if only members of the chat can vote in the poll, or if the poll can't be open for more than 24 hours; for channel chats only")
                 ),
                 Param(
                     name: "country_codes",
                     ty: Option(ArrayOf(String)),
-                    descr: Doc(md: "A JSON-serialized list of two-letter ISO 3166-1 alpha-2 country codes of users allowed to vote in the poll, or `\"FT\"` for Fragment anonymous numbers")
+                    descr: Doc(md: "A JSON-serialized list of 0-12 two-letter ISO 3166-1 alpha-2 country codes of users allowed to vote in the poll, or `\"FT\"` for Fragment anonymous numbers")
                 ),
                 Param(
                     name: "shuffle_options",
@@ -5593,7 +5593,7 @@ Schema(
                 Param(
                     name: "text",
                     ty: Option(String),
-                    descr: Doc(md: "Text that will be shown along with the gift; 0-255 characters"),
+                    descr: Doc(md: "Text that will be shown along with the gift; 0-128 characters"),
                 ),
                 Param(
                     name: "text_parse_mode",
@@ -5636,7 +5636,7 @@ Schema(
                 Param(
                     name: "text",
                     ty: Option(String),
-                    descr: Doc(md: "Text that will be shown along with the gift; 0-255 characters"),
+                    descr: Doc(md: "Text that will be shown along with the gift; 0-128 characters"),
                 ),
                 Param(
                     name: "text_parse_mode",

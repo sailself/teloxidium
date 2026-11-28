@@ -281,7 +281,7 @@ struct ChatPermissionsRaw {
     // Do not skip serializing `false`: Telegram defaults omitted `can_edit_tag`
     // to `can_pin_messages`.
     #[serde(default)]
-    can_edit_tag: bool,
+    can_edit_tag: Option<bool>,
 
     // Do not skip serializing `false`: Telegram defaults omitted
     // `can_react_to_messages` to `can_send_messages`.
@@ -306,7 +306,7 @@ impl From<ChatPermissions> for ChatPermissionsRaw {
             can_invite_users: this.can_invite_users(),
             can_pin_messages: this.can_pin_messages(),
             can_manage_topics: this.can_manage_topics(),
-            can_edit_tag: this.can_edit_tag(),
+            can_edit_tag: Some(this.can_edit_tag()),
             can_react_to_messages: Some(this.can_react_to_messages()),
         }
     }
@@ -378,7 +378,7 @@ impl From<ChatPermissionsRaw> for ChatPermissions {
         if can_manage_topics {
             this |= Self::MANAGE_TOPICS
         }
-        if can_edit_tag {
+        if can_edit_tag.unwrap_or(can_pin_messages) {
             this |= Self::EDIT_TAG;
         }
         if can_react_to_messages.unwrap_or(can_send_messages) {
@@ -409,10 +409,11 @@ mod tests {
         let expected = ChatPermissions::SEND_MESSAGES
             | ChatPermissions::SEND_PHOTOS
             | ChatPermissions::PIN_MESSAGES
+            | ChatPermissions::EDIT_TAG
             | ChatPermissions::REACT_TO_MESSAGES;
         let actual: ChatPermissions = serde_json::from_str(json).unwrap();
         assert_eq!(expected, actual);
-        assert!(!actual.can_edit_tag());
+        assert!(actual.can_edit_tag());
         assert!(actual.can_react_to_messages());
     }
 
@@ -424,6 +425,15 @@ mod tests {
         let parsed: ChatPermissions = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed, perms);
         assert!(parsed.can_edit_tag());
+
+        let sparse_pin: ChatPermissions =
+            serde_json::from_str(r#"{"can_pin_messages":true}"#).unwrap();
+        assert!(sparse_pin.can_edit_tag());
+        assert!(serde_json::to_string(&sparse_pin).unwrap().contains(r#""can_edit_tag":true"#));
+
+        let explicit_deny: ChatPermissions =
+            serde_json::from_str(r#"{"can_pin_messages":true,"can_edit_tag":false}"#).unwrap();
+        assert!(!explicit_deny.can_edit_tag());
     }
 
     #[test]

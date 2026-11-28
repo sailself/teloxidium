@@ -1240,8 +1240,17 @@
           "description": "Live photo video to send",
           "required": true,
           "type_info": {
-            "type": "reference",
-            "reference": "InputFile"
+            "type": "any_of",
+            "any_of": [
+              {
+                "type": "reference",
+                "reference": "InputFile"
+              },
+              {
+                "type": "string",
+                "enumeration": []
+              }
+            ]
           }
         },
         {
@@ -1249,8 +1258,17 @@
           "description": "The static photo to send",
           "required": true,
           "type_info": {
-            "type": "reference",
-            "reference": "InputFile"
+            "type": "any_of",
+            "any_of": [
+              {
+                "type": "reference",
+                "reference": "InputFile"
+              },
+              {
+                "type": "string",
+                "enumeration": []
+              }
+            ]
           }
         },
         {
@@ -2993,6 +3011,10 @@
                 },
                 {
                   "type": "reference",
+                  "reference": "InputMediaLivePhoto"
+                },
+                {
+                  "type": "reference",
                   "reference": "InputMediaPhoto"
                 },
                 {
@@ -3746,7 +3768,7 @@
         },
         {
           "name": "members_only",
-          "description": "Pass True if only members of the chat can vote in the poll",
+          "description": "Pass True if only members of the chat can vote in the poll, or if the poll can't be open for more than 24 hours; for channel chats only",
           "required": false,
           "type_info": {
             "type": "bool"
@@ -3754,7 +3776,7 @@
         },
         {
           "name": "country_codes",
-          "description": "A JSON-serialized list of two-letter ISO 3166-1 alpha-2 country codes of users allowed to vote in the poll, or `\"FT\"` for Fragment anonymous numbers",
+          "description": "A JSON-serialized list of 0-12 two-letter ISO 3166-1 alpha-2 country codes of users allowed to vote in the poll, or `\"FT\"` for Fragment anonymous numbers",
           "required": false,
           "type_info": {
             "type": "array",
@@ -3970,7 +3992,7 @@
           }
         }
       ],
-      "maybe_multipart": false,
+      "maybe_multipart": true,
       "return_type": {
         "type": "reference",
         "reference": "Message"
@@ -15754,8 +15776,8 @@
         },
         {
           "name": "members_only",
-          "description": "*Optional*. True, if only members of the chat can vote in the poll",
-          "required": false,
+          "description": "True, if only members of the chat can vote in the poll",
+          "required": true,
           "type_info": {
             "type": "bool"
           }

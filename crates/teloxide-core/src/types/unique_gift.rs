@@ -64,6 +64,10 @@ pub enum UniqueGiftModelRarity {
     Rare,
     Epic,
     Legendary,
+    /// A rarity value unknown to this version of the library.
+    #[serde(other)]
+    #[cfg_attr(test, schemars(skip))]
+    Unknown,
 }
 
 /// This object describes the model of a unique gift.

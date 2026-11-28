@@ -1,6 +1,6 @@
 [package]
 name = "teloxide"
-version = "0.23.0"
+version = "0.23.1"
 description = "An elegant Telegram bots framework for Rust"
 
 rust-version.workspace = true
@@ -10,7 +10,7 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
-documentation = "https://docs.rs/teloxide/"
+documentation = "https://github.com/sailself/teloxidium#readme"
 readme = "../../README.md"
 
 keywords = ["teloxide", "telegram", "telegram-bot", "telegram-bot-api", "bot"]
@@ -151,7 +151,7 @@ cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
 tag-prefix = ""
 enable-features = ["full"]
 pre-release-replacements = [
-    { file = "../../README.md", search = "teloxide = \\{ version = \"[^\"]+\"", replace = "teloxide = { version = \"{{version}}\"" },
+    { file = "../../README.md", search = 'tag = "v[^"]+"', replace = 'tag = "v{{version}}"' },
     { file = "../../CHANGELOG.md", search = "## unreleased", replace = "## unreleased\n\n## {{version}} - {{date}}", exactly = 1 },
 ]
 

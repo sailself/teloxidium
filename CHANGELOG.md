@@ -6,6 +6,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## unreleased
 
+## 0.23.1 - 2026-11-27
+
+### Added
+
+- Add forward-compatibility enum variants (`MessageEntityKind::{BankCardNumber, TonAddress, Unknown}`, `DisabledButton` + `InlineKeyboardButtonKind::{Disabled, Unknown}`, and `#[serde(other)] Unknown` on `ButtonStyle`, `UniqueGiftOrigin`, `UniqueGiftModelRarity`), `Me::try_username()`, `RichMessage::project_inline`, `TextQuote::project_rich_texts`, and `MessageFilterExt::filter_rich_message` (`teloxide-core 0.19.1`). [**BC**]
+- Emit a warning log when `Message` falls back to `MessageKind::Empty {}` despite having unparsed content keys, and point runtime update-parse error logs to `https://github.com/sailself/teloxidium/issues`.
+
+### Fixed
+
+- Switch `Bot::PostStory`, `Bot::EditStory`, and `Bot::ReplaceStickerInSet` to `MultipartRequest` (with `InputFileLike` for `InputStoryContent`) so story and replacement sticker uploads attach files properly instead of dangling `attach://` strings (`teloxide-core 0.19.1`). [**BC**]
+- Return `LivePhoto::photo` from `Message::photo()` so `filter_photo` matches live photos with still sizes while keeping `MediaKind::LivePhoto` and `Message::live_photo()` distinct.
+- Exclude `UpdateKind::GuestMessage` and messages carrying `guest_query_id` from `GetChatId` so guest queries do not collide with chat-keyed dialogue state; align guest-mode field docs and fixtures.
+- Resolve omitted `ChatPermissionsRaw::can_edit_tag` and `ChatMemberKind::can_manage_tags()` from `can_pin_messages` per Telegram Bot API defaults.
+- Stop rate-limiting `send_message_draft` under `Throttle`'s per-chat message queue.
+- Remove `.expect` panics in `filter_command`, `filter_mention_command`, `CommandDescriptions::username_from_me`, and `PollAnswer` deserialization; decode `UpdateKind` via `Cow<'de, str>` so `from_value` and `from_reader` work identically to `from_str`; probe only the winning content key in `ExternalReplyInfo`; redact `Err` payloads for managed-bot token endpoints in `Trace`.
+- Align `custom_v2.json` with Bot API 10.0 (`sendMediaGroup`, `sendLivePhoto`, `Poll::members_only`, `sendPoll::maybe_multipart`), enforce multipart request parity in `schema_check`, correct M6–M10 roadmap (`docs/bot-api-roadmap.md`), release docs (`RELEASE_PROCEDURE.md`), and release workflow (`.github/workflows/release.yml`).
+
 ## 0.23.0 - 2026-11-27
 
 ### Added

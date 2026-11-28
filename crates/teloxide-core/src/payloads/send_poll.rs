@@ -44,9 +44,9 @@ impl_payload! {
             pub allows_multiple_answers: bool,
             /// Pass True if the poll allows changing the chosen answer options, defaults to False for quizzes and to True for regular polls
             pub allows_revoting: bool,
-            /// Pass True if only members of the chat can vote in the poll
+            /// Pass True if only members of the chat can vote in the poll, or if the poll can't be open for more than 24 hours; for channel chats only
             pub members_only: bool,
-            /// A JSON-serialized list of two-letter ISO 3166-1 alpha-2 country codes of users allowed to vote in the poll, or `"FT"` for Fragment anonymous numbers
+            /// A JSON-serialized list of 0-12 two-letter ISO 3166-1 alpha-2 country codes of users allowed to vote in the poll, or `"FT"` for Fragment anonymous numbers
             pub country_codes: Vec<String> [collect],
             /// Pass True if the poll options must be shown in random order
             pub shuffle_options: bool,

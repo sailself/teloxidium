@@ -379,7 +379,10 @@ impl<'a> CommandDescriptions<'a> {
     /// [`username`]: self::CommandDescriptions::username
     #[must_use]
     pub fn username_from_me(self, me: &'a Me) -> CommandDescriptions<'a> {
-        self.username(me.user.username.as_deref().expect("Bots must have usernames"))
+        match me.user.username.as_deref() {
+            Some(username) => self.username(username),
+            None => self,
+        }
     }
 }
 

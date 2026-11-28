@@ -91,6 +91,7 @@ define_message_ext! {
     (filter_sticker, Message::sticker),
     (filter_story, Message::story),
     (filter_text, Message::text),
+    (filter_rich_message, Message::rich_message),
     (filter_video, Message::video),
     (filter_video_note, Message::video_note),
     (filter_voice, Message::voice),
@@ -455,6 +456,7 @@ mod tests {
                     "chat": { "id": 42, "first_name": "Alice", "type": "private" },
                     "date": 1778200001,
                     "live_photo": {
+                        "photo": [{ "file_id": "p-id", "file_unique_id": "p-uniq", "width": 640, "height": 480 }],
                         "file_id": "lp-id",
                         "file_unique_id": "lp-uniq",
                         "width": 640,
@@ -467,12 +469,36 @@ mod tests {
         )
         .unwrap();
 
+        let rich_update: Update = serde_json::from_str(
+            r#"{
+                "update_id": 22,
+                "message": {
+                    "message_id": 32,
+                    "chat": { "id": 42, "first_name": "Alice", "type": "private" },
+                    "date": 1778200002,
+                    "rich_message": { "blocks": [{ "type": "paragraph", "text": "Hello" }] }
+                }
+            }"#,
+        )
+        .unwrap();
+
         let guest_handler = dptree::entry()
             .branch(Update::filter_guest_message().endpoint(|m: Message| async move { m.id.0 }));
         let live_photo_handler = dptree::entry().branch(
             Update::filter_message().chain(
                 Message::filter_live_photo()
                     .endpoint(|lp: crate::types::LivePhoto| async move { lp.file_id.0 }),
+            ),
+        );
+        let photo_handler = dptree::entry().branch(Update::filter_message().chain(
+            Message::filter_photo().endpoint(|sizes: Vec<crate::types::PhotoSize>| async move {
+                sizes[0].file.id.0.clone()
+            }),
+        ));
+        let rich_handler = dptree::entry().branch(
+            Update::filter_message().chain(
+                Message::filter_rich_message()
+                    .endpoint(|rm: crate::types::RichMessage| async move { rm.project().text }),
             ),
         );
 
@@ -489,8 +515,16 @@ mod tests {
             ControlFlow::Break(ref id) if id == "lp-id"
         ));
         assert!(matches!(
+            photo_handler.dispatch(deps![live_photo_update.clone()]).await,
+            ControlFlow::Break(ref id) if id == "p-id"
+        ));
+        assert!(matches!(
             guest_handler.dispatch(deps![live_photo_update]).await,
             ControlFlow::Continue(_)
+        ));
+        assert!(matches!(
+            rich_handler.dispatch(deps![rich_update]).await,
+            ControlFlow::Break(ref t) if t == "Hello"
         ));
     }
 }

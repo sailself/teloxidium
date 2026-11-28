@@ -3,9 +3,9 @@
 //! your business logic. Currently, version `10.0` of [Telegram Bot API] is
 //! supported.
 //!
-//! For a high-level overview, see [our GitHub repository](https://github.com/teloxide/teloxide).
+//! For a high-level overview, see [our GitHub repository](https://github.com/sailself/teloxidium).
 //!
-//! [[`examples/throw_dice.rs`](https://github.com/teloxide/teloxide/blob/master/crates/teloxide/examples/throw_dice.rs)]
+//! [[`examples/throw_dice.rs`](https://github.com/sailself/teloxidium/blob/master/crates/teloxide/examples/throw_dice.rs)]
 //! ```no_run
 //! # #[cfg(feature = "ctrlc_handler")]
 //! use teloxide::prelude::*;
@@ -107,7 +107,7 @@
 //! [`MessageFilterExt`]: crate::dispatching::MessageFilterExt
 //! [`Update::filter_message`]: crate::dispatching::UpdateFilterExt::filter_message
 //! [`filter_map`]: crate::prelude::Handler::filter_map
-//! [_this guide_]: https://github.com/teloxide/teloxide/blob/master/DPTREE_GUIDE.md
+//! [_this guide_]: https://github.com/sailself/teloxidium/blob/master/DPTREE_GUIDE.md
 
 // This hack is used to cancel formatting for a Markdown table. See [1], [2], and [3].
 //
@@ -115,10 +115,10 @@
 // [2]: https://github.com/rust-lang/rustfmt/issues/4787
 // [3]: https://github.com/rust-lang/rust/issues/82768#issuecomment-803935643
 #![cfg_attr(feature = "nightly", cfg_attr(feature = "nightly", doc = include_str!("features.md")))]
-// https://github.com/teloxide/teloxide/raw/master/media/teloxide-logo.svg doesn't work in html_logo_url, I don't know why.
+// https://github.com/sailself/teloxidium/raw/master/media/teloxide-logo.svg doesn't work in html_logo_url, I don't know why.
 #![doc(
-    html_logo_url = "https://github.com/teloxide/teloxide/raw/master/media/teloxide-logo.png",
-    html_favicon_url = "https://github.com/teloxide/teloxide/raw/master/teloxide-logo.png"
+    html_logo_url = "https://github.com/sailself/teloxidium/raw/master/media/teloxide-logo.png",
+    html_favicon_url = "https://github.com/sailself/teloxidium/raw/master/teloxide-logo.png"
 )]
 // To properly build docs of this crate run
 // ```console

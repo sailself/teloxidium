@@ -6,10 +6,11 @@ on:
       - "v[0-9]*.[0-9]*.[0-9]*"
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   RUSTFLAGS: "-Dwarnings"
+  RUSTDOCFLAGS: "--cfg docsrs -Dwarnings"
   RUST_BACKTRACE: short
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
@@ -26,8 +27,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Validate SemVer tag matches teloxide version
+      - name: Validate SemVer tag, master ancestry, docs, and changelogs
         shell: bash
         run: |
           set -euo pipefail
@@ -36,15 +39,52 @@ jobs:
             exit 1
           fi
 
+          git fetch --no-tags origin master
+          if ! git merge-base --is-ancestor HEAD FETCH_HEAD; then
+            echo "::error::Tagged commit $(git rev-parse HEAD) is not an ancestor of origin/master."
+            exit 1
+          fi
+
+          read_version() {
+            awk -F'"' '/^\[package\]/{p=1; next} /^\[/{p=0} p && /^version = /{print $2; exit}' "$1"
+          }
+
           TAG_VERSION="${GITHUB_REF_NAME#v}"
-          CRATE_VERSION="$(awk -F'"' '/^\[package\]/{p=1; next} /^\[/{p=0} p && /^version = /{print $2; exit}' crates/teloxide/Cargo.toml)"
+          CRATE_VERSION="$(read_version crates/teloxide/Cargo.toml)"
+          CORE_VERSION="$(read_version crates/teloxide-core/Cargo.toml)"
+
           if [ "$TAG_VERSION" != "$CRATE_VERSION" ]; then
             echo "::error::Tag $GITHUB_REF_NAME ($TAG_VERSION) does not match crates/teloxide/Cargo.toml version ($CRATE_VERSION)."
             exit 1
           fi
 
+          for doc_file in README.md crates/teloxide-core/README.md crates/teloxide-core/src/lib.rs; do
+            if ! grep -Fq "tag = \"$GITHUB_REF_NAME\"" "$doc_file"; then
+              echo "::error::$doc_file does not reference tag = \"$GITHUB_REF_NAME\"."
+              exit 1
+            fi
+          done
+
+          check_changelog() {
+            local file="$1"
+            local ver="$2"
+            local section
+            section="$(awk -v ver="$ver" '
+              index($0, "## " ver " ") == 1 || $0 == "## " ver { found=1; next }
+              found && /^## / { exit }
+              found && NF { print }
+            ' "$file")"
+            if [ -z "$section" ]; then
+              echo "::error::$file is missing a non-empty changelog section for '$ver'."
+              exit 1
+            fi
+          }
+
+          check_changelog CHANGELOG.md "$TAG_VERSION"
+          check_changelog crates/teloxide-core/CHANGELOG.md "$CORE_VERSION"
+
       - name: Install Rust ${{ env.rust_nightly }}
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc
         with:
           toolchain: ${{ env.rust_nightly }}
           components: rustfmt, clippy
@@ -63,6 +103,11 @@ jobs:
       - name: Run workspace unit & integration tests
         run: cargo test --locked --workspace --features "full nightly" --lib --tests
 
+      - name: Run doctests & build docs
+        run: |
+          cargo test --locked --workspace --features "full nightly" --doc
+          cargo doc --no-deps --locked --workspace --features "full nightly"
+
       - name: Run clippy
         run: cargo clippy --locked --workspace --all-targets --features "full nightly" -- -D warnings
 
@@ -75,6 +120,8 @@ jobs:
     name: Publish GitHub Release
     needs: verify
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -144,14 +191,13 @@ jobs:
             PRERELEASE_FLAG+=(--prerelease)
           fi
 
+          if [ -z "$ROOT_NOTES" ] || [ -z "$CORE_NOTES" ]; then
+            echo "::error::Missing release notes in CHANGELOG.md ($TAG_VERSION) or crates/teloxide-core/CHANGELOG.md ($CORE_VERSION)."
+            exit 1
+          fi
+
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release edit "$TAG" \
-              --title "Teloxidium $TAG" \
-              --notes-file release-notes.md \
-              "${PRERELEASE_FLAG[@]}"
-          elif [ "$HAS_CHANGELOG_NOTES" = true ]; then
-            gh release create "$TAG" \
-              --verify-tag \
               --title "Teloxidium $TAG" \
               --notes-file release-notes.md \
               "${PRERELEASE_FLAG[@]}"
@@ -159,7 +205,6 @@ jobs:
             gh release create "$TAG" \
               --verify-tag \
               --title "Teloxidium $TAG" \
-              --notes "$(cat release-notes.md)" \
-              --generate-notes \
+              --notes-file release-notes.md \
               "${PRERELEASE_FLAG[@]}"
           fi

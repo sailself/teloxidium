@@ -32,6 +32,20 @@ impl RichMessage {
         }
         projection.content
     }
+
+    /// Extracts readable text, link and user entities, and mentions from an
+    /// inline sequence of rich text fragments (such as
+    /// [`TextQuote::rich_texts`]).
+    ///
+    /// [`TextQuote::rich_texts`]: crate::types::TextQuote::rich_texts
+    #[must_use]
+    pub fn project_inline(fragments: &[Value]) -> RichMessageContent {
+        let mut projection = Projection::default();
+        for fragment in fragments {
+            projection.inline(fragment);
+        }
+        projection.content
+    }
 }
 
 /// Text and file references extracted from a [`RichMessage`].
@@ -346,6 +360,8 @@ mod tests {
         assert!(serde_json::to_value(reply).unwrap().get("kind").is_none());
         let quote = message.quote().unwrap();
         assert_eq!(serde_json::to_value(quote).unwrap()["rich_texts"], rich_texts);
+        let projected_quote = quote.project_rich_texts().unwrap();
+        assert_eq!(projected_quote.text, "Quoted rich text");
 
         let channel = json!({"id": -1000000000002_i64, "type": "channel", "title": "Channel"});
         raw["message"]["external_reply"] = json!({

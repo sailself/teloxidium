@@ -27,7 +27,7 @@ use crate::types::{
 ///
 /// [The official docs](https://core.telegram.org/bots/api#message).
 #[serde_with::skip_serializing_none]
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct Message {
     /// Unique message identifier inside this chat. Zero for ephemeral messages.
@@ -93,18 +93,124 @@ pub struct Message {
     /// Tag or custom title of the sender of the message; for supergroups only.
     pub sender_tag: Option<String>,
 
-    /// User who sent the query if the message was sent to a bot in guest mode.
+    /// For a message sent by a guest bot, this is the user whose original
+    /// message triggered the bot's response.
     pub guest_bot_caller_user: Option<Box<User>>,
 
-    /// Chat from which the query was sent if the message was sent to a bot in
-    /// guest mode.
+    /// For a message sent by a guest bot, this is the chat on behalf of which
+    /// the original message triggering the bot's response was sent.
     pub guest_bot_caller_chat: Option<Box<Chat>>,
 
-    /// Unique identifier of the guest query that triggered this message.
+    /// Unique identifier of the guest query that triggered this message. If
+    /// non-empty, the message belongs to the chat where the guest bot was
+    /// summoned, which may not coincide with other existing bot chats sharing
+    /// the same identifier.
     pub guest_query_id: Option<GuestQueryId>,
 
     #[serde(flatten)]
     pub kind: MessageKind,
+}
+
+#[derive(Deserialize)]
+struct MessageRaw {
+    #[serde(flatten)]
+    id: MessageId,
+    ephemeral_message_id: Option<EphemeralMessageId>,
+    receiver_user: Option<Box<User>>,
+    #[serde(rename = "message_thread_id")]
+    thread_id: Option<ThreadId>,
+    direct_messages_topic: Option<DirectMessagesTopic>,
+    from: Option<User>,
+    sender_chat: Option<Chat>,
+    #[serde(with = "crate::types::serde_date_from_unix_timestamp")]
+    date: DateTime<Utc>,
+    chat: Chat,
+    #[serde(default)]
+    is_topic_message: bool,
+    suggested_post_info: Option<SuggestedPostInfo>,
+    #[serde(default)]
+    is_paid_post: bool,
+    via_bot: Option<User>,
+    sender_business_bot: Option<User>,
+    sender_tag: Option<String>,
+    guest_bot_caller_user: Option<Box<User>>,
+    guest_bot_caller_chat: Option<Box<Chat>>,
+    guest_query_id: Option<GuestQueryId>,
+    #[serde(flatten)]
+    kind: MessageKind,
+}
+
+const MESSAGE_HEADER_FIELDS: &[&str] = &[
+    "message_id",
+    "ephemeral_message_id",
+    "receiver_user",
+    "message_thread_id",
+    "direct_messages_topic",
+    "from",
+    "sender_chat",
+    "date",
+    "chat",
+    "is_topic_message",
+    "suggested_post_info",
+    "is_paid_post",
+    "via_bot",
+    "sender_business_bot",
+    "sender_tag",
+    "guest_bot_caller_user",
+    "guest_bot_caller_chat",
+    "guest_query_id",
+];
+
+impl<'de> Deserialize<'de> for Message {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let map = serde_json::Map::<String, serde_json::Value>::deserialize(deserializer)?;
+        let keys: Vec<String> = map.keys().cloned().collect();
+        let raw = MessageRaw::deserialize(serde_json::Value::Object(map))
+            .map_err(serde::de::Error::custom)?;
+
+        if matches!(raw.kind, MessageKind::Empty {}) {
+            let extra_keys: Vec<&str> = keys
+                .iter()
+                .map(String::as_str)
+                .filter(|k| !MESSAGE_HEADER_FIELDS.contains(k))
+                .collect();
+            if !extra_keys.is_empty() {
+                log::warn!(
+                    "Message {} in chat {} fell back to `MessageKind::Empty` despite unparsed \
+                     content keys: {:?}; please report this at \
+                     https://github.com/sailself/teloxidium/issues",
+                    raw.id.0,
+                    raw.chat.id.0,
+                    extra_keys
+                );
+            }
+        }
+
+        Ok(Self {
+            id: raw.id,
+            ephemeral_message_id: raw.ephemeral_message_id,
+            receiver_user: raw.receiver_user,
+            thread_id: raw.thread_id,
+            direct_messages_topic: raw.direct_messages_topic,
+            from: raw.from,
+            sender_chat: raw.sender_chat,
+            date: raw.date,
+            chat: raw.chat,
+            is_topic_message: raw.is_topic_message,
+            suggested_post_info: raw.suggested_post_info,
+            is_paid_post: raw.is_paid_post,
+            via_bot: raw.via_bot,
+            sender_business_bot: raw.sender_business_bot,
+            sender_tag: raw.sender_tag,
+            guest_bot_caller_user: raw.guest_bot_caller_user,
+            guest_bot_caller_chat: raw.guest_bot_caller_chat,
+            guest_query_id: raw.guest_query_id,
+            kind: raw.kind,
+        })
+    }
 }
 
 // FIXME: this could be a use-case for serde mixed-tags, some variants need to
@@ -1577,6 +1683,10 @@ mod getters {
                     media_kind: MediaKind::Photo(MediaPhoto { photo, .. }),
                     ..
                 }) => Some(photo),
+                Common(MessageCommon {
+                    media_kind: MediaKind::LivePhoto(MediaLivePhoto { live_photo, .. }),
+                    ..
+                }) => live_photo.photo.as_deref(),
                 _ => None,
             }
         }
@@ -4176,9 +4286,9 @@ mod tests {
             &msg.kind,
             MessageKind::Common(MessageCommon { media_kind: MediaKind::LivePhoto(_), .. })
         ));
-        assert!(msg.photo().is_none());
         let lp = msg.live_photo().expect("expected MediaKind::LivePhoto before MediaKind::Photo");
         assert_eq!(lp.file_id, FileId("lp-v-1".to_owned()));
+        assert_eq!(msg.photo(), lp.photo.as_deref());
         assert_eq!(msg.caption(), Some("Sunny!"));
         assert!(msg.has_media_spoiler());
         assert!(msg.show_caption_above_media());
@@ -4188,10 +4298,24 @@ mod tests {
         let roundtrip: Message = from_str(&serde_json::to_string(&msg).unwrap()).unwrap();
         assert_eq!(msg, roundtrip);
 
-        let guest_json = r#"{
+        let incoming_guest_json = r#"{
             "message_id": 4002,
+            "from": { "id": 801, "is_bot": false, "first_name": "Summoner" },
             "chat": { "id": 100, "first_name": "Alice", "type": "private" },
             "date": 1778200001,
+            "guest_query_id": "gq-123",
+            "text": "@bot Hello guest bot"
+        }"#;
+        let incoming_guest: Message = from_str(incoming_guest_json).unwrap();
+        assert_eq!(incoming_guest.guest_query_id, Some(GuestQueryId("gq-123".to_owned())));
+        assert!(incoming_guest.guest_bot_caller_user().is_none());
+        assert!(incoming_guest.guest_bot_caller_chat().is_none());
+
+        let guest_reply_json = r#"{
+            "message_id": 4003,
+            "from": { "id": 999, "is_bot": true, "first_name": "GuestBot" },
+            "chat": { "id": 100, "first_name": "Alice", "type": "private" },
+            "date": 1778200002,
             "guest_bot_caller_user": {
                 "id": 801,
                 "is_bot": false,
@@ -4202,17 +4326,26 @@ mod tests {
                 "title": "Public Room",
                 "type": "supergroup"
             },
-            "guest_query_id": "gq-123",
-            "text": "Hello guest bot"
+            "text": "Guest bot answer"
         }"#;
-        let guest_msg: Message = from_str(guest_json).unwrap();
-        assert_eq!(guest_msg.guest_bot_caller_user().map(|u| u.id), Some(UserId(801)));
-        assert_eq!(guest_msg.guest_bot_caller_chat().map(|c| c.id), Some(ChatId(-100777)));
-        assert_eq!(guest_msg.guest_query_id, Some(GuestQueryId("gq-123".to_owned())));
-        assert!(guest_msg.mentioned_users().any(|u| u.id == UserId(801)));
+        let guest_reply: Message = from_str(guest_reply_json).unwrap();
+        assert_eq!(guest_reply.guest_bot_caller_user().map(|u| u.id), Some(UserId(801)));
+        assert_eq!(guest_reply.guest_bot_caller_chat().map(|c| c.id), Some(ChatId(-100777)));
+        assert!(guest_reply.mentioned_users().any(|u| u.id == UserId(801)));
 
         let guest_roundtrip: Message =
-            from_str(&serde_json::to_string(&guest_msg).unwrap()).unwrap();
-        assert_eq!(guest_msg, guest_roundtrip);
+            from_str(&serde_json::to_string(&guest_reply).unwrap()).unwrap();
+        assert_eq!(guest_reply, guest_roundtrip);
+
+        let unknown_content_msg: Message = from_str(
+            r#"{
+                "message_id": 4004,
+                "chat": { "id": 100, "first_name": "Alice", "type": "private" },
+                "date": 1778200003,
+                "widget": { "html": "<b>x</b>" }
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(unknown_content_msg.kind, MessageKind::Empty {});
     }
 }

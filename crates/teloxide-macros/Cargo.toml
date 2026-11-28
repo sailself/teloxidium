@@ -9,7 +9,7 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
-documentation = "https://docs.rs/teloxide-core/"
+documentation = "https://github.com/sailself/teloxidium#readme"
 # FIXME: add a simple readme for teloxide-macros
 #readme = "README.md"
 

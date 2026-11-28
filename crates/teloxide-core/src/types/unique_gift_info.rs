@@ -55,6 +55,10 @@ pub enum UniqueGiftOrigin {
     Resale,
     GiftedUpgrade,
     Offer,
+    /// An origin unknown to this version of the library.
+    #[serde(other)]
+    #[cfg_attr(test, schemars(skip))]
+    Unknown,
 }
 
 #[cfg(test)]

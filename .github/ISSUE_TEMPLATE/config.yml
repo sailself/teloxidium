@@ -1,4 +1,4 @@
 contact_links:
-  - name: Teloxide Discussions
-    url: https://github.com/teloxide/teloxide/discussions/categories/q-a
-    about: Please ask and answer questions here.
+  - name: Teloxidium Issues
+    url: https://github.com/sailself/teloxidium/issues
+    about: Please file bug reports and feature requests here.

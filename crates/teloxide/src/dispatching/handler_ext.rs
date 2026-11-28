@@ -113,8 +113,8 @@ where
     Output: Send + Sync + 'static,
 {
     dptree::filter_map(move |message: Message, me: Me| {
-        let bot_name = me.user.username.expect("Bots must have a username");
-        message.text().or_else(|| message.caption()).and_then(|text| C::parse(text, &bot_name).ok())
+        let bot_name = me.user.username.as_deref().unwrap_or("");
+        message.text().or_else(|| message.caption()).and_then(|text| C::parse(text, bot_name).ok())
     })
 }
 
@@ -137,10 +137,10 @@ where
     Output: Send + Sync + 'static,
 {
     dptree::filter_map(move |message: Message, me: Me| {
-        let bot_name = me.user.username.expect("Bots must have a username");
+        let bot_name = me.user.username.as_deref()?;
 
         let text_or_caption = message.text().or_else(|| message.caption());
-        let command = text_or_caption.and_then(|text| C::parse(text, &bot_name).ok());
+        let command = text_or_caption.and_then(|text| C::parse(text, bot_name).ok());
         // If the parsing succeeds with a bot_name,
         // but fails without - there is a mention
         let is_username_required =
@@ -306,5 +306,24 @@ mod tests {
         let update = make_update("/test".to_owned());
         let result = h.dispatch(deps![update, me.clone()]).await;
         assert!(result.is_continue());
+    }
+
+    #[tokio::test]
+    async fn test_command_filters_without_main_username() {
+        let cmd_handler = dptree::entry()
+            .branch(Update::filter_message().filter_command::<Cmd>().endpoint(|| async {}));
+        let mention_handler = dptree::entry()
+            .branch(Update::filter_message().filter_mention_command::<Cmd>().endpoint(|| async {}));
+
+        let mut me = make_me();
+        me.user.username = None;
+
+        let plain = make_update("/test".to_owned());
+        assert!(cmd_handler.dispatch(deps![plain.clone(), me.clone()]).await.is_break());
+        assert!(mention_handler.dispatch(deps![plain, me.clone()]).await.is_continue());
+
+        let mentioned = make_update("/test@OtherBot".to_owned());
+        assert!(cmd_handler.dispatch(deps![mentioned.clone(), me.clone()]).await.is_continue());
+        assert!(mention_handler.dispatch(deps![mentioned, me]).await.is_continue());
     }
 }

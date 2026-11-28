@@ -1,26 +1,17 @@
 <div align="center">
-  <img src="https://github.com/teloxide/teloxide/blob/master/media/teloxide-logo.png?raw=true" width="250"/>
-  <h1><code>teloxide</code></h1>
-  <a href="https://docs.rs/teloxide/">
-    <img src="https://docs.rs/teloxide/badge.svg">
-  </a>
-  <a href="https://github.com/teloxide/teloxide/actions">
-    <img src="https://github.com/teloxide/teloxide/workflows/Continuous%20integration/badge.svg">
-  </a>
-  <a href="https://crates.io/crates/teloxide">
-    <img src="https://img.shields.io/crates/v/teloxide.svg">
+  <img src="https://github.com/sailself/teloxidium/blob/master/media/teloxide-logo.png?raw=true" width="250"/>
+  <h1><code>Teloxidium</code> (fork of <code>teloxide</code>)</h1>
+  <a href="https://github.com/sailself/teloxidium/actions">
+    <img src="https://github.com/sailself/teloxidium/actions/workflows/ci.yml/badge.svg">
   </a>
   <a href="https://core.telegram.org/bots/api">
     <img src="https://img.shields.io/badge/API%20coverage-Up%20to%2010.0%20(inclusively)-green.svg">
   </a>
-  <a href="https://t.me/teloxide">
-    <img src="https://img.shields.io/badge/support-t.me%2Fteloxide-blueviolet">
-  </a>
-  <a href="https://devpod.sh/open#https://github.com/teloxide/teloxide">
-    <img src="https://img.shields.io/badge/Open_in-DevPod-blueviolet">
+  <a href="https://github.com/sailself/teloxidium/releases">
+    <img src="https://img.shields.io/github/v/tag/sailself/teloxidium?label=release">
   </a>
 
-  A full-featured framework that empowers you to easily build [Telegram bots](https://telegram.org/blog/bot-revolution) using [Rust](https://www.rust-lang.org/). It handles all the difficult stuff so you can focus only on your business logic.
+  A full-featured framework that empowers you to easily build [Telegram bots](https://telegram.org/blog/bot-revolution) using [Rust](https://www.rust-lang.org/). It handles all the difficult stuff so you can focus only on your business logic. Distributed via versioned Git tags (`v0.23.1`) from [`sailself/teloxidium`](https://github.com/sailself/teloxidium).
 </div>
 
 ## Highlights
@@ -73,7 +64,7 @@ $ rustup override set nightly
  5. Run `cargo new my_bot`, enter the directory and put these lines into your `Cargo.toml`:
 ```toml
 [dependencies]
-teloxide = { git = "https://github.com/sailself/teloxidium", tag = "v0.23.0", features = ["macros"] }
+teloxide = { git = "https://github.com/sailself/teloxidium", tag = "v0.23.1", features = ["macros"] }
 log = "0.4"
 pretty_env_logger = "0.5"
 tokio = { version =  "1.39", features = ["rt-multi-thread", "macros"] }
@@ -295,7 +286,7 @@ async fn receive_location(
 
 ## Testing
 
-The community has made a crate called [`teloxide_tests`](https://github.com/LasterAlex/teloxide_tests) for testing `teloxide` bots.
+The community has made a crate called [`teloxide_tests`](https://github.com/LasterAlex/teloxide_tests) for testing upstream crates.io `teloxide` bots (note that Teloxidium is distributed as a Git-tag fork with newer API versions, so third-party crates.io plugins depending on `teloxide ^0.17` cannot be combined directly with Teloxidium; see [`RELEASE_PROCEDURE.md`](RELEASE_PROCEDURE.md)).
 
 [See some testing examples >>](https://github.com/LasterAlex/teloxide_tests/tree/master/examples)
 

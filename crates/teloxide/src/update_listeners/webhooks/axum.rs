@@ -199,8 +199,8 @@ pub fn axum_no_setup(
             Err(error) => {
                 log::error!(
                     "Cannot parse an update.\nError: {error:?}\nValue: {input}\n\
-                     This is a bug in teloxide-core, please open an issue here: \
-                     https://github.com/teloxide/teloxide/issues."
+                     Please inspect the update or report this at \
+                     https://github.com/sailself/teloxidium/issues."
                 );
             }
         };
