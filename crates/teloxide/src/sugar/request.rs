@@ -100,6 +100,7 @@ impl_request_reply_ext! {
     (SendDocument, SendDocumentSetters),
     (SendAudio, SendAudioSetters),
     (SendVoice, SendVoiceSetters),
+    (SendLivePhoto, SendLivePhotoSetters),
     (SendPhoto, SendPhotoSetters)
 }
 
@@ -201,5 +202,19 @@ mod tests {
             real_link_req.payload_ref().payload_ref().reply_parameters,
             sugar_link_req.payload_ref().payload_ref().reply_parameters
         )
+    }
+
+    #[test]
+    fn test_reply_to_send_live_photo() {
+        let bot = Bot::new("TOKEN");
+        let lp = InputFile::memory("video");
+        let photo = InputFile::memory("photo");
+
+        let real = bot
+            .send_live_photo(ChatId(1234), lp.clone(), photo.clone())
+            .reply_parameters(ReplyParameters::new(MessageId(99)));
+        let sugar = bot.send_live_photo(ChatId(1234), lp, photo).reply_to(MessageId(99));
+
+        assert_eq!(real.deref().reply_parameters, sugar.deref().reply_parameters);
     }
 }

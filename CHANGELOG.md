@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## unreleased
 
+## 0.23.0 - 2026-11-27
+
+### Added
+
+- Support for Telegram Bot API 10.0 (`teloxide-core 0.19.0`): [**BC**]
+  - **Guest Mode:** Add `GuestQueryId`, `SentGuestMessage`, `Me::supports_guest_queries`, `Message::{guest_bot_caller_user, guest_bot_caller_chat, guest_query_id}` (+ `mentioned_users()`), `UpdateKind::GuestMessage`, `AllowedUpdate::GuestMessage`, `answer_guest_query` (`VisitParseModes`), `UpdateFilterExt::filter_guest_message`, and `Kind::GuestMessage` in `DpHandlerDescription`.
+  - **Live Photos:** Add `LivePhoto`, `InputMediaLivePhoto` (`InputMedia::LivePhoto`), `PaidMediaLivePhoto` (`PaidMedia::LivePhoto`), `InputPaidMediaLivePhoto` (`InputPaidMedia::LivePhoto`), `MediaLivePhoto` (`MediaKind::LivePhoto` ordered before `MediaKind::Photo`), `ExternalReplyInfoKind::LivePhoto` (ordered before `Photo`), `Message::live_photo()` + caption/spoiler/media-group getters, `MessageFilterExt::filter_live_photo`, `send_live_photo` (`MultipartRequest`, `VisitParseModes`, `Throttle`), and `RequestReplyExt` for `SendLivePhoto`.
+  - **Polls:** Add `PollMedia`, `InputPollMedia`, `InputPollOptionMedia`, `InputMediaSticker`, `InputMediaLocation`, `InputMediaVenue`, `Poll::{media, explanation_media, members_only, country_codes}` (with `members_only` always serialized explicitly), `PollOption::media`, `InputPollOption::media` (`InputPollOptionFormatting` retains `Deserialize`), and `SendPoll::{media, explanation_media, members_only, country_codes}` (allowing `1-12` options; `SendPoll` switched to `MultipartRequest` / `MultipartPayload`).
+  - **Chat Management:** Add `ChatPermissions::REACT_TO_MESSAGES` (`can_react_to_messages()`, resolving omitted values from `can_send_messages` on deserialization while serializing unconditionally), `Restricted::can_react_to_messages`, `GetChatAdministrators::return_bots`, `delete_all_message_reactions`, and `delete_message_reaction`.
+  - **Managed Bots & General:** Add `BotAccessSettings`, `get_managed_bot_access_settings`, `set_managed_bot_access_settings`, and `get_user_personal_chat_messages`; update `send_message_draft` docs to permit empty `text` (`0-4096` chars for a "Thinking..." placeholder).
+
 ## 0.22.0 - 2026-11-27
 
 ### Added

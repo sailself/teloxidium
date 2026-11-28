@@ -12,15 +12,15 @@ use crate::types::{
     DirectMessagesTopic, Document, EphemeralMessageId, ExternalReplyInfo, ForumTopicClosed,
     ForumTopicCreated, ForumTopicEdited, ForumTopicReopened, Game, GeneralForumTopicHidden,
     GeneralForumTopicUnhidden, GiftInfo, Giveaway, GiveawayCompleted, GiveawayCreated,
-    GiveawayWinners, InlineKeyboardMarkup, Invoice, LinkPreviewOptions, Location,
-    ManagedBotCreated, MaybeInaccessibleMessage, MessageAutoDeleteTimerChanged, MessageEntity,
-    MessageEntityRef, MessageId, MessageOrigin, PaidMediaInfo, PaidMessagePriceChanged,
-    PassportData, PhotoSize, Poll, PollOptionAdded, PollOptionDeleted, ProximityAlertTriggered,
-    RefundedPayment, RichMessage, Sticker, Story, SuccessfulPayment, SuggestedPostApprovalFailed,
-    SuggestedPostApproved, SuggestedPostDeclined, SuggestedPostInfo, SuggestedPostPaid,
-    SuggestedPostRefunded, TextQuote, ThreadId, True, UniqueGiftInfo, User, UsersShared, Venue,
-    Video, VideoChatEnded, VideoChatParticipantsInvited, VideoChatScheduled, VideoChatStarted,
-    VideoNote, Voice, WebAppData, WriteAccessAllowed,
+    GiveawayWinners, GuestQueryId, InlineKeyboardMarkup, Invoice, LinkPreviewOptions, LivePhoto,
+    Location, ManagedBotCreated, MaybeInaccessibleMessage, MessageAutoDeleteTimerChanged,
+    MessageEntity, MessageEntityRef, MessageId, MessageOrigin, PaidMediaInfo,
+    PaidMessagePriceChanged, PassportData, PhotoSize, Poll, PollOptionAdded, PollOptionDeleted,
+    ProximityAlertTriggered, RefundedPayment, RichMessage, Sticker, Story, SuccessfulPayment,
+    SuggestedPostApprovalFailed, SuggestedPostApproved, SuggestedPostDeclined, SuggestedPostInfo,
+    SuggestedPostPaid, SuggestedPostRefunded, TextQuote, ThreadId, True, UniqueGiftInfo, User,
+    UsersShared, Venue, Video, VideoChatEnded, VideoChatParticipantsInvited, VideoChatScheduled,
+    VideoChatStarted, VideoNote, Voice, WebAppData, WriteAccessAllowed,
 };
 
 /// This object represents a message.
@@ -92,6 +92,16 @@ pub struct Message {
 
     /// Tag or custom title of the sender of the message; for supergroups only.
     pub sender_tag: Option<String>,
+
+    /// User who sent the query if the message was sent to a bot in guest mode.
+    pub guest_bot_caller_user: Option<Box<User>>,
+
+    /// Chat from which the query was sent if the message was sent to a bot in
+    /// guest mode.
+    pub guest_bot_caller_chat: Option<Box<Chat>>,
+
+    /// Unique identifier of the guest query that triggered this message.
+    pub guest_query_id: Option<GuestQueryId>,
 
     #[serde(flatten)]
     pub kind: MessageKind,
@@ -457,9 +467,10 @@ pub enum MediaKind {
     // Note:
     // - `Venue` must be in front of `Location`
     // - `Animation` must be in front of `Document`
+    // - `LivePhoto` must be in front of `Photo`
     //
-    // This is needed so serde doesn't parse `Venue` as `Location` or `Animation` as `Document`
-    // (for backward compatability telegram duplicates some fields)
+    // This is needed so serde doesn't parse `Venue` as `Location`, `Animation` as `Document`,
+    // or `LivePhoto` as `Photo` (for backward compatibility telegram duplicates some fields)
     //
     // See <https://github.com/teloxide/teloxide/issues/481>
     RichMessage(MediaRichMessage),
@@ -471,6 +482,7 @@ pub enum MediaKind {
     Game(MediaGame),
     Venue(MediaVenue),
     Location(MediaLocation),
+    LivePhoto(MediaLivePhoto),
     Photo(MediaPhoto),
     Poll(MediaPoll),
     Checklist(MediaChecklist),
@@ -607,6 +619,34 @@ pub struct MediaGame {
 pub struct MediaLocation {
     /// Message is a shared location, information about the location.
     pub location: Location,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct MediaLivePhoto {
+    /// Message is a live photo, information about the live photo.
+    pub live_photo: LivePhoto,
+
+    /// Caption for the live photo, 0-1024 characters.
+    pub caption: Option<String>,
+
+    /// For messages with a caption, special entities like usernames, URLs,
+    /// bot commands, etc. that appear in the caption.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub caption_entities: Vec<MessageEntity>,
+
+    /// `true`, if the caption must be shown above the message media.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub show_caption_above_media: bool,
+
+    /// `true`, if the message media is covered by a spoiler animation.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub has_media_spoiler: bool,
+
+    /// The unique identifier of a media message group this message belongs
+    /// to.
+    pub media_group_id: Option<MediaGroupId>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -1068,16 +1108,16 @@ mod getters {
 
     use crate::types::{
         self, message::MessageKind::*, Chat, ChatId, ChatMigration, EffectId, ExternalReplyInfo,
-        LinkPreviewOptions, MaybeInaccessibleMessage, MediaAnimation, MediaAudio, MediaChecklist,
-        MediaContact, MediaDocument, MediaGame, MediaKind, MediaLocation, MediaPaid, MediaPhoto,
-        MediaPoll, MediaRichMessage, MediaSticker, MediaStory, MediaText, MediaVenue, MediaVideo,
-        MediaVideoNote, MediaVoice, Message, MessageChannelChatCreated, MessageChatShared,
-        MessageChecklistTasksAdded, MessageChecklistTasksDone, MessageCommon,
-        MessageConnectedWebsite, MessageDeleteChatPhoto, MessageDice,
-        MessageDirectMessagePriceChanged, MessageEntity, MessageGroupChatCreated, MessageId,
-        MessageInvoice, MessageLeftChatMember, MessageNewChatMembers, MessageNewChatPhoto,
-        MessageNewChatTitle, MessageOrigin, MessagePassportData, MessagePinned,
-        MessageProximityAlertTriggered, MessageSuccessfulPayment,
+        LinkPreviewOptions, LivePhoto, MaybeInaccessibleMessage, MediaAnimation, MediaAudio,
+        MediaChecklist, MediaContact, MediaDocument, MediaGame, MediaKind, MediaLivePhoto,
+        MediaLocation, MediaPaid, MediaPhoto, MediaPoll, MediaRichMessage, MediaSticker,
+        MediaStory, MediaText, MediaVenue, MediaVideo, MediaVideoNote, MediaVoice, Message,
+        MessageChannelChatCreated, MessageChatShared, MessageChecklistTasksAdded,
+        MessageChecklistTasksDone, MessageCommon, MessageConnectedWebsite, MessageDeleteChatPhoto,
+        MessageDice, MessageDirectMessagePriceChanged, MessageEntity, MessageGroupChatCreated,
+        MessageId, MessageInvoice, MessageLeftChatMember, MessageNewChatMembers,
+        MessageNewChatPhoto, MessageNewChatTitle, MessageOrigin, MessagePassportData,
+        MessagePinned, MessageProximityAlertTriggered, MessageSuccessfulPayment,
         MessageSuggestedPostApprovalFailed, MessageSuggestedPostApproved,
         MessageSuggestedPostDeclined, MessageSuggestedPostPaid, MessageSuggestedPostRefunded,
         MessageSupergroupChatCreated, MessageUsersShared, MessageVideoChatParticipantsInvited,
@@ -1112,6 +1152,20 @@ mod getters {
         #[must_use]
         pub fn receiver_user(&self) -> Option<&User> {
             self.receiver_user.as_deref()
+        }
+
+        /// Returns the user who sent the query if the message was sent in guest
+        /// mode.
+        #[must_use]
+        pub fn guest_bot_caller_user(&self) -> Option<&User> {
+            self.guest_bot_caller_user.as_deref()
+        }
+
+        /// Returns the chat from which the query was sent if the message was
+        /// sent in guest mode.
+        #[must_use]
+        pub fn guest_bot_caller_chat(&self) -> Option<&Chat> {
+            self.guest_bot_caller_chat.as_deref()
         }
 
         #[must_use]
@@ -1258,6 +1312,10 @@ mod getters {
                     ..
                 })
                 | Common(MessageCommon {
+                    media_kind: MediaKind::LivePhoto(MediaLivePhoto { media_group_id, .. }),
+                    ..
+                })
+                | Common(MessageCommon {
                     media_kind: MediaKind::Photo(MediaPhoto { media_group_id, .. }),
                     ..
                 })
@@ -1358,6 +1416,10 @@ mod getters {
                     ..
                 })
                 | Common(MessageCommon {
+                    media_kind: MediaKind::LivePhoto(MediaLivePhoto { caption_entities, .. }),
+                    ..
+                })
+                | Common(MessageCommon {
                     media_kind: MediaKind::Photo(MediaPhoto { caption_entities, .. }),
                     ..
                 })
@@ -1383,6 +1445,7 @@ mod getters {
             self.common()
                 .map(|m| match m.media_kind {
                     MediaKind::Animation(MediaAnimation { show_caption_above_media, .. })
+                    | MediaKind::LivePhoto(MediaLivePhoto { show_caption_above_media, .. })
                     | MediaKind::Photo(MediaPhoto { show_caption_above_media, .. })
                     | MediaKind::Video(MediaVideo { show_caption_above_media, .. }) => {
                         show_caption_above_media
@@ -1418,6 +1481,7 @@ mod getters {
             self.common()
                 .map(|m| match m.media_kind {
                     MediaKind::Animation(MediaAnimation { has_media_spoiler, .. })
+                    | MediaKind::LivePhoto(MediaLivePhoto { has_media_spoiler, .. })
                     | MediaKind::Photo(MediaPhoto { has_media_spoiler, .. })
                     | MediaKind::Video(MediaVideo { has_media_spoiler, .. }) => has_media_spoiler,
                     MediaKind::Audio(_)
@@ -1496,6 +1560,17 @@ mod getters {
         }
 
         #[must_use]
+        pub fn live_photo(&self) -> Option<&LivePhoto> {
+            match &self.kind {
+                Common(MessageCommon {
+                    media_kind: MediaKind::LivePhoto(MediaLivePhoto { live_photo, .. }),
+                    ..
+                }) => Some(live_photo),
+                _ => None,
+            }
+        }
+
+        #[must_use]
         pub fn photo(&self) -> Option<&[PhotoSize]> {
             match &self.kind {
                 Common(MessageCommon {
@@ -1569,6 +1644,7 @@ mod getters {
                         MediaKind::Animation(MediaAnimation { caption, .. })
                         | MediaKind::Audio(MediaAudio { caption, .. })
                         | MediaKind::Document(MediaDocument { caption, .. })
+                        | MediaKind::LivePhoto(MediaLivePhoto { caption, .. })
                         | MediaKind::Photo(MediaPhoto { caption, .. })
                         | MediaKind::Video(MediaVideo { caption, .. })
                         | MediaKind::Voice(MediaVoice { caption, .. }),
@@ -2451,6 +2527,7 @@ impl Message {
         self.from
             .iter()
             .chain(self.receiver_user())
+            .chain(self.guest_bot_caller_user.as_deref())
             .chain(self.via_bot.as_ref())
             .chain(flatten(self.reply_to_message().map(Self::mentioned_users_rec)))
             .chain(flatten(self.new_chat_members()))
@@ -2612,6 +2689,9 @@ mod tests {
                 },
                 sender_business_bot: None,
                 sender_tag: None,
+                guest_bot_caller_user: None,
+                guest_bot_caller_chat: None,
+                guest_query_id: None,
                 kind: MessageKind::ChatShared(MessageChatShared {
                     chat_shared: ChatShared {
                         request_id: RequestId(348349),
@@ -3232,6 +3312,9 @@ mod tests {
                     via_bot: None,
                     sender_business_bot: None,
                     sender_tag: None,
+                    guest_bot_caller_user: None,
+                    guest_bot_caller_chat: None,
+                    guest_query_id: None,
                     suggested_post_info: None,
                     kind: MessageKind::Giveaway(MessageGiveaway {
                         giveaway: Giveaway {
@@ -4059,5 +4142,77 @@ mod tests {
         let reply_roundtrip: Message =
             from_str(&serde_json::to_string(&msg_reply).unwrap()).unwrap();
         assert_eq!(msg_reply, reply_roundtrip);
+    }
+
+    #[test]
+    fn bot_api_10_0_live_photo_and_guest_mode() {
+        let live_photo_json = r#"{
+            "message_id": 4001,
+            "chat": { "id": 100, "first_name": "Alice", "type": "private" },
+            "date": 1778200000,
+            "media_group_id": "mg-lp-1",
+            "has_media_spoiler": true,
+            "show_caption_above_media": true,
+            "caption": "Sunny!",
+            "caption_entities": [{ "type": "bold", "offset": 0, "length": 5 }],
+            "live_photo": {
+                "photo": [
+                    { "file_id": "lp-s-1", "file_unique_id": "lp-su-1", "width": 800, "height": 600 }
+                ],
+                "file_id": "lp-v-1",
+                "file_unique_id": "lp-vu-1",
+                "width": 800,
+                "height": 600,
+                "duration": 3,
+                "mime_type": "video/mp4",
+                "file_size": 12345
+            },
+            "photo": [
+                { "file_id": "lp-s-1", "file_unique_id": "lp-su-1", "width": 800, "height": 600 }
+            ]
+        }"#;
+        let msg: Message = from_str(live_photo_json).unwrap();
+        assert!(matches!(
+            &msg.kind,
+            MessageKind::Common(MessageCommon { media_kind: MediaKind::LivePhoto(_), .. })
+        ));
+        assert!(msg.photo().is_none());
+        let lp = msg.live_photo().expect("expected MediaKind::LivePhoto before MediaKind::Photo");
+        assert_eq!(lp.file_id, FileId("lp-v-1".to_owned()));
+        assert_eq!(msg.caption(), Some("Sunny!"));
+        assert!(msg.has_media_spoiler());
+        assert!(msg.show_caption_above_media());
+        assert_eq!(msg.media_group_id(), Some(&MediaGroupId("mg-lp-1".to_owned())));
+        assert_eq!(msg.caption_entities().map(<[_]>::len), Some(1));
+
+        let roundtrip: Message = from_str(&serde_json::to_string(&msg).unwrap()).unwrap();
+        assert_eq!(msg, roundtrip);
+
+        let guest_json = r#"{
+            "message_id": 4002,
+            "chat": { "id": 100, "first_name": "Alice", "type": "private" },
+            "date": 1778200001,
+            "guest_bot_caller_user": {
+                "id": 801,
+                "is_bot": false,
+                "first_name": "Caller"
+            },
+            "guest_bot_caller_chat": {
+                "id": -100777,
+                "title": "Public Room",
+                "type": "supergroup"
+            },
+            "guest_query_id": "gq-123",
+            "text": "Hello guest bot"
+        }"#;
+        let guest_msg: Message = from_str(guest_json).unwrap();
+        assert_eq!(guest_msg.guest_bot_caller_user().map(|u| u.id), Some(UserId(801)));
+        assert_eq!(guest_msg.guest_bot_caller_chat().map(|c| c.id), Some(ChatId(-100777)));
+        assert_eq!(guest_msg.guest_query_id, Some(GuestQueryId("gq-123".to_owned())));
+        assert!(guest_msg.mentioned_users().any(|u| u.id == UserId(801)));
+
+        let guest_roundtrip: Message =
+            from_str(&serde_json::to_string(&guest_msg).unwrap()).unwrap();
+        assert_eq!(guest_msg, guest_roundtrip);
     }
 }

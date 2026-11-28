@@ -89,6 +89,9 @@ bitflags::bitflags! {
         /// Set if the user is allowed to edit their own tag.
         const EDIT_TAG = 1 << 14;
 
+        /// Set if the user is allowed to react to messages.
+        const REACT_TO_MESSAGES = 1 << 15;
+
         /// Set if the user is allowed to send audios, documents,
         /// photos, videos, video notes and voice notes, implies
         /// `SEND_AUDIOS`, `SEND_DOCUMENTS`, `SEND_PHOTOS`,
@@ -216,6 +219,13 @@ impl ChatPermissions {
     pub fn can_edit_tag(&self) -> bool {
         self.contains(ChatPermissions::EDIT_TAG)
     }
+
+    /// Checks for [`REACT_TO_MESSAGES`] permission.
+    ///
+    /// [`REACT_TO_MESSAGES`]: ChatPermissions::REACT_TO_MESSAGES
+    pub fn can_react_to_messages(&self) -> bool {
+        self.contains(ChatPermissions::REACT_TO_MESSAGES)
+    }
 }
 
 /// Helper for (de)serialization
@@ -272,6 +282,11 @@ struct ChatPermissionsRaw {
     // to `can_pin_messages`.
     #[serde(default)]
     can_edit_tag: bool,
+
+    // Do not skip serializing `false`: Telegram defaults omitted
+    // `can_react_to_messages` to `can_send_messages`.
+    #[serde(default)]
+    can_react_to_messages: Option<bool>,
 }
 
 impl From<ChatPermissions> for ChatPermissionsRaw {
@@ -292,6 +307,7 @@ impl From<ChatPermissions> for ChatPermissionsRaw {
             can_pin_messages: this.can_pin_messages(),
             can_manage_topics: this.can_manage_topics(),
             can_edit_tag: this.can_edit_tag(),
+            can_react_to_messages: Some(this.can_react_to_messages()),
         }
     }
 }
@@ -314,6 +330,7 @@ impl From<ChatPermissionsRaw> for ChatPermissions {
             can_pin_messages,
             can_manage_topics,
             can_edit_tag,
+            can_react_to_messages,
         }: ChatPermissionsRaw,
     ) -> Self {
         let mut this = Self::empty();
@@ -364,6 +381,9 @@ impl From<ChatPermissionsRaw> for ChatPermissions {
         if can_edit_tag {
             this |= Self::EDIT_TAG;
         }
+        if can_react_to_messages.unwrap_or(can_send_messages) {
+            this |= Self::REACT_TO_MESSAGES;
+        }
 
         this
     }
@@ -378,7 +398,7 @@ mod tests {
         let permissions = ChatPermissions::SEND_MESSAGES
             | ChatPermissions::SEND_AUDIOS
             | ChatPermissions::PIN_MESSAGES;
-        let expected = r#"{"can_send_messages":true,"can_send_audios":true,"can_pin_messages":true,"can_manage_topics":false,"can_edit_tag":false}"#;
+        let expected = r#"{"can_send_messages":true,"can_send_audios":true,"can_pin_messages":true,"can_manage_topics":false,"can_edit_tag":false,"can_react_to_messages":false}"#;
         let actual = serde_json::to_string(&permissions).unwrap();
         assert_eq!(expected, actual);
     }
@@ -388,10 +408,12 @@ mod tests {
         let json = r#"{"can_send_messages":true,"can_send_photos":true,"can_pin_messages":true}"#;
         let expected = ChatPermissions::SEND_MESSAGES
             | ChatPermissions::SEND_PHOTOS
-            | ChatPermissions::PIN_MESSAGES;
+            | ChatPermissions::PIN_MESSAGES
+            | ChatPermissions::REACT_TO_MESSAGES;
         let actual: ChatPermissions = serde_json::from_str(json).unwrap();
         assert_eq!(expected, actual);
         assert!(!actual.can_edit_tag());
+        assert!(actual.can_react_to_messages());
     }
 
     #[test]
@@ -402,6 +424,32 @@ mod tests {
         let parsed: ChatPermissions = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed, perms);
         assert!(parsed.can_edit_tag());
+    }
+
+    #[test]
+    fn react_to_messages_roundtrip() {
+        let perms = ChatPermissions::SEND_MESSAGES | ChatPermissions::REACT_TO_MESSAGES;
+        let json = serde_json::to_string(&perms).unwrap();
+        assert!(json.contains(r#""can_react_to_messages":true"#));
+        let parsed: ChatPermissions = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, perms);
+        assert!(parsed.can_react_to_messages());
+
+        let without = ChatPermissions::SEND_MESSAGES;
+        let without_json = serde_json::to_string(&without).unwrap();
+        assert!(without_json.contains(r#""can_react_to_messages":false"#));
+        let parsed_without: ChatPermissions = serde_json::from_str(&without_json).unwrap();
+        assert!(!parsed_without.can_react_to_messages());
+
+        let sparse: ChatPermissions =
+            serde_json::from_str(r#"{"can_send_messages":true}"#).unwrap();
+        assert!(sparse.can_react_to_messages());
+        assert!(serde_json::to_string(&sparse)
+            .unwrap()
+            .contains(r#""can_react_to_messages":true"#));
+
+        let empty: ChatPermissions = serde_json::from_str(r#"{}"#).unwrap();
+        assert!(!empty.can_react_to_messages());
     }
 
     #[test]

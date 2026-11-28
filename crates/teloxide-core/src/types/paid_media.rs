@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::types::{PhotoSize, Seconds, Video};
+use crate::types::{LivePhoto, PhotoSize, Seconds, Video};
 
 /// Describes the paid media added to a message.
 ///
@@ -30,6 +30,7 @@ pub struct PaidMediaInfo {
 pub enum PaidMedia {
     Preview(PaidMediaPreview),
     Photo(PaidMediaPhoto),
+    LivePhoto(Box<PaidMediaLivePhoto>),
     Video(Box<PaidMediaVideo>),
 }
 
@@ -63,6 +64,17 @@ pub struct PaidMediaPhoto {
     pub photo: Vec<PhotoSize>,
 }
 
+/// The paid media is a live photo.
+///
+/// [The official docs](https://core.telegram.org/bots/api#paidmedialivephoto).
+#[derive(Clone, Debug)]
+#[derive(PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct PaidMediaLivePhoto {
+    pub live_photo: LivePhoto,
+}
+
 /// The paid media is a video.
 ///
 /// [The official docs](https://core.telegram.org/bots/api#paidmediavideo).
@@ -89,10 +101,46 @@ impl PaidMedia {
         }
     }
 
+    pub fn live_photo(&self) -> Option<&LivePhoto> {
+        match self {
+            Self::LivePhoto(live_photo) => Some(&live_photo.live_photo),
+            _ => None,
+        }
+    }
+
     pub fn video(&self) -> Option<&Video> {
         match self {
             Self::Video(video) => Some(&video.video),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{FileId, FileUniqueId, Seconds};
+
+    #[test]
+    fn live_photo_roundtrip() {
+        let json = r#"{
+            "type": "live_photo",
+            "live_photo": {
+                "file_id": "lp-vid",
+                "file_unique_id": "lp-uniq",
+                "width": 1080,
+                "height": 1920,
+                "duration": 3
+            }
+        }"#;
+        let parsed: PaidMedia = serde_json::from_str(json).unwrap();
+        let lp = parsed.live_photo().expect("expected PaidMedia::LivePhoto");
+        assert_eq!(lp.file_id, FileId("lp-vid".to_owned()));
+        assert_eq!(lp.file_unique_id, FileUniqueId("lp-uniq".to_owned()));
+        assert_eq!(lp.duration, Seconds::from_seconds(3));
+
+        let roundtrip: PaidMedia =
+            serde_json::from_str(&serde_json::to_string(&parsed).unwrap()).unwrap();
+        assert_eq!(parsed, roundtrip);
     }
 }

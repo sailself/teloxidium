@@ -157,6 +157,9 @@ pub enum UpdateKind {
     /// managed bot was changed.
     ManagedBot(ManagedBotUpdated),
 
+    /// New incoming message sent to the bot in guest mode.
+    GuestMessage(Message),
+
     /// An error that happened during deserialization.
     ///
     /// This allows `teloxide` to continue working even if telegram adds a new
@@ -183,7 +186,8 @@ impl Update {
             | ChannelPost(m)
             | EditedChannelPost(m)
             | BusinessMessage(m)
-            | EditedBusinessMessage(m) => m.from.as_ref()?,
+            | EditedBusinessMessage(m)
+            | GuestMessage(m) => m.from.as_ref()?,
 
             BusinessConnection(conn) => &conn.user,
 
@@ -257,7 +261,8 @@ impl Update {
             | UpdateKind::ChannelPost(message)
             | UpdateKind::EditedChannelPost(message)
             | UpdateKind::BusinessMessage(message)
-            | UpdateKind::EditedBusinessMessage(message) => i0(message.mentioned_users()),
+            | UpdateKind::EditedBusinessMessage(message)
+            | UpdateKind::GuestMessage(message) => i0(message.mentioned_users()),
 
             UpdateKind::MessageReaction(answer) => {
                 if let Some(user) = answer.user() {
@@ -319,7 +324,8 @@ impl Update {
             | ChannelPost(m)
             | EditedChannelPost(m)
             | BusinessMessage(m)
-            | EditedBusinessMessage(m) => &m.chat,
+            | EditedBusinessMessage(m)
+            | GuestMessage(m) => &m.chat,
             CallbackQuery(q) => q.message.as_ref()?.chat(),
             ChatMember(m) => &m.chat,
             MyChatMember(m) => &m.chat,
@@ -468,6 +474,9 @@ impl<'de> Deserialize<'de> for UpdateKind {
                         "managed_bot" => {
                             map.next_value::<ManagedBotUpdated>().ok().map(UpdateKind::ManagedBot)
                         }
+                        "guest_message" => {
+                            map.next_value::<Message>().ok().map(UpdateKind::GuestMessage)
+                        }
                         _ => Some(empty_error()),
                     })
                     .unwrap_or_else(empty_error);
@@ -543,6 +552,9 @@ impl Serialize for UpdateKind {
                 s.serialize_newtype_variant(name, 22, "removed_chat_boost", v)
             }
             UpdateKind::ManagedBot(v) => s.serialize_newtype_variant(name, 23, "managed_bot", v),
+            UpdateKind::GuestMessage(v) => {
+                s.serialize_newtype_variant(name, 24, "guest_message", v)
+            }
             UpdateKind::Error(v) => v.serialize(s),
         }
     }
@@ -628,6 +640,9 @@ mod test {
                 },
                 sender_business_bot: None,
                 sender_tag: None,
+                guest_bot_caller_user: None,
+                guest_bot_caller_chat: None,
+                guest_query_id: None,
                 direct_messages_topic: None,
                 kind: MessageKind::Common(MessageCommon {
                     reply_to_message: None,
@@ -1327,6 +1342,41 @@ mod test {
         assert!(update.chat().is_none());
         let mentioned: Vec<UserId> = update.mentioned_users().map(|u| u.id).collect();
         assert_eq!(mentioned, vec![UserId(1001), UserId(9901)]);
+
+        let roundtrip: Update =
+            serde_json::from_str(&serde_json::to_string(&update).unwrap()).unwrap();
+        assert_eq!(update, roundtrip);
+    }
+
+    #[test]
+    fn guest_message_update() {
+        use crate::types::GuestQueryId;
+
+        let json = r#"{
+            "update_id": 888002,
+            "guest_message": {
+                "message_id": 51,
+                "from": { "id": 2001, "is_bot": false, "first_name": "GuestSender" },
+                "chat": { "id": -100500, "title": "Lounge", "type": "supergroup" },
+                "date": 1778200000,
+                "guest_bot_caller_user": { "id": 2002, "is_bot": false, "first_name": "Caller" },
+                "guest_query_id": "gq-99",
+                "text": "@bot hi"
+            }
+        }"#;
+
+        let update: Update = serde_json::from_str(json).unwrap();
+        assert_eq!(update.from().map(|u| u.id), Some(UserId(2001)));
+        assert_eq!(update.chat().map(|c| c.id), Some(ChatId(-100500)));
+        let mentioned: Vec<UserId> = update.mentioned_users().map(|u| u.id).collect();
+        assert!(mentioned.contains(&UserId(2001)));
+        assert!(mentioned.contains(&UserId(2002)));
+        match &update.kind {
+            UpdateKind::GuestMessage(msg) => {
+                assert_eq!(msg.guest_query_id, Some(GuestQueryId("gq-99".to_owned())));
+            }
+            other => panic!("expected GuestMessage, got {other:?}"),
+        }
 
         let roundtrip: Update =
             serde_json::from_str(&serde_json::to_string(&update).unwrap()).unwrap();

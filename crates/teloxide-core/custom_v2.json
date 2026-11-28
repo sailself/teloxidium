@@ -1,13 +1,13 @@
 {
   "version": {
-    "major": 9,
-    "minor": 6,
+    "major": 10,
+    "minor": 0,
     "patch": 0
   },
   "recent_changes": {
     "year": 2026,
-    "month": 4,
-    "day": 3
+    "month": 5,
+    "day": 8
   },
   "methods": [
     {
@@ -429,7 +429,7 @@
         },
         {
           "name": "text",
-          "description": "Text of the message to be sent, 1-4096 characters after entities parsing",
+          "description": "Text of the message to be sent, 0-4096 characters after entities parsing. Pass an empty text to show a \"Thinking...\" placeholder",
           "required": true,
           "type_info": {
             "type": "string",
@@ -1185,6 +1185,204 @@
         "reference": "Message"
       },
       "documentation_link": "https://core.telegram.org/bots/api#sendphoto"
+    },
+    {
+      "name": "sendLivePhoto",
+      "description": "Use this method to send live photos. On success, the sent [Message](https://core.telegram.org/bots/api#message) is returned.",
+      "arguments": [
+        {
+          "name": "business_connection_id",
+          "description": "Unique identifier of the business connection on behalf of which the message will be sent",
+          "required": false,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "chat_id",
+          "description": "Unique identifier for the target chat or username of the target bot, supergroup, or channel",
+          "required": true,
+          "type_info": {
+            "type": "any_of",
+            "any_of": [
+              {
+                "type": "integer",
+                "enumeration": []
+              },
+              {
+                "type": "string",
+                "enumeration": []
+              }
+            ]
+          }
+        },
+        {
+          "name": "message_thread_id",
+          "description": "Unique identifier for the target message thread",
+          "required": false,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "direct_messages_topic_id",
+          "description": "Identifier of the direct messages topic",
+          "required": false,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "live_photo",
+          "description": "Live photo video to send",
+          "required": true,
+          "type_info": {
+            "type": "reference",
+            "reference": "InputFile"
+          }
+        },
+        {
+          "name": "photo",
+          "description": "The static photo to send",
+          "required": true,
+          "type_info": {
+            "type": "reference",
+            "reference": "InputFile"
+          }
+        },
+        {
+          "name": "caption",
+          "description": "Live photo caption, 0-1024 characters after entities parsing",
+          "required": false,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "parse_mode",
+          "description": "Mode for parsing entities in the live photo caption",
+          "required": false,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "caption_entities",
+          "description": "A JSON-serialized list of special entities that appear in the caption",
+          "required": false,
+          "type_info": {
+            "type": "array",
+            "array": {
+              "type": "reference",
+              "reference": "MessageEntity"
+            }
+          }
+        },
+        {
+          "name": "show_caption_above_media",
+          "description": "Pass True if the caption must be shown above the message media",
+          "required": false,
+          "type_info": {
+            "type": "bool"
+          }
+        },
+        {
+          "name": "has_spoiler",
+          "description": "Pass True if the live photo needs to be covered with a spoiler animation",
+          "required": false,
+          "type_info": {
+            "type": "bool"
+          }
+        },
+        {
+          "name": "disable_notification",
+          "description": "Sends the message silently",
+          "required": false,
+          "type_info": {
+            "type": "bool"
+          }
+        },
+        {
+          "name": "protect_content",
+          "description": "Protects the contents of the sent message from forwarding and saving",
+          "required": false,
+          "type_info": {
+            "type": "bool"
+          }
+        },
+        {
+          "name": "allow_paid_broadcast",
+          "description": "Pass True to allow up to 1000 messages per second",
+          "required": false,
+          "type_info": {
+            "type": "bool"
+          }
+        },
+        {
+          "name": "message_effect_id",
+          "description": "Unique identifier of the message effect",
+          "required": false,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "suggested_post_parameters",
+          "description": "Parameters of the suggested post",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "SuggestedPostParameters"
+          }
+        },
+        {
+          "name": "reply_parameters",
+          "description": "Description of the message to reply to",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "ReplyParameters"
+          }
+        },
+        {
+          "name": "reply_markup",
+          "description": "Additional interface options",
+          "required": false,
+          "type_info": {
+            "type": "any_of",
+            "any_of": [
+              {
+                "type": "reference",
+                "reference": "InlineKeyboardMarkup"
+              },
+              {
+                "type": "reference",
+                "reference": "ReplyKeyboardMarkup"
+              },
+              {
+                "type": "reference",
+                "reference": "ReplyKeyboardRemove"
+              },
+              {
+                "type": "reference",
+                "reference": "ForceReply"
+              }
+            ]
+          }
+        }
+      ],
+      "maybe_multipart": true,
+      "return_type": {
+        "type": "reference",
+        "reference": "Message"
+      },
+      "documentation_link": "https://core.telegram.org/bots/api#sendlivephoto"
     },
     {
       "name": "sendAudio",
@@ -2729,7 +2927,7 @@
     },
     {
       "name": "sendMediaGroup",
-      "description": "Use this method to send a group of photos, videos, documents or audios as an album. Documents and audio files can be only grouped in an album with messages of the same type. On success, an array of [Message](https://core.telegram.org/bots/api#message) objects that were sent is returned.",
+      "description": "Use this method to send a group of photos, live photos, videos, documents or audios as an album. Documents and audio files can be only grouped in an album with messages of the same type. On success, an array of [Message](https://core.telegram.org/bots/api#message) objects that were sent is returned.",
       "arguments": [
         {
           "name": "business_connection_id",
@@ -3491,7 +3689,7 @@
         },
         {
           "name": "options",
-          "description": "A JSON-serialized list of 2-12 answer options",
+          "description": "A JSON-serialized list of 1-12 answer options",
           "required": true,
           "type_info": {
             "type": "array",
@@ -3499,6 +3697,15 @@
               "type": "reference",
               "reference": "InputPollOption"
             }
+          }
+        },
+        {
+          "name": "media",
+          "description": "Media to be attached to the poll description",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "InputPollMedia"
           }
         },
         {
@@ -3535,6 +3742,26 @@
           "required": false,
           "type_info": {
             "type": "bool"
+          }
+        },
+        {
+          "name": "members_only",
+          "description": "Pass True if only members of the chat can vote in the poll",
+          "required": false,
+          "type_info": {
+            "type": "bool"
+          }
+        },
+        {
+          "name": "country_codes",
+          "description": "A JSON-serialized list of two-letter ISO 3166-1 alpha-2 country codes of users allowed to vote in the poll, or `\"FT\"` for Fragment anonymous numbers",
+          "required": false,
+          "type_info": {
+            "type": "array",
+            "array": {
+              "type": "string",
+              "enumeration": []
+            }
           }
         },
         {
@@ -3603,6 +3830,15 @@
               "type": "reference",
               "reference": "MessageEntity"
             }
+          }
+        },
+        {
+          "name": "explanation_media",
+          "description": "Media to be attached to the quiz explanation",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "InputPollMedia"
           }
         },
         {
@@ -4101,6 +4337,111 @@
         "default": true
       },
       "documentation_link": "https://core.telegram.org/bots/api#setmessagereaction"
+    },
+    {
+      "name": "deleteAllMessageReactions",
+      "description": "Use this method to delete all reactions by a user or a chat on messages in a chat. Returns *True* on success.",
+      "arguments": [
+        {
+          "name": "chat_id",
+          "description": "Unique identifier for the target chat or username of the target supergroup",
+          "required": true,
+          "type_info": {
+            "type": "any_of",
+            "any_of": [
+              {
+                "type": "integer",
+                "enumeration": []
+              },
+              {
+                "type": "string",
+                "enumeration": []
+              }
+            ]
+          }
+        },
+        {
+          "name": "user_id",
+          "description": "Identifier of the user whose reactions will be removed",
+          "required": false,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "actor_chat_id",
+          "description": "Identifier of the chat whose reactions will be removed",
+          "required": false,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        }
+      ],
+      "maybe_multipart": false,
+      "return_type": {
+        "type": "bool",
+        "default": true
+      },
+      "documentation_link": "https://core.telegram.org/bots/api#deleteallmessagereactions"
+    },
+    {
+      "name": "deleteMessageReaction",
+      "description": "Use this method to delete a reaction by a user or a chat on a message. Returns *True* on success.",
+      "arguments": [
+        {
+          "name": "chat_id",
+          "description": "Unique identifier for the target chat or username of the target supergroup",
+          "required": true,
+          "type_info": {
+            "type": "any_of",
+            "any_of": [
+              {
+                "type": "integer",
+                "enumeration": []
+              },
+              {
+                "type": "string",
+                "enumeration": []
+              }
+            ]
+          }
+        },
+        {
+          "name": "message_id",
+          "description": "Identifier of the target message",
+          "required": true,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "user_id",
+          "description": "Identifier of the user whose reaction will be removed",
+          "required": false,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "actor_chat_id",
+          "description": "Identifier of the chat whose reaction will be removed",
+          "required": false,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        }
+      ],
+      "maybe_multipart": false,
+      "return_type": {
+        "type": "bool",
+        "default": true
+      },
+      "documentation_link": "https://core.telegram.org/bots/api#deletemessagereaction"
     },
     {
       "name": "getUserProfilePhotos",
@@ -5518,7 +5859,7 @@
     },
     {
       "name": "getChatAdministrators",
-      "description": "Use this method to get a list of administrators in a chat, which aren't bots. Returns an Array of [ChatMember](https://core.telegram.org/bots/api#chatmember) objects.",
+      "description": "Use this method to get a list of administrators in a chat, which aren't bots (unless `return_bots` is set to *True*). Returns an Array of [ChatMember](https://core.telegram.org/bots/api#chatmember) objects.",
       "arguments": [
         {
           "name": "chat_id",
@@ -5536,6 +5877,14 @@
                 "enumeration": []
               }
             ]
+          }
+        },
+        {
+          "name": "return_bots",
+          "description": "*Optional*. Pass True to additionally receive all bots that are administrators of the chat. By default, information about other bots is omitted.",
+          "required": false,
+          "type_info": {
+            "type": "bool"
           }
         }
       ],
@@ -8235,7 +8584,7 @@
     },
     {
       "name": "editMessageMedia",
-      "description": "Use this method to edit animation, audio, document, photo, or video messages, or to add media to text messages. If a message is part of a message album, then it can be edited only to an audio for audio albums, only to a document for document albums and to a photo or a video otherwise. When an inline message is edited, a new file can't be uploaded; use a previously uploaded file via its file\\_id or specify a URL. On success, if the edited message is not an inline message, the edited [Message](https://core.telegram.org/bots/api#message) is returned, otherwise *True* is returned. Note that business messages that were not sent by the bot and do not contain an inline keyboard can only be edited within **48 hours** from the time they were sent.",
+      "description": "Use this method to edit animation, audio, document, live photo, photo, or video messages, or to add media to text messages. If a message is part of a message album, then it can be edited only to an audio for audio albums, only to a document for document albums and to a photo, a live photo, or a video otherwise. When an inline message is edited, a new file can't be uploaded; use a previously uploaded file via its file\\_id or specify a URL. On success, if the edited message is not an inline message, the edited [Message](https://core.telegram.org/bots/api#message) is returned, otherwise *True* is returned. Note that business messages that were not sent by the bot and do not contain an inline keyboard can only be edited within **48 hours** from the time they were sent.",
       "arguments": [
         {
           "name": "business_connection_id",
@@ -9782,6 +10131,36 @@
       "documentation_link": "https://core.telegram.org/bots/api#answerwebappquery"
     },
     {
+      "name": "answerGuestQuery",
+      "description": "Use this method to reply to a received guest message. On success, a [SentGuestMessage](https://core.telegram.org/bots/api#sentguestmessage) object is returned.",
+      "arguments": [
+        {
+          "name": "guest_query_id",
+          "description": "Unique identifier for the query to be answered",
+          "required": true,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "result",
+          "description": "A JSON-serialized object describing the message to be sent",
+          "required": true,
+          "type_info": {
+            "type": "reference",
+            "reference": "InlineQueryResult"
+          }
+        }
+      ],
+      "maybe_multipart": false,
+      "return_type": {
+        "type": "reference",
+        "reference": "SentGuestMessage"
+      },
+      "documentation_link": "https://core.telegram.org/bots/api#answerguestquery"
+    },
+    {
       "name": "savePreparedInlineMessage",
       "description": "Stores a message that can be sent by a user of a Mini App. Returns a [PreparedInlineMessage](https://core.telegram.org/bots/api#preparedinlinemessage) object.",
       "arguments": [
@@ -10939,6 +11318,101 @@
       "documentation_link": "https://core.telegram.org/bots/api#replacemanagedbottoken"
     },
     {
+      "name": "getManagedBotAccessSettings",
+      "description": "Use this method to get the current access settings of a managed bot. Returns a [BotAccessSettings](https://core.telegram.org/bots/api#botaccesssettings) object on success.",
+      "arguments": [
+        {
+          "name": "user_id",
+          "description": "User identifier of the managed bot whose access settings will be returned",
+          "required": true,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        }
+      ],
+      "maybe_multipart": false,
+      "return_type": {
+        "type": "reference",
+        "reference": "BotAccessSettings"
+      },
+      "documentation_link": "https://core.telegram.org/bots/api#getmanagedbotaccesssettings"
+    },
+    {
+      "name": "setManagedBotAccessSettings",
+      "description": "Use this method to change the access settings of a managed bot. Returns *True* on success.",
+      "arguments": [
+        {
+          "name": "user_id",
+          "description": "User identifier of the managed bot whose access settings will be changed",
+          "required": true,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "is_access_restricted",
+          "description": "Pass True if only selected users can access the bot",
+          "required": true,
+          "type_info": {
+            "type": "bool"
+          }
+        },
+        {
+          "name": "added_user_ids",
+          "description": "A JSON-serialized list of up to 10 identifiers of users who will have access to the bot in addition to the owner",
+          "required": false,
+          "type_info": {
+            "type": "array",
+            "array": {
+              "type": "integer",
+              "enumeration": []
+            }
+          }
+        }
+      ],
+      "maybe_multipart": false,
+      "return_type": {
+        "type": "bool",
+        "default": true
+      },
+      "documentation_link": "https://core.telegram.org/bots/api#setmanagedbotaccesssettings"
+    },
+    {
+      "name": "getUserPersonalChatMessages",
+      "description": "Use this method to get the messages from the personal channel of a user. Returns an Array of [Message](https://core.telegram.org/bots/api#message) objects on success.",
+      "arguments": [
+        {
+          "name": "user_id",
+          "description": "Unique identifier for the target user",
+          "required": true,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "limit",
+          "description": "The maximum number of messages to return; 1-20",
+          "required": true,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        }
+      ],
+      "maybe_multipart": false,
+      "return_type": {
+        "type": "array",
+        "array": {
+          "type": "reference",
+          "reference": "Message"
+        }
+      },
+      "documentation_link": "https://core.telegram.org/bots/api#getuserpersonalchatmessages"
+    },
+    {
       "name": "savePreparedKeyboardButton",
       "description": "Stores a keyboard button that can be used by a user within a Mini App. Returns a PreparedKeyboardButton object.",
       "arguments": [
@@ -11199,6 +11673,15 @@
             "type": "reference",
             "reference": "ManagedBotUpdated"
           }
+        },
+        {
+          "name": "guest_message",
+          "description": "*Optional*. New incoming message sent to the bot in guest mode",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "Message"
+          }
         }
       ],
       "documentation_link": "https://core.telegram.org/bots/api#update"
@@ -11433,9 +11916,45 @@
           "type_info": {
             "type": "bool"
           }
+        },
+        {
+          "name": "supports_guest_queries",
+          "description": "*Optional*. True, if the bot supports guest mode queries. Returned only in [getMe](https://core.telegram.org/bots/api#getme).",
+          "required": false,
+          "type_info": {
+            "type": "bool"
+          }
         }
       ],
       "documentation_link": "https://core.telegram.org/bots/api#user"
+    },
+    {
+      "name": "BotAccessSettings",
+      "description": "Contains information about users that have access to a managed bot.",
+      "type": "properties",
+      "properties": [
+        {
+          "name": "is_access_restricted",
+          "description": "True, if only selected users can access the bot. The bot's owner can always access it.",
+          "required": true,
+          "type_info": {
+            "type": "bool"
+          }
+        },
+        {
+          "name": "added_users",
+          "description": "*Optional*. The list of other users who have access to the bot if the access is restricted",
+          "required": false,
+          "type_info": {
+            "type": "array",
+            "array": {
+              "type": "reference",
+              "reference": "User"
+            }
+          }
+        }
+      ],
+      "documentation_link": "https://core.telegram.org/bots/api#botaccesssettings"
     },
     {
       "name": "Chat",
@@ -12485,6 +13004,15 @@
           }
         },
         {
+          "name": "live_photo",
+          "description": "*Optional*. Message is a live photo, information about the live photo",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "LivePhoto"
+          }
+        },
+        {
           "name": "poll",
           "description": "*Optional*. Message is a native poll, information about the poll",
           "required": false,
@@ -13029,6 +13557,33 @@
             "type": "string",
             "enumeration": []
           }
+        },
+        {
+          "name": "guest_bot_caller_user",
+          "description": "*Optional*. User who sent the query if the message was sent to a bot in guest mode",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "User"
+          }
+        },
+        {
+          "name": "guest_bot_caller_chat",
+          "description": "*Optional*. Chat from which the query was sent if the message was sent to a bot in guest mode",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "Chat"
+          }
+        },
+        {
+          "name": "guest_query_id",
+          "description": "*Optional*. Unique identifier of the guest query that triggered this message",
+          "required": false,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
         }
       ],
       "documentation_link": "https://core.telegram.org/bots/api#message"
@@ -13435,6 +13990,15 @@
           "type_info": {
             "type": "reference",
             "reference": "Game"
+          }
+        },
+        {
+          "name": "live_photo",
+          "description": "*Optional*. Message is a live photo, information about the live photo",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "LivePhoto"
           }
         },
         {
@@ -13877,6 +14441,89 @@
         }
       ],
       "documentation_link": "https://core.telegram.org/bots/api#photosize"
+    },
+    {
+      "name": "LivePhoto",
+      "description": "This object represents a live photo.",
+      "type": "properties",
+      "properties": [
+        {
+          "name": "photo",
+          "description": "*Optional*. Available sizes of the corresponding static photo",
+          "required": false,
+          "type_info": {
+            "type": "array",
+            "array": {
+              "type": "reference",
+              "reference": "PhotoSize"
+            }
+          }
+        },
+        {
+          "name": "file_id",
+          "description": "Identifier for the video file, which can be used to download or reuse the file",
+          "required": true,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "file_unique_id",
+          "description": "Unique identifier for the video file",
+          "required": true,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "width",
+          "description": "Video width as defined by the sender",
+          "required": true,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "height",
+          "description": "Video height as defined by the sender",
+          "required": true,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "duration",
+          "description": "Duration of the video in seconds as defined by the sender",
+          "required": true,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "mime_type",
+          "description": "*Optional*. MIME type of the file as defined by the sender",
+          "required": false,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "file_size",
+          "description": "*Optional*. File size in bytes",
+          "required": false,
+          "type_info": {
+            "type": "integer",
+            "enumeration": []
+          }
+        }
+      ],
+      "documentation_link": "https://core.telegram.org/bots/api#livephoto"
     },
     {
       "name": "Animation",
@@ -14426,6 +15073,10 @@
         {
           "type": "reference",
           "reference": "PaidMediaVideo"
+        },
+        {
+          "type": "reference",
+          "reference": "PaidMediaLivePhoto"
         }
       ],
       "documentation_link": "https://core.telegram.org/bots/api#paidmedia"
@@ -14504,6 +15155,33 @@
         }
       ],
       "documentation_link": "https://core.telegram.org/bots/api#paidmediaphoto"
+    },
+    {
+      "name": "PaidMediaLivePhoto",
+      "description": "The paid media is a live photo.",
+      "type": "properties",
+      "properties": [
+        {
+          "name": "type",
+          "description": "Type of the paid media, always *live\\_photo*",
+          "required": true,
+          "type_info": {
+            "type": "string",
+            "enumeration": [],
+            "default": "live_photo"
+          }
+        },
+        {
+          "name": "live_photo",
+          "description": "The live photo",
+          "required": true,
+          "type_info": {
+            "type": "reference",
+            "reference": "LivePhoto"
+          }
+        }
+      ],
+      "documentation_link": "https://core.telegram.org/bots/api#paidmedialivephoto"
     },
     {
       "name": "PaidMediaVideo",
@@ -14649,6 +15327,15 @@
           }
         },
         {
+          "name": "media",
+          "description": "*Optional*. Media attached to the poll option",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "PollMedia"
+          }
+        },
+        {
           "name": "voter_count",
           "description": "Number of users that voted for this option",
           "required": true,
@@ -14688,6 +15375,138 @@
       "documentation_link": "https://core.telegram.org/bots/api#polloption"
     },
     {
+      "name": "PollMedia",
+      "description": "Describes media attached to a poll, poll option, or quiz explanation.",
+      "type": "properties",
+      "properties": [
+        {
+          "name": "animation",
+          "description": "*Optional*. Media is an animation",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "Animation"
+          }
+        },
+        {
+          "name": "audio",
+          "description": "*Optional*. Media is an audio file",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "Audio"
+          }
+        },
+        {
+          "name": "document",
+          "description": "*Optional*. Media is a general file",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "Document"
+          }
+        },
+        {
+          "name": "live_photo",
+          "description": "*Optional*. Media is a live photo",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "LivePhoto"
+          }
+        },
+        {
+          "name": "location",
+          "description": "*Optional*. Media is a shared location",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "Location"
+          }
+        },
+        {
+          "name": "photo",
+          "description": "*Optional*. Media is a photo",
+          "required": false,
+          "type_info": {
+            "type": "array",
+            "array": {
+              "type": "reference",
+              "reference": "PhotoSize"
+            }
+          }
+        },
+        {
+          "name": "sticker",
+          "description": "*Optional*. Media is a sticker",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "Sticker"
+          }
+        },
+        {
+          "name": "venue",
+          "description": "*Optional*. Media is a venue",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "Venue"
+          }
+        },
+        {
+          "name": "video",
+          "description": "*Optional*. Media is a video",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "Video"
+          }
+        }
+      ],
+      "documentation_link": "https://core.telegram.org/bots/api#pollmedia"
+    },
+    {
+      "name": "InputPollMedia",
+      "description": "This object represents the content of a poll description or a quiz explanation to be sent.",
+      "type": "any_of",
+      "any_of": [
+        {
+          "type": "reference",
+          "reference": "InputMediaAnimation"
+        },
+        {
+          "type": "reference",
+          "reference": "InputMediaAudio"
+        },
+        {
+          "type": "reference",
+          "reference": "InputMediaDocument"
+        },
+        {
+          "type": "reference",
+          "reference": "InputMediaLivePhoto"
+        },
+        {
+          "type": "reference",
+          "reference": "InputMediaLocation"
+        },
+        {
+          "type": "reference",
+          "reference": "InputMediaPhoto"
+        },
+        {
+          "type": "reference",
+          "reference": "InputMediaVenue"
+        },
+        {
+          "type": "reference",
+          "reference": "InputMediaVideo"
+        }
+      ],
+      "documentation_link": "https://core.telegram.org/bots/api#inputpollmedia"
+    },
+    {
       "name": "InputPollOption",
       "description": "This object contains information about one answer option in a poll to be sent.",
       "type": "properties",
@@ -14723,9 +15542,54 @@
               "reference": "MessageEntity"
             }
           }
+        },
+        {
+          "name": "media",
+          "description": "*Optional*. Media added to the poll option",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "InputPollOptionMedia"
+          }
         }
       ],
       "documentation_link": "https://core.telegram.org/bots/api#inputpolloption"
+    },
+    {
+      "name": "InputPollOptionMedia",
+      "description": "This object represents the content of a poll option to be sent.",
+      "type": "any_of",
+      "any_of": [
+        {
+          "type": "reference",
+          "reference": "InputMediaAnimation"
+        },
+        {
+          "type": "reference",
+          "reference": "InputMediaLivePhoto"
+        },
+        {
+          "type": "reference",
+          "reference": "InputMediaLocation"
+        },
+        {
+          "type": "reference",
+          "reference": "InputMediaPhoto"
+        },
+        {
+          "type": "reference",
+          "reference": "InputMediaSticker"
+        },
+        {
+          "type": "reference",
+          "reference": "InputMediaVenue"
+        },
+        {
+          "type": "reference",
+          "reference": "InputMediaVideo"
+        }
+      ],
+      "documentation_link": "https://core.telegram.org/bots/api#inputpolloptionmedia"
     },
     {
       "name": "PollAnswer",
@@ -14889,6 +15753,26 @@
           }
         },
         {
+          "name": "members_only",
+          "description": "*Optional*. True, if only members of the chat can vote in the poll",
+          "required": false,
+          "type_info": {
+            "type": "bool"
+          }
+        },
+        {
+          "name": "country_codes",
+          "description": "*Optional*. List of two-letter ISO 3166-1 alpha-2 country codes of users allowed to vote in the poll, or `\"FT\"` for Fragment anonymous numbers",
+          "required": false,
+          "type_info": {
+            "type": "array",
+            "array": {
+              "type": "string",
+              "enumeration": []
+            }
+          }
+        },
+        {
           "name": "correct_option_ids",
           "description": "Optional. Array of 0-based identifiers of the correct answer options. Available only for polls in quiz mode which are closed or were sent (not forwarded) by the bot or to the private chat with the bot.",
           "required": false,
@@ -14921,6 +15805,15 @@
               "type": "reference",
               "reference": "MessageEntity"
             }
+          }
+        },
+        {
+          "name": "explanation_media",
+          "description": "*Optional*. Media attached to the quiz explanation",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "PollMedia"
           }
         },
         {
@@ -14960,6 +15853,15 @@
               "type": "reference",
               "reference": "MessageEntity"
             }
+          }
+        },
+        {
+          "name": "media",
+          "description": "*Optional*. Media attached to the poll description",
+          "required": false,
+          "type_info": {
+            "type": "reference",
+            "reference": "PollMedia"
           }
         }
       ],
@@ -18429,6 +19331,14 @@
           }
         },
         {
+          "name": "can_react_to_messages",
+          "description": "True, if the user is allowed to react to messages",
+          "required": true,
+          "type_info": {
+            "type": "bool"
+          }
+        },
+        {
           "name": "can_send_other_messages",
           "description": "*True*, if the user is allowed to send animations, games, stickers and use inline bots",
           "required": true,
@@ -18750,6 +19660,14 @@
         {
           "name": "can_edit_tag",
           "description": "*Optional*. *True*, if the user is allowed to edit their own tag. If omitted, defaults to the value of *can\\_pin\\_messages*.",
+          "required": false,
+          "type_info": {
+            "type": "bool"
+          }
+        },
+        {
+          "name": "can_react_to_messages",
+          "description": "*Optional*. *True*, if the user is allowed to react to messages",
           "required": false,
           "type_info": {
             "type": "bool"
@@ -21701,6 +22619,10 @@
         {
           "type": "reference",
           "reference": "InputMediaVideo"
+        },
+        {
+          "type": "reference",
+          "reference": "InputMediaLivePhoto"
         }
       ],
       "documentation_link": "https://core.telegram.org/bots/api#inputmedia"
@@ -21779,6 +22701,254 @@
         }
       ],
       "documentation_link": "https://core.telegram.org/bots/api#inputmediaphoto"
+    },
+    {
+      "name": "InputMediaLivePhoto",
+      "description": "Represents a live photo to be sent.",
+      "type": "properties",
+      "properties": [
+        {
+          "name": "type",
+          "description": "Type of the media, must be *live\\_photo*",
+          "required": true,
+          "type_info": {
+            "type": "string",
+            "enumeration": [],
+            "default": "live_photo"
+          }
+        },
+        {
+          "name": "media",
+          "description": "Video of the live photo to send",
+          "required": true,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "photo",
+          "description": "The static photo to send",
+          "required": true,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "caption",
+          "description": "*Optional*. Caption of the live photo to be sent, 0-1024 characters after entities parsing",
+          "required": false,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "parse_mode",
+          "description": "*Optional*. Mode for parsing entities in the live photo caption",
+          "required": false,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "caption_entities",
+          "description": "*Optional*. List of special entities that appear in the caption",
+          "required": false,
+          "type_info": {
+            "type": "array",
+            "array": {
+              "type": "reference",
+              "reference": "MessageEntity"
+            }
+          }
+        },
+        {
+          "name": "show_caption_above_media",
+          "description": "*Optional*. Pass *True* if the caption must be shown above the message media",
+          "required": false,
+          "type_info": {
+            "type": "bool"
+          }
+        },
+        {
+          "name": "has_spoiler",
+          "description": "*Optional*. Pass *True* if the live photo needs to be covered with a spoiler animation",
+          "required": false,
+          "type_info": {
+            "type": "bool"
+          }
+        }
+      ],
+      "documentation_link": "https://core.telegram.org/bots/api#inputmedialivephoto"
+    },
+    {
+      "name": "InputMediaSticker",
+      "description": "Represents a sticker to be sent in a poll option.",
+      "type": "properties",
+      "properties": [
+        {
+          "name": "type",
+          "description": "Type of the media, must be *sticker*",
+          "required": true,
+          "type_info": {
+            "type": "string",
+            "enumeration": [],
+            "default": "sticker"
+          }
+        },
+        {
+          "name": "media",
+          "description": "File to send",
+          "required": true,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "emoji",
+          "description": "*Optional*. Emoji associated with the sticker; only for just uploaded stickers",
+          "required": false,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        }
+      ],
+      "documentation_link": "https://core.telegram.org/bots/api#inputmediasticker"
+    },
+    {
+      "name": "InputMediaLocation",
+      "description": "Represents a location to be sent.",
+      "type": "properties",
+      "properties": [
+        {
+          "name": "type",
+          "description": "Type of the media, must be *location*",
+          "required": true,
+          "type_info": {
+            "type": "string",
+            "enumeration": [],
+            "default": "location"
+          }
+        },
+        {
+          "name": "latitude",
+          "description": "Latitude of the location",
+          "required": true,
+          "type_info": {
+            "type": "float"
+          }
+        },
+        {
+          "name": "longitude",
+          "description": "Longitude of the location",
+          "required": true,
+          "type_info": {
+            "type": "float"
+          }
+        },
+        {
+          "name": "horizontal_accuracy",
+          "description": "*Optional*. The radius of uncertainty for the location, measured in meters; 0-1500",
+          "required": false,
+          "type_info": {
+            "type": "float"
+          }
+        }
+      ],
+      "documentation_link": "https://core.telegram.org/bots/api#inputmedialocation"
+    },
+    {
+      "name": "InputMediaVenue",
+      "description": "Represents a venue to be sent.",
+      "type": "properties",
+      "properties": [
+        {
+          "name": "type",
+          "description": "Type of the media, must be *venue*",
+          "required": true,
+          "type_info": {
+            "type": "string",
+            "enumeration": [],
+            "default": "venue"
+          }
+        },
+        {
+          "name": "latitude",
+          "description": "Latitude of the location",
+          "required": true,
+          "type_info": {
+            "type": "float"
+          }
+        },
+        {
+          "name": "longitude",
+          "description": "Longitude of the location",
+          "required": true,
+          "type_info": {
+            "type": "float"
+          }
+        },
+        {
+          "name": "title",
+          "description": "Name of the venue",
+          "required": true,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "address",
+          "description": "Address of the venue",
+          "required": true,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "foursquare_id",
+          "description": "*Optional*. Foursquare identifier of the venue",
+          "required": false,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "foursquare_type",
+          "description": "*Optional*. Foursquare type of the venue, if known",
+          "required": false,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "google_place_id",
+          "description": "*Optional*. Google Places identifier of the venue",
+          "required": false,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "google_place_type",
+          "description": "*Optional*. Google Places type of the venue",
+          "required": false,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        }
+      ],
+      "documentation_link": "https://core.telegram.org/bots/api#inputmediavenue"
     },
     {
       "name": "InputMediaVideo",
@@ -22217,6 +23387,10 @@
         {
           "type": "reference",
           "reference": "InputPaidMediaVideo"
+        },
+        {
+          "type": "reference",
+          "reference": "InputPaidMediaLivePhoto"
         }
       ],
       "documentation_link": "https://core.telegram.org/bots/api#inputpaidmedia"
@@ -22247,6 +23421,42 @@
         }
       ],
       "documentation_link": "https://core.telegram.org/bots/api#inputpaidmediaphoto"
+    },
+    {
+      "name": "InputPaidMediaLivePhoto",
+      "description": "The paid media to send is a live photo.",
+      "type": "properties",
+      "properties": [
+        {
+          "name": "type",
+          "description": "Type of the media, must be *live\\_photo*",
+          "required": true,
+          "type_info": {
+            "type": "string",
+            "enumeration": [],
+            "default": "live_photo"
+          }
+        },
+        {
+          "name": "media",
+          "description": "Video of the live photo to send",
+          "required": true,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        },
+        {
+          "name": "photo",
+          "description": "The static photo to send",
+          "required": true,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        }
+      ],
+      "documentation_link": "https://core.telegram.org/bots/api#inputpaidmedialivephoto"
     },
     {
       "name": "InputPaidMediaVideo",
@@ -25795,6 +27005,23 @@
         }
       ],
       "documentation_link": "https://core.telegram.org/bots/api#sentwebappmessage"
+    },
+    {
+      "name": "SentGuestMessage",
+      "description": "Describes an inline message sent to a guest user in response to a guest mode query.",
+      "type": "properties",
+      "properties": [
+        {
+          "name": "inline_message_id",
+          "description": "Identifier of the sent inline message",
+          "required": true,
+          "type_info": {
+            "type": "string",
+            "enumeration": []
+          }
+        }
+      ],
+      "documentation_link": "https://core.telegram.org/bots/api#sentguestmessage"
     },
     {
       "name": "PreparedInlineMessage",

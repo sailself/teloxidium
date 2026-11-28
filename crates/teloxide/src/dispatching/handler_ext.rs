@@ -199,6 +199,9 @@ mod tests {
                 suggested_post_info: None,
                 sender_business_bot: None,
                 sender_tag: None,
+                guest_bot_caller_user: None,
+                guest_bot_caller_chat: None,
+                guest_query_id: None,
                 date,
                 chat: Chat {
                     id: ChatId(109_998_024),
@@ -263,6 +266,7 @@ mod tests {
             has_topics_enabled: false,
             allows_users_to_create_topics: false,
             can_manage_bots: false,
+            supports_guest_queries: false,
         }
     }
 

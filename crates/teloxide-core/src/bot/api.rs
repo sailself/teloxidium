@@ -6,11 +6,11 @@ use crate::{
     requests::{JsonRequest, MultipartRequest},
     types::{
         AcceptedGiftTypes, BotCommand, BusinessConnectionId, CallbackQueryId, ChatId,
-        ChatPermissions, CustomEmojiId, DraftId, EphemeralMessageId, FileId, GiftId, InlineQueryId,
-        InlineQueryResult, InputChecklist, InputFile, InputMedia, InputPaidMedia, InputPollOption,
-        InputProfilePhoto, InputSticker, InputStoryContent, KeyboardButton, LabeledPrice,
-        MessageId, OwnedGiftId, PreCheckoutQueryId, Recipient, Seconds, ShippingQueryId,
-        StickerFormat, StoryId, TelegramTransactionId, ThreadId, UserId,
+        ChatPermissions, CustomEmojiId, DraftId, EphemeralMessageId, FileId, GiftId, GuestQueryId,
+        InlineQueryId, InlineQueryResult, InputChecklist, InputFile, InputMedia, InputPaidMedia,
+        InputPollOption, InputProfilePhoto, InputSticker, InputStoryContent, KeyboardButton,
+        LabeledPrice, MessageId, OwnedGiftId, PreCheckoutQueryId, Recipient, Seconds,
+        ShippingQueryId, StickerFormat, StoryId, TelegramTransactionId, ThreadId, UserId,
     },
     Bot,
 };
@@ -119,6 +119,23 @@ impl Requester for Bot {
         C: Into<Recipient>,
     {
         Self::SendPhoto::new(self.clone(), payloads::SendPhoto::new(chat_id, photo))
+    }
+
+    type SendLivePhoto = MultipartRequest<payloads::SendLivePhoto>;
+
+    fn send_live_photo<C>(
+        &self,
+        chat_id: C,
+        live_photo: InputFile,
+        photo: InputFile,
+    ) -> Self::SendLivePhoto
+    where
+        C: Into<Recipient>,
+    {
+        Self::SendLivePhoto::new(
+            self.clone(),
+            payloads::SendLivePhoto::new(chat_id, live_photo, photo),
+        )
     }
 
     type SendAudio = MultipartRequest<payloads::SendAudio>;
@@ -334,7 +351,7 @@ impl Requester for Bot {
         )
     }
 
-    type SendPoll = JsonRequest<payloads::SendPoll>;
+    type SendPoll = MultipartRequest<payloads::SendPoll>;
 
     fn send_poll<C, Q, O>(&self, chat_id: C, question: Q, options: O) -> Self::SendPoll
     where
@@ -393,6 +410,34 @@ impl Requester for Bot {
         Self::SetMessageReaction::new(
             self.clone(),
             payloads::SetMessageReaction::new(chat_id, message_id),
+        )
+    }
+
+    type DeleteAllMessageReactions = JsonRequest<payloads::DeleteAllMessageReactions>;
+
+    fn delete_all_message_reactions<C>(&self, chat_id: C) -> Self::DeleteAllMessageReactions
+    where
+        C: Into<Recipient>,
+    {
+        Self::DeleteAllMessageReactions::new(
+            self.clone(),
+            payloads::DeleteAllMessageReactions::new(chat_id),
+        )
+    }
+
+    type DeleteMessageReaction = JsonRequest<payloads::DeleteMessageReaction>;
+
+    fn delete_message_reaction<C>(
+        &self,
+        chat_id: C,
+        message_id: MessageId,
+    ) -> Self::DeleteMessageReaction
+    where
+        C: Into<Recipient>,
+    {
+        Self::DeleteMessageReaction::new(
+            self.clone(),
+            payloads::DeleteMessageReaction::new(chat_id, message_id),
         )
     }
 
@@ -1135,6 +1180,19 @@ impl Requester for Bot {
         )
     }
 
+    type AnswerGuestQuery = JsonRequest<payloads::AnswerGuestQuery>;
+
+    fn answer_guest_query(
+        &self,
+        guest_query_id: GuestQueryId,
+        result: InlineQueryResult,
+    ) -> Self::AnswerGuestQuery {
+        Self::AnswerGuestQuery::new(
+            self.clone(),
+            payloads::AnswerGuestQuery::new(guest_query_id, result),
+        )
+    }
+
     type SavePreparedInlineMessage = JsonRequest<payloads::SavePreparedInlineMessage>;
 
     fn save_prepared_inline_message(
@@ -1173,6 +1231,44 @@ impl Requester for Bot {
         Self::ReplaceManagedBotToken::new(
             self.clone(),
             payloads::ReplaceManagedBotToken::new(user_id),
+        )
+    }
+
+    type GetManagedBotAccessSettings = JsonRequest<payloads::GetManagedBotAccessSettings>;
+
+    fn get_managed_bot_access_settings(
+        &self,
+        user_id: UserId,
+    ) -> Self::GetManagedBotAccessSettings {
+        Self::GetManagedBotAccessSettings::new(
+            self.clone(),
+            payloads::GetManagedBotAccessSettings::new(user_id),
+        )
+    }
+
+    type SetManagedBotAccessSettings = JsonRequest<payloads::SetManagedBotAccessSettings>;
+
+    fn set_managed_bot_access_settings(
+        &self,
+        user_id: UserId,
+        is_access_restricted: bool,
+    ) -> Self::SetManagedBotAccessSettings {
+        Self::SetManagedBotAccessSettings::new(
+            self.clone(),
+            payloads::SetManagedBotAccessSettings::new(user_id, is_access_restricted),
+        )
+    }
+
+    type GetUserPersonalChatMessages = JsonRequest<payloads::GetUserPersonalChatMessages>;
+
+    fn get_user_personal_chat_messages(
+        &self,
+        user_id: UserId,
+        limit: u8,
+    ) -> Self::GetUserPersonalChatMessages {
+        Self::GetUserPersonalChatMessages::new(
+            self.clone(),
+            payloads::GetUserPersonalChatMessages::new(user_id, limit),
         )
     }
 
@@ -2207,19 +2303,23 @@ mod tests {
 
     use crate::{
         payloads::{
-            CopyMessageSetters, ForwardMessageSetters, GetBusinessAccountGiftsSetters,
+            CopyMessageSetters, DeleteAllMessageReactionsSetters, DeleteMessageReactionSetters,
+            ForwardMessageSetters, GetBusinessAccountGiftsSetters, GetChatAdministratorsSetters,
             GetChatGiftsSetters, GetUserGiftsSetters, GetUserProfileAudiosSetters,
-            PromoteChatMemberSetters, RepostStorySetters, SendMessageDraftSetters, SendPollSetters,
-            SetChatMemberTagSetters,
+            PromoteChatMemberSetters, RepostStorySetters, SendLivePhotoSetters,
+            SendMessageDraftSetters, SendPollSetters, SetChatMemberTagSetters,
+            SetManagedBotAccessSettingsSetters,
         },
         prelude::Requester,
         requests::HasPayload,
         types::{
             BusinessConnectionId, ButtonRequest, ChatId, ChatPermissions, DraftId, EffectId,
-            InputFile, InputPollOption, InputProfilePhoto, InputProfilePhotoAnimated,
-            InputProfilePhotoStatic, KeyboardButton, KeyboardButtonRequestManagedBot,
-            MessageEntity, MessageId, ParseMode, PollType, ReplyParameters, RequestId, Seconds,
-            StoryId, ThreadId, UserId,
+            GuestQueryId, InlineQueryResult, InlineQueryResultArticle, InputFile,
+            InputMediaLivePhoto, InputMediaPhoto, InputMediaSticker, InputMessageContent,
+            InputMessageContentText, InputPollMedia, InputPollOption, InputProfilePhoto,
+            InputProfilePhotoAnimated, InputProfilePhotoStatic, KeyboardButton,
+            KeyboardButtonRequestManagedBot, MessageEntity, MessageId, ParseMode, PollType,
+            ReplyParameters, RequestId, Seconds, StoryId, ThreadId, UserId,
         },
         Bot,
     };
@@ -2661,5 +2761,364 @@ mod tests {
                 }
             })
         );
+    }
+
+    #[test]
+    fn bot_api_10_0_payload_serialization_and_multipart() {
+        use crate::requests::MultipartPayload;
+
+        let bot = Bot::new("test-token");
+
+        let answer_guest = bot.answer_guest_query(
+            GuestQueryId::from("gq-1"),
+            InlineQueryResult::Article(InlineQueryResultArticle::new(
+                "1",
+                "Hi",
+                InputMessageContent::Text(InputMessageContentText::new("Body")),
+            )),
+        );
+        let guest_val = serde_json::to_value(answer_guest.payload_ref()).unwrap();
+        assert_eq!(guest_val["guest_query_id"], "gq-1");
+        assert_eq!(guest_val["result"]["type"], "article");
+
+        let admins = bot.get_chat_administrators(ChatId(-1001)).return_bots(true);
+        assert_eq!(
+            serde_json::to_value(admins.payload_ref()).unwrap(),
+            json!({ "chat_id": -1001, "return_bots": true })
+        );
+
+        let del_all = bot
+            .delete_all_message_reactions(ChatId(-1001))
+            .user_id(UserId(11))
+            .actor_chat_id(ChatId(-1002));
+        assert_eq!(
+            serde_json::to_value(del_all.payload_ref()).unwrap(),
+            json!({ "chat_id": -1001, "user_id": 11, "actor_chat_id": -1002 })
+        );
+
+        let del_one = bot.delete_message_reaction(ChatId(-1001), MessageId(9)).user_id(UserId(11));
+        assert_eq!(
+            serde_json::to_value(del_one.payload_ref()).unwrap(),
+            json!({ "chat_id": -1001, "message_id": 9, "user_id": 11 })
+        );
+
+        let empty_draft = bot.send_message_draft(ChatId(42), DraftId(1), "");
+        assert_eq!(
+            serde_json::to_value(empty_draft.payload_ref()).unwrap(),
+            json!({ "chat_id": 42, "draft_id": 1, "text": "" })
+        );
+
+        let set_access = bot
+            .set_managed_bot_access_settings(UserId(9901), true)
+            .added_user_ids([UserId(10), UserId(20)]);
+        assert_eq!(
+            serde_json::to_value(set_access.payload_ref()).unwrap(),
+            json!({
+                "user_id": 9901,
+                "is_access_restricted": true,
+                "added_user_ids": [10, 20]
+            })
+        );
+
+        let personal_msgs = bot.get_user_personal_chat_messages(UserId(42), 5);
+        assert_eq!(
+            serde_json::to_value(personal_msgs.payload_ref()).unwrap(),
+            json!({ "user_id": 42, "limit": 5 })
+        );
+
+        let live_photo_req = bot
+            .send_live_photo(
+                ChatId(-1001),
+                InputFile::memory("video-bytes").file_name("lp.mp4"),
+                InputFile::memory("photo-bytes").file_name("lp.jpg"),
+            )
+            .has_spoiler(true);
+        let mut lp_files = Vec::new();
+        live_photo_req.payload_ref().copy_files(&mut |f| lp_files.push(f));
+        assert_eq!(lp_files.len(), 2);
+
+        let poll_req = bot
+            .send_poll(
+                ChatId(-1001),
+                "Poll Q",
+                [InputPollOption::new("Opt").media(InputMediaSticker::new(
+                    InputFile::memory("stk-bytes").file_name("s.webp"),
+                ))],
+            )
+            .members_only(true)
+            .country_codes(["US".to_owned(), "FT".to_owned()])
+            .media(InputPollMedia::LivePhoto(InputMediaLivePhoto::new(
+                InputFile::memory("p-v").file_name("pv.mp4"),
+                InputFile::memory("p-p").file_name("pp.jpg"),
+            )))
+            .explanation_media(InputPollMedia::Photo(InputMediaPhoto::new(
+                InputFile::memory("exp-bytes").file_name("e.jpg"),
+            )));
+        let mut poll_files = Vec::new();
+        poll_req.payload_ref().copy_files(&mut |f| poll_files.push(f));
+        assert_eq!(poll_files.len(), 4);
+    }
+
+    #[tokio::test]
+    async fn bot_api_10_0_endpoints_over_transport() {
+        use crate::requests::Request;
+        use std::{
+            collections::HashMap,
+            io::{Read, Write},
+            net::TcpListener,
+            sync::mpsc,
+        };
+
+        struct TempFileGuard(std::path::PathBuf);
+        impl Drop for TempFileGuard {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_file(&self.0);
+            }
+        }
+
+        fn parse_multipart_parts(headers: &str, body: &[u8]) -> HashMap<String, Vec<u8>> {
+            let boundary = headers
+                .lines()
+                .find_map(|line| {
+                    let (k, v) = line.split_once(':')?;
+                    if !k.eq_ignore_ascii_case("content-type") {
+                        return None;
+                    }
+                    v.split(';')
+                        .find_map(|part| part.trim().strip_prefix("boundary="))
+                        .map(str::to_owned)
+                })
+                .expect("missing multipart boundary");
+            let delim = format!("--{boundary}").into_bytes();
+            let mut parts = HashMap::new();
+            let mut pos = 0;
+            while let Some(rel_start) =
+                body[pos..].windows(delim.len()).position(|w| w == delim.as_slice())
+            {
+                let part_start = pos + rel_start + delim.len();
+                pos = part_start;
+                if body[part_start..].starts_with(b"--") {
+                    break;
+                }
+                let content_start = if body[part_start..].starts_with(b"\r\n") {
+                    part_start + 2
+                } else {
+                    part_start
+                };
+                let Some(hdr_end_rel) =
+                    body[content_start..].windows(4).position(|w| w == b"\r\n\r\n")
+                else {
+                    continue;
+                };
+                let part_headers =
+                    String::from_utf8_lossy(&body[content_start..content_start + hdr_end_rel]);
+                let data_start = content_start + hdr_end_rel + 4;
+                let Some(next_delim_rel) =
+                    body[data_start..].windows(delim.len()).position(|w| w == delim.as_slice())
+                else {
+                    continue;
+                };
+                let mut data_end = data_start + next_delim_rel;
+                if body[data_start..data_end].ends_with(b"\r\n") {
+                    data_end -= 2;
+                }
+                if let Some(name_start) = part_headers.find("name=\"") {
+                    let name_rest = &part_headers[name_start + 6..];
+                    if let Some(name_end) = name_rest.find('"') {
+                        parts.insert(
+                            name_rest[..name_end].to_owned(),
+                            body[data_start..data_end].to_vec(),
+                        );
+                    }
+                }
+                pos = data_start + next_delim_rel;
+            }
+            parts
+        }
+
+        fn resolve_multipart_file<'a>(
+            parts: &'a HashMap<String, Vec<u8>>,
+            field: &str,
+        ) -> &'a [u8] {
+            let val = parts.get(field).unwrap_or_else(|| panic!("missing part `{field}`"));
+            if let Ok(s) = std::str::from_utf8(val) {
+                if let Some(attach) = s.strip_prefix("attach://") {
+                    return parts
+                        .get(attach)
+                        .unwrap_or_else(|| panic!("missing attach part `{attach}`"));
+                }
+            }
+            val
+        }
+
+        let live_photo_msg_json = serde_json::json!({
+            "ok": true,
+            "result": {
+                "message_id": 601,
+                "chat": { "id": 42, "first_name": "Alice", "type": "private" },
+                "date": 1778200000,
+                "live_photo": {
+                    "file_id": "lp-1",
+                    "file_unique_id": "lp-u-1",
+                    "width": 640,
+                    "height": 480,
+                    "duration": 2
+                }
+            }
+        })
+        .to_string();
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let (tx, rx) = mpsc::channel();
+        let responses = vec![
+            r#"{"ok":true,"result":{"is_access_restricted":true,"added_users":[{"id":12,"is_bot":false,"first_name":"Allowed"}]}}"#.to_owned(),
+            r#"{"ok":true,"result":[]}"#.to_owned(),
+            r#"{"ok":true,"result":{"inline_message_id":"guest-inline-7"}}"#.to_owned(),
+            live_photo_msg_json.clone(),
+            live_photo_msg_json,
+        ];
+
+        std::thread::spawn(move || {
+            for response_body in responses {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut data = Vec::new();
+                let mut buf = [0u8; 4096];
+                let header_end = loop {
+                    let n = stream.read(&mut buf).unwrap();
+                    assert!(n > 0);
+                    data.extend_from_slice(&buf[..n]);
+                    if let Some(pos) = data.windows(4).position(|w| w == b"\r\n\r\n") {
+                        break pos + 4;
+                    }
+                };
+                let headers = String::from_utf8_lossy(&data[..header_end]).into_owned();
+                let req_line = headers.lines().next().unwrap().to_owned();
+                let is_chunked = headers.lines().any(|line| {
+                    line.split_once(':').is_some_and(|(k, v)| {
+                        k.eq_ignore_ascii_case("transfer-encoding")
+                            && v.to_ascii_lowercase().contains("chunked")
+                    })
+                });
+                let raw_body = if is_chunked {
+                    let mut cursor = header_end;
+                    let mut decoded = Vec::new();
+                    loop {
+                        let line_end = loop {
+                            if let Some(pos) = data[cursor..].windows(2).position(|w| w == b"\r\n")
+                            {
+                                break cursor + pos;
+                            }
+                            let n = stream.read(&mut buf).unwrap();
+                            assert!(n > 0, "unexpected EOF reading chunk size");
+                            data.extend_from_slice(&buf[..n]);
+                        };
+                        let size_str = std::str::from_utf8(&data[cursor..line_end]).unwrap();
+                        let size_hex = size_str.split(';').next().unwrap().trim();
+                        let chunk_len = usize::from_str_radix(size_hex, 16).unwrap();
+                        cursor = line_end + 2;
+                        if chunk_len == 0 {
+                            while data.len() < cursor + 2 {
+                                let n = stream.read(&mut buf).unwrap();
+                                if n == 0 {
+                                    break;
+                                }
+                                data.extend_from_slice(&buf[..n]);
+                            }
+                            break;
+                        }
+                        while data.len() < cursor + chunk_len + 2 {
+                            let n = stream.read(&mut buf).unwrap();
+                            assert!(n > 0, "unexpected EOF reading chunk payload");
+                            data.extend_from_slice(&buf[..n]);
+                        }
+                        decoded.extend_from_slice(&data[cursor..cursor + chunk_len]);
+                        cursor += chunk_len + 2;
+                    }
+                    decoded
+                } else {
+                    let content_len: usize = headers
+                        .lines()
+                        .find_map(|line| {
+                            let (k, v) = line.split_once(':')?;
+                            k.eq_ignore_ascii_case("content-length")
+                                .then(|| v.trim().parse().ok())?
+                        })
+                        .unwrap_or(0);
+                    while data.len() < header_end + content_len {
+                        let n = stream.read(&mut buf).unwrap();
+                        assert!(n > 0);
+                        data.extend_from_slice(&buf[..n]);
+                    }
+                    data[header_end..header_end + content_len].to_vec()
+                };
+                tx.send((req_line, headers, raw_body)).unwrap();
+
+                let reply = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: \
+                     {}\r\nConnection: close\r\n\r\n{}",
+                    response_body.len(),
+                    response_body
+                );
+                stream.write_all(reply.as_bytes()).unwrap();
+                stream.flush().unwrap();
+            }
+        });
+
+        let api_url = reqwest::Url::parse(&format!("http://{addr}/")).unwrap();
+        let bot = Bot::with_client("test-token", reqwest::Client::new()).set_api_url(api_url);
+
+        let access = bot.get_managed_bot_access_settings(UserId(9901)).await.unwrap();
+        assert!(access.is_access_restricted);
+        assert_eq!(access.added_users.as_ref().unwrap()[0].id, UserId(12));
+
+        let personal = bot.get_user_personal_chat_messages(UserId(42), 10).await.unwrap();
+        assert!(personal.is_empty());
+
+        let sent_guest = bot
+            .answer_guest_query(
+                GuestQueryId::from("gq-7"),
+                InlineQueryResult::Article(InlineQueryResultArticle::new(
+                    "1",
+                    "Hello",
+                    InputMessageContent::Text(InputMessageContentText::new("Hi guest")),
+                )),
+            )
+            .await
+            .unwrap();
+        assert_eq!(sent_guest.inline_message_id, "guest-inline-7");
+
+        let disk_video = b"\x00\x01DISK_LIVE_PHOTO_MP4\xff\xfe".to_vec();
+        let mem_photo = b"\xff\xd8MEM_LIVE_PHOTO_JPG\xd9".to_vec();
+        let unique =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let lp_path = std::env::temp_dir().join(format!("teloxidium-api-lp-{unique}.mp4"));
+        std::fs::write(&lp_path, &disk_video).unwrap();
+        let _lp_guard = TempFileGuard(lp_path.clone());
+
+        let lp_req = bot.send_live_photo(
+            ChatId(42),
+            InputFile::file(&lp_path),
+            InputFile::memory(mem_photo.clone()).file_name("lp.jpg"),
+        );
+        let sent_lp_ref = lp_req.send_ref().await.unwrap();
+        assert_eq!(sent_lp_ref.live_photo().map(|lp| lp.file_id.0.as_str()), Some("lp-1"));
+        let sent_lp_owned = lp_req.send().await.unwrap();
+        assert_eq!(sent_lp_owned.live_photo().map(|lp| lp.file_id.0.as_str()), Some("lp-1"));
+
+        let (l1, _, _) = rx.recv().unwrap();
+        assert!(l1.starts_with("POST /bottest-token/GetManagedBotAccessSettings "), "{l1}");
+        let (l2, _, _) = rx.recv().unwrap();
+        assert!(l2.starts_with("POST /bottest-token/GetUserPersonalChatMessages "), "{l2}");
+        let (l3, _, _) = rx.recv().unwrap();
+        assert!(l3.starts_with("POST /bottest-token/AnswerGuestQuery "), "{l3}");
+        for _ in 0..2 {
+            let (line, headers, body) = rx.recv().unwrap();
+            assert!(line.starts_with("POST /bottest-token/SendLivePhoto "), "{line}");
+            assert!(headers.to_ascii_lowercase().contains("multipart/form-data"));
+            let parts = parse_multipart_parts(&headers, &body);
+            assert_eq!(resolve_multipart_file(&parts, "live_photo"), disk_video.as_slice());
+            assert_eq!(resolve_multipart_file(&parts, "photo"), mem_photo.as_slice());
+        }
     }
 }

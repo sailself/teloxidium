@@ -208,6 +208,10 @@ pub struct Restricted {
 
     /// `true` if the user is allowed to send polls.
     pub can_send_polls: bool,
+
+    /// `true` if the user is allowed to react to messages.
+    #[serde(default)]
+    pub can_react_to_messages: bool,
 }
 
 /// User that was banned in the chat and can't return to it or view chat
@@ -855,6 +859,7 @@ mod tests {
                 can_send_voice_notes: true,
                 can_manage_topics: false,
                 can_send_polls: true,
+                can_react_to_messages: false,
                 can_send_other_messages: true,
                 can_add_web_page_previews: true,
                 can_edit_tag: false,
@@ -976,12 +981,16 @@ mod tests {
             "can_invite_users": true,
             "can_pin_messages": false,
             "can_manage_topics": false,
+            "can_react_to_messages": true,
             "until_date": 0
         }"#;
         let restricted: ChatMember = serde_json::from_str(restricted_json).unwrap();
         assert_eq!(restricted.tag(), Some("muted"));
         match &restricted.kind {
-            ChatMemberKind::Restricted(r) => assert!(r.can_edit_tag),
+            ChatMemberKind::Restricted(r) => {
+                assert!(r.can_edit_tag);
+                assert!(r.can_react_to_messages);
+            }
             other => panic!("expected restricted, got {other:?}"),
         }
     }

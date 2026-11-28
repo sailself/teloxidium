@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## unreleased
 
+## 0.19.0 - 2026-11-27
+
+### Added
+
+- Support for TBA 10.0 (May 8, 2026)
+  - **Guest Mode:** Add `GuestQueryId`, `SentGuestMessage`, `Me::supports_guest_queries`, `Message::{guest_bot_caller_user, guest_bot_caller_chat, guest_query_id}` (+ `Message::guest_bot_caller_user()` / `guest_bot_caller_chat()` / `mentioned_users()`), `UpdateKind::GuestMessage`, `AllowedUpdate::GuestMessage`, and `Requester::answer_guest_query` (`VisitParseModes`) [**BC**]
+  - **Live Photos:** Add `LivePhoto`, `InputMediaLivePhoto` (`InputMedia::LivePhoto`), `PaidMediaLivePhoto` (`PaidMedia::LivePhoto`), `InputPaidMediaLivePhoto` (`InputPaidMedia::LivePhoto`), `MediaLivePhoto` (`MediaKind::LivePhoto` before `MediaKind::Photo`), `ExternalReplyInfoKind::LivePhoto` (before `Photo`), `Message::live_photo()` + caption/spoiler/above-media/media-group getters, and `Requester::send_live_photo` (`MultipartRequest`, `VisitParseModes`, throttled); support dual-file extraction in `InputMedia::files`/`files_mut` (plus `Video::cover`) and `InputPaidMedia::files`/`files_mut` [**BC**]
+  - **Polls:** Add `PollMedia`, `InputPollMedia`, `InputPollOptionMedia`, `InputMediaSticker`, `InputMediaLocation`, `InputMediaVenue`, `Poll::{media, explanation_media, members_only, country_codes}` (always serializing `members_only`), `PollOption::media`, `InputPollOption::media` (`InputPollOptionFormatting` retains `Deserialize`), and `SendPoll::{media, explanation_media, members_only, country_codes}` (`1-12` options); drop `Eq`/`Hash` from `Poll` and `PollOption`, `PartialEq`/`Eq`/`Hash` from `SendPoll`, and `PartialEq`/`Eq`/`Hash`/`Deserialize` from `InputPollOption` [**BC**]
+  - **Chat Management:** Add `ChatPermissions::REACT_TO_MESSAGES` (`1 << 15`, `can_react_to_messages()`, defaulting omitted JSON values from `can_send_messages` while always serializing in `ChatPermissionsRaw`), `Restricted::can_react_to_messages`, `GetChatAdministrators::return_bots`, `Requester::delete_all_message_reactions`, and `Requester::delete_message_reaction` [**BC**]
+  - **Managed Bots & General:** Add `BotAccessSettings`, `Requester::get_managed_bot_access_settings`, `Requester::set_managed_bot_access_settings`, and `Requester::get_user_personal_chat_messages`; update `SendMessageDraft::text` docs for empty `0-4096` character placeholder drafts [**BC**]
+
+### Changed
+
+- Switch `Bot::SendPoll` from `JsonRequest<payloads::SendPoll>` to `MultipartRequest<payloads::SendPoll>` (`SendPoll` now implements `MultipartPayload`) and update `DefaultParseMode` (`VisitParseModes`) to guard `SendLivePhoto`/`InputMedia::LivePhoto` on `caption_entities.is_none()` and handle `InlineQueryResult::input_message_content` replacement text + `entities`/`caption_entities` [**BC**]
+
 ## 0.18.0 - 2026-11-27
 
 ### Added
