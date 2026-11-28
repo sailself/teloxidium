@@ -7,7 +7,7 @@ Teloxidium is currently distributed via versioned Git tags (`vX.Y.Z`) and GitHub
 Bump clean SemVer versions whenever merging support for a newer Telegram Bot API version or hotfix release (no `-m*` tag suffixes):
 
 - **Breaking changes (`[**BC**]`):** Bump the **minor** version (`0.x.y` → `0.(x+1).0`) for `teloxide` and `teloxide-core` (and `teloxide-macros` only when it changes).
-- **Non-breaking / additive Bot API releases & fixes:** Bump the **patch** version (`0.x.y` → `0.x.(y+1)`) for `teloxide` and `teloxide-core`. Note that `v0.23.1` (`teloxide-core 0.19.1`) was shipped as a pragmatic patch release carrying forward-compatibility enum variants (`A1`–`A3`) and story/sticker multipart fixes (`C4`–`C5`), documented in `MIGRATION_GUIDE.md`.
+- **Non-breaking / additive Bot API releases & fixes:** Bump the **patch** version (`0.x.y` → `0.x.(y+1)`) for `teloxide` and `teloxide-core`. Note that `v0.23.1` (`teloxide-core 0.19.1`) was shipped as a historical pragmatic patch release carrying forward-compatibility enum variants and story/sticker multipart fixes, documented in `MIGRATION_GUIDE.md`; future patch releases should remain strictly non-breaking.
 - **Independent crate version series:** `teloxide` (`0.23.x`) and `teloxide-core` (`0.19.x`) increment together per release, so `teloxide-core 0.19.x` pairs with `teloxide 0.23.x` rather than sharing a single version number.
 - **Git tag format:** `v<teloxide-version>` (for example, `v0.23.0`, `v0.23.1`, `v0.24.0`), matching `version` in `crates/teloxide/Cargo.toml`.
 

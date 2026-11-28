@@ -2454,7 +2454,7 @@ Schema(
                 Param(
                     name: "members_only",
                     ty: Option(bool),
-                    descr: Doc(md: "Pass True if only members of the chat can vote in the poll, or if the poll can't be open for more than 24 hours; for channel chats only")
+                    descr: Doc(md: "Pass True if only users who have been members of the chat for more than 24 hours can vote in the poll; for channel chats only")
                 ),
                 Param(
                     name: "country_codes",

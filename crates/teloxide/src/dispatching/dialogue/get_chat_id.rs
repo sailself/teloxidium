@@ -1,8 +1,16 @@
 use crate::types::{
-    CallbackQuery, Chat, ChatId, ChatJoinRequest, ChatMemberUpdated, Message, Update, UpdateKind,
+    CallbackQuery, Chat, ChatId, ChatJoinRequest, ChatMemberUpdated, MaybeInaccessibleMessage,
+    Message, Update, UpdateKind,
 };
 
 /// Something that may have a chat ID.
+///
+/// Guest queries (`UpdateKind::GuestMessage` and messages with
+/// `guest_query_id`) return `None` to avoid colliding with chat-keyed
+/// dialogues. Note that business messages (`UpdateKind::BusinessMessage` /
+/// `UpdateKind::EditedBusinessMessage` and messages carrying
+/// `business_connection_id`) currently still return `Some(chat.id)` for
+/// backwards compatibility; dedicated business-connection scoping is deferred.
 pub trait GetChatId {
     #[must_use]
     fn chat_id(&self) -> Option<ChatId>;
@@ -19,16 +27,26 @@ impl GetChatId for Message {
 
 impl GetChatId for CallbackQuery {
     fn chat_id(&self) -> Option<ChatId> {
-        self.message.as_ref().map(|mes| mes.chat().id)
+        self.message.as_ref().and_then(|mes| match mes {
+            MaybeInaccessibleMessage::Regular(message) => message.chat_id(),
+            MaybeInaccessibleMessage::Inaccessible(message) => Some(message.chat.id),
+        })
     }
 }
 
 impl GetChatId for Update {
     fn chat_id(&self) -> Option<ChatId> {
-        if matches!(self.kind, UpdateKind::GuestMessage(_)) {
-            return None;
+        match &self.kind {
+            UpdateKind::GuestMessage(_) => None,
+            UpdateKind::CallbackQuery(q) => q.chat_id(),
+            UpdateKind::Message(m)
+            | UpdateKind::EditedMessage(m)
+            | UpdateKind::ChannelPost(m)
+            | UpdateKind::EditedChannelPost(m)
+            | UpdateKind::BusinessMessage(m)
+            | UpdateKind::EditedBusinessMessage(m) => m.chat_id(),
+            _ => self.chat().map(|chat| chat.id),
         }
-        self.chat().map(|chat| chat.id)
     }
 }
 
@@ -89,6 +107,52 @@ mod tests {
             assert_eq!(msg.chat_id(), None);
         } else {
             panic!("expected GuestMessage");
+        }
+
+        let regular_cb: Update = serde_json::from_str(
+            r#"{
+                "update_id": 3,
+                "callback_query": {
+                    "id": "cb-regular",
+                    "from": { "id": 2001, "is_bot": false, "first_name": "User" },
+                    "chat_instance": "ci-1",
+                    "message": {
+                        "message_id": 12,
+                        "chat": { "id": -100500, "title": "Real Chat", "type": "supergroup" },
+                        "date": 1778200002,
+                        "text": "regular"
+                    },
+                    "data": "ok"
+                }
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(regular_cb.chat_id(), Some(ChatId(-100500)));
+
+        let guest_cb: Update = serde_json::from_str(
+            r#"{
+                "update_id": 4,
+                "callback_query": {
+                    "id": "cb-guest",
+                    "from": { "id": 2001, "is_bot": false, "first_name": "Guest" },
+                    "chat_instance": "ci-2",
+                    "message": {
+                        "message_id": 13,
+                        "chat": { "id": -100500, "title": "Guest Room", "type": "supergroup" },
+                        "date": 1778200003,
+                        "guest_query_id": "gq-1",
+                        "text": "guest menu"
+                    },
+                    "data": "ok"
+                }
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(guest_cb.chat_id(), None);
+        if let UpdateKind::CallbackQuery(cb) = &guest_cb.kind {
+            assert_eq!(cb.chat_id(), None);
+        } else {
+            panic!("expected CallbackQuery");
         }
     }
 }

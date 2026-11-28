@@ -3768,7 +3768,7 @@
         },
         {
           "name": "members_only",
-          "description": "Pass True if only members of the chat can vote in the poll, or if the poll can't be open for more than 24 hours; for channel chats only",
+          "description": "Pass True if only users who have been members of the chat for more than 24 hours can vote in the poll; for channel chats only",
           "required": false,
           "type_info": {
             "type": "bool"
@@ -15776,7 +15776,7 @@
         },
         {
           "name": "members_only",
-          "description": "True, if only members of the chat can vote in the poll",
+          "description": "True, if only users who have been members of the chat for more than 24 hours can vote in the poll",
           "required": true,
           "type_info": {
             "type": "bool"

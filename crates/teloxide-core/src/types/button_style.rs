@@ -20,6 +20,12 @@ pub enum ButtonStyle {
     Unknown,
 }
 
+impl ButtonStyle {
+    pub(crate) fn is_none_or_unknown(style: &Option<Self>) -> bool {
+        matches!(style, None | Some(Self::Unknown))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

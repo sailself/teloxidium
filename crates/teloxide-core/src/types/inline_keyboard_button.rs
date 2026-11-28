@@ -25,6 +25,7 @@ pub struct InlineKeyboardButton {
     pub icon_custom_emoji_id: Option<CustomEmojiId>,
 
     /// Style of the button. If omitted, then an app-specific style is used.
+    #[serde(skip_serializing_if = "ButtonStyle::is_none_or_unknown")]
     pub style: Option<ButtonStyle>,
 
     #[serde(flatten)]
@@ -182,52 +183,88 @@ impl Serialize for InlineKeyboardButtonKind {
     }
 }
 
-#[derive(Deserialize)]
-struct InlineKeyboardButtonKindRaw {
-    url: Option<reqwest::Url>,
-    login_url: Option<LoginUrl>,
-    callback_data: Option<String>,
-    web_app: Option<WebAppInfo>,
-    switch_inline_query: Option<String>,
-    switch_inline_query_current_chat: Option<String>,
-    switch_inline_query_chosen_chat: Option<SwitchInlineQueryChosenChat>,
-    copy_text: Option<CopyTextButton>,
-    callback_game: Option<CallbackGame>,
-    pay: Option<True>,
-    disabled: Option<DisabledButton>,
-}
-
 impl<'de> Deserialize<'de> for InlineKeyboardButtonKind {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let raw = InlineKeyboardButtonKindRaw::deserialize(deserializer)?;
-        Ok(if let Some(v) = raw.disabled {
-            Self::Disabled(v)
-        } else if let Some(v) = raw.url {
-            Self::Url(v)
-        } else if let Some(v) = raw.login_url {
-            Self::LoginUrl(v)
-        } else if let Some(v) = raw.callback_data {
-            Self::CallbackData(v)
-        } else if let Some(v) = raw.web_app {
-            Self::WebApp(v)
-        } else if let Some(v) = raw.switch_inline_query {
-            Self::SwitchInlineQuery(v)
-        } else if let Some(v) = raw.switch_inline_query_current_chat {
-            Self::SwitchInlineQueryCurrentChat(v)
-        } else if let Some(v) = raw.switch_inline_query_chosen_chat {
-            Self::SwitchInlineQueryChosenChat(v)
-        } else if let Some(v) = raw.copy_text {
-            Self::CopyText(v)
-        } else if let Some(v) = raw.callback_game {
-            Self::CallbackGame(v)
-        } else if let Some(v) = raw.pay {
-            Self::Pay(v)
-        } else {
-            Self::Unknown
-        })
+        struct InlineKeyboardButtonKindVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for InlineKeyboardButtonKindVisitor {
+            type Value = InlineKeyboardButtonKind;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("an inline keyboard button action")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                let mut disabled: Option<DisabledButton> = None;
+                let mut url: Option<reqwest::Url> = None;
+                let mut login_url: Option<LoginUrl> = None;
+                let mut callback_data: Option<String> = None;
+                let mut web_app: Option<WebAppInfo> = None;
+                let mut switch_inline_query: Option<String> = None;
+                let mut switch_inline_query_current_chat: Option<String> = None;
+                let mut switch_inline_query_chosen_chat: Option<SwitchInlineQueryChosenChat> = None;
+                let mut copy_text: Option<CopyTextButton> = None;
+                let mut callback_game: Option<CallbackGame> = None;
+                let mut pay: Option<True> = None;
+
+                while let Some(key) = map.next_key::<std::borrow::Cow<'de, str>>()? {
+                    match key.as_ref() {
+                        "disabled" => disabled = map.next_value()?,
+                        "url" => url = map.next_value()?,
+                        "login_url" => login_url = map.next_value()?,
+                        "callback_data" => callback_data = map.next_value()?,
+                        "web_app" => web_app = map.next_value()?,
+                        "switch_inline_query" => switch_inline_query = map.next_value()?,
+                        "switch_inline_query_current_chat" => {
+                            switch_inline_query_current_chat = map.next_value()?
+                        }
+                        "switch_inline_query_chosen_chat" => {
+                            switch_inline_query_chosen_chat = map.next_value()?
+                        }
+                        "copy_text" => copy_text = map.next_value()?,
+                        "callback_game" => callback_game = map.next_value()?,
+                        "pay" => pay = map.next_value()?,
+                        _ => {
+                            let _ = map.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+
+                if let Some(v) = disabled {
+                    Ok(InlineKeyboardButtonKind::Disabled(v))
+                } else if let Some(v) = url {
+                    Ok(InlineKeyboardButtonKind::Url(v))
+                } else if let Some(v) = login_url {
+                    Ok(InlineKeyboardButtonKind::LoginUrl(v))
+                } else if let Some(v) = callback_data {
+                    Ok(InlineKeyboardButtonKind::CallbackData(v))
+                } else if let Some(v) = web_app {
+                    Ok(InlineKeyboardButtonKind::WebApp(v))
+                } else if let Some(v) = switch_inline_query {
+                    Ok(InlineKeyboardButtonKind::SwitchInlineQuery(v))
+                } else if let Some(v) = switch_inline_query_current_chat {
+                    Ok(InlineKeyboardButtonKind::SwitchInlineQueryCurrentChat(v))
+                } else if let Some(v) = switch_inline_query_chosen_chat {
+                    Ok(InlineKeyboardButtonKind::SwitchInlineQueryChosenChat(v))
+                } else if let Some(v) = copy_text {
+                    Ok(InlineKeyboardButtonKind::CopyText(v))
+                } else if let Some(v) = callback_game {
+                    Ok(InlineKeyboardButtonKind::CallbackGame(v))
+                } else if let Some(v) = pay {
+                    Ok(InlineKeyboardButtonKind::Pay(v))
+                } else {
+                    Ok(InlineKeyboardButtonKind::Unknown)
+                }
+            }
+        }
+
+        deserializer.deserialize_map(InlineKeyboardButtonKindVisitor)
     }
 }
 
@@ -400,5 +437,43 @@ mod tests {
         let parsed_unknown: InlineKeyboardButton = serde_json::from_str(unknown_kind_json).unwrap();
         assert_eq!(parsed_unknown.kind, InlineKeyboardButtonKind::Unknown);
         assert_eq!(parsed_unknown.style, Some(ButtonStyle::Unknown));
+        let stored_unknown = serde_json::to_string(&parsed_unknown).unwrap();
+        assert_eq!(stored_unknown, r#"{"text":"Future"}"#);
+        let reloaded_unknown: InlineKeyboardButton = serde_json::from_str(&stored_unknown).unwrap();
+        assert_eq!(
+            reloaded_unknown,
+            InlineKeyboardButton {
+                text: "Future".to_owned(),
+                icon_custom_emoji_id: None,
+                style: None,
+                kind: InlineKeyboardButtonKind::Unknown,
+            }
+        );
+
+        let unknown_style_known_action: InlineKeyboardButton =
+            serde_json::from_str(r#"{"text":"Go","callback_data":"go","style":"secondary"}"#)
+                .unwrap();
+        assert_eq!(unknown_style_known_action.style, Some(ButtonStyle::Unknown));
+        assert_eq!(
+            serde_json::to_string(&unknown_style_known_action).unwrap(),
+            r#"{"text":"Go","callback_data":"go"}"#
+        );
+
+        let msg_with_unknown_button: crate::types::Message = serde_json::from_str(
+            r#"{
+                "message_id": 1,
+                "chat": { "id": 100, "first_name": "Alice", "type": "private" },
+                "date": 1700000000,
+                "text": "Keep me",
+                "reply_markup": {
+                    "inline_keyboard": [[{ "text": "FutureBtn", "future_action": "x" }]]
+                }
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(msg_with_unknown_button.text(), Some("Keep me"));
+        let serialized_msg = serde_json::to_string(&msg_with_unknown_button).unwrap();
+        let reloaded_msg: crate::types::Message = serde_json::from_str(&serialized_msg).unwrap();
+        assert_eq!(reloaded_msg.text(), Some("Keep me"));
     }
 }

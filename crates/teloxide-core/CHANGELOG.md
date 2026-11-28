@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## unreleased
 
+## 0.19.2 - 2026-11-28
+
+### Added
+
+- Add `Me::try_mention()` and `Me::try_tme_url()` non-panicking helpers for bots without a main username
+
+### Fixed
+
+- Add `#[serde(default, ...)]` on optional `mime_type` fields in `Animation`, `Video`, `Audio`, and `Voice`, and on optional `SuggestedPostInfo::send_date`, so payloads omitting them deserialize cleanly
+- Populate `MediaLivePhoto.live_photo.photo` and `ExternalReplyInfoKind::LivePhoto` `.photo` from top-level/sibling `photo` when the nested `live_photo.photo` field is omitted
+- Restore derived single-pass `Message` deserialization with a streaming `MessageKind` empty-fallback visitor (preserving `message_id`/`chat_id` context, distinguishing failed modelled content from unrecognized keys, and logging known unmodelled 10.1–10.5 keys at `debug`), and switch `MessageEntityKind` (with safe out-of-order field buffering) and `InlineKeyboardButtonKind` to single-pass streaming `MapAccess` deserializers
+- Skip serializing `None | Some(ButtonStyle::Unknown)` on `InlineKeyboardButton::style` and `KeyboardButton::style` while keeping `InlineKeyboardButtonKind::Unknown` store-and-reload roundtrippable
+- Fail closed (`false`) in `ChatMemberKind::can_manage_tags()` when `Administrator::can_manage_tags` is omitted
+- Fix `Poll::members_only` / `SendPoll::members_only` documentation and schema descriptions (`users who have been members of the chat for more than 24 hours`)
+
 ## 0.19.1 - 2026-11-27
 
 ### Added

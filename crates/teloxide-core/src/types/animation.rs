@@ -31,7 +31,7 @@ pub struct Animation {
     pub file_name: Option<String>,
 
     /// A MIME type of the file as defined by a sender.
-    #[serde(with = "crate::types::non_telegram_types::mime::opt_deser")]
+    #[serde(default, with = "crate::types::non_telegram_types::mime::opt_deser")]
     #[cfg_attr(test, schemars(with = "Option<String>"))]
     pub mime_type: Option<Mime>,
 }
@@ -83,5 +83,42 @@ mod tests {
         };
         let actual = serde_json::from_str::<Animation>(json).unwrap();
         assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn deserialize_without_mime_type() {
+        let json = r#"{
+            "file_id": "anim-no-mime",
+            "file_unique_id": "u-anim-no-mime",
+            "width": 320,
+            "height": 240,
+            "duration": 5
+        }"#;
+        let parsed: Animation = serde_json::from_str(json).unwrap();
+        assert_eq!(parsed.mime_type, None);
+
+        let update_json = r#"{
+            "update_id": 1,
+            "message": {
+                "message_id": 10,
+                "chat": { "id": 100, "first_name": "Alice", "type": "private" },
+                "date": 1700000000,
+                "animation": {
+                    "file_id": "anim-no-mime",
+                    "file_unique_id": "u-anim-no-mime",
+                    "width": 320,
+                    "height": 240,
+                    "duration": 5
+                }
+            }
+        }"#;
+        let update: crate::types::Update = serde_json::from_str(update_json).unwrap();
+        match &update.kind {
+            crate::types::UpdateKind::Message(msg) => {
+                assert_eq!(msg.animation().and_then(|a| a.mime_type.as_ref()), None);
+                assert!(msg.animation().is_some());
+            }
+            other => panic!("expected Message update, got {other:?}"),
+        }
     }
 }
