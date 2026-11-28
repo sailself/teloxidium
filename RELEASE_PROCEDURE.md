@@ -4,18 +4,21 @@ Teloxidium is currently distributed via versioned Git tags (`vX.Y.Z`) and GitHub
 
 ## Versioning Policy
 
-Bump clean SemVer versions whenever merging support for a newer Telegram Bot API version or a breaking hotfix (no `-m*` tag suffixes):
+Bump clean SemVer versions whenever merging support for a newer Telegram Bot API version or hotfix release (no `-m*` tag suffixes):
 
 - **Breaking changes (`[**BC**]`):** Bump the **minor** version (`0.x.y` → `0.(x+1).0`) for `teloxide` and `teloxide-core` (and `teloxide-macros` only when it changes).
-- **Non-breaking / additive Bot API releases & fixes:** Bump the **patch** version (`0.x.y` → `0.x.(y+1)`) for `teloxide` and `teloxide-core`.
-- **Git tag format:** `v<teloxide-version>` (for example, `v0.18.0`, `v0.18.1`, `v0.19.0`), matching `version` in `crates/teloxide/Cargo.toml`.
+- **Non-breaking / additive Bot API releases & fixes:** Bump the **patch** version (`0.x.y` → `0.x.(y+1)`) for `teloxide` and `teloxide-core`. Note that `v0.23.1` (`teloxide-core 0.19.1`) was shipped as a pragmatic patch release carrying forward-compatibility enum variants (`A1`–`A3`) and story/sticker multipart fixes (`C4`–`C5`), documented in `MIGRATION_GUIDE.md`.
+- **Independent crate version series:** `teloxide` (`0.23.x`) and `teloxide-core` (`0.19.x`) increment together per release, so `teloxide-core 0.19.x` pairs with `teloxide 0.23.x` rather than sharing a single version number.
+- **Git tag format:** `v<teloxide-version>` (for example, `v0.23.0`, `v0.23.1`, `v0.24.0`), matching `version` in `crates/teloxide/Cargo.toml`.
 
 ## Release Steps
 
 1. Prepare the version bump on a feature or milestone branch from `master`:
-   - Update `version` in `crates/teloxide/Cargo.toml` and `crates/teloxide-core/Cargo.toml` (plus `crates/teloxide-macros/Cargo.toml` if changed).
+   - Update `version` (and `teloxide-core` path dependency version) in `crates/teloxide/Cargo.toml` and `crates/teloxide-core/Cargo.toml` (plus `crates/teloxide-macros/Cargo.toml` if changed).
+   - Update `tag = "vX.Y.Z"` examples in `README.md`, `crates/teloxide-core/README.md`, and `crates/teloxide-core/src/lib.rs` (plus API coverage badges and `src/lib.rs` Bot API version notes when bumping Bot API level).
+   - When changing Bot API baseline, update `api_version` in `crates/teloxide-core/schema.ron` and `version` / `recent_changes` in `crates/teloxide-core/custom_v2.json`.
    - Refresh `Cargo.lock` by running `cargo check --workspace`.
-   - Move entries from `## unreleased` under `## <version> - YYYY-MM-DD` in `CHANGELOG.md` and `crates/teloxide-core/CHANGELOG.md` (and update `MIGRATION_GUIDE.md` if breaking), leaving a fresh empty `## unreleased` heading at the top.
+   - Move entries from `## unreleased` under `## <version> - YYYY-MM-DD` in `CHANGELOG.md` and `crates/teloxide-core/CHANGELOG.md` (and update `MIGRATION_GUIDE.md` when behavior or types change), leaving a fresh empty `## unreleased` heading at the top.
 2. Open a Pull Request, wait for CI (`ci-pass`) to succeed, and merge into `master`.
 3. Create and push the annotated Git tag from updated `master`:
    ```powershell
@@ -24,7 +27,7 @@ Bump clean SemVer versions whenever merging support for a newer Telegram Bot API
    git tag -a vX.Y.Z -m "Release vX.Y.Z"
    git push origin vX.Y.Z
    ```
-4. Pushing `vX.Y.Z` triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which verifies that the tag matches `crates/teloxide/Cargo.toml`, runs the workspace verification suite, and publishes the GitHub Release with changelog notes.
+4. Pushing `vX.Y.Z` triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which verifies that the tag is on `master`, matches `crates/teloxide/Cargo.toml`, `README.md` snippets, and changelog entries, runs the workspace verification suite + docs/doctests, and publishes the GitHub Release.
 
 ## Using a Release in Other Projects
 
@@ -39,18 +42,6 @@ teloxide = { git = "https://github.com/sailself/teloxidium", tag = "vX.Y.Z", fea
 
 Because `crates/teloxide/Cargo.toml` references `teloxide-core` and `teloxide-macros` via workspace `path` dependencies, Cargo resolves all three crates from the same Git tag automatically while keeping `use teloxide::...` unchanged.
 
-### Overriding Upstream `teloxide` via `[patch.crates-io]`
+### Crate Naming & Third-Party Crates.io Ecosystem Crates
 
-If another dependency in your workspace pulls in upstream `teloxide` or `teloxide-core` from crates.io, add a `[patch.crates-io]` section in your root `Cargo.toml`:
-
-```toml
-[dependencies]
-teloxide = { version = "0.18", features = ["macros"] }
-
-[patch.crates-io]
-teloxide = { git = "https://github.com/sailself/teloxidium", tag = "vX.Y.Z" }
-teloxide-core = { git = "https://github.com/sailself/teloxidium", tag = "vX.Y.Z" }
-teloxide-macros = { git = "https://github.com/sailself/teloxidium", tag = "vX.Y.Z" }
-```
-
-> **Note:** `[patch.crates-io]` requires the `teloxide` version requested in `[dependencies]` to be SemVer-compatible with `crates/teloxide/Cargo.toml` at that tag (for example, `version = "0.18"` when the tag is `v0.18.x`).
+Teloxidium intentionally keeps the `teloxide`, `teloxide-core`, and `teloxide-macros` crate names so downstream bots can switch cleanly via the Git tag dependency above without rewriting imports. Because Teloxidium's version series (`0.23.x` / `0.19.x`) is not SemVer-compatible with upstream crates.io releases (`0.17.x` / `0.13.x`), `[patch.crates-io]` cannot unify Teloxidium with third-party crates.io packages that depend on upstream `teloxide` (those crates must either be unused or also patched to depend on your Teloxidium Git tag).

@@ -554,4 +554,35 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn check_multipart_requests() {
+        let api_schema = get_api_schema();
+        let ron_schema = schema::get();
+        let api_rs =
+            std::fs::read_to_string(crate::codegen::project_root().join("src/bot/api.rs")).unwrap();
+
+        let normalized_api_rs = api_rs.split_whitespace().collect::<Vec<_>>().join(" ");
+
+        // Checklist payloads carry text/entities only even though custom_v2.json
+        // conservatively flags them `maybe_multipart: true`.
+        let json_exceptions = ["sendChecklist", "editMessageChecklist"];
+        let mut errors = Vec::new();
+
+        for method in api_schema.methods {
+            if !method.maybe_multipart || json_exceptions.contains(&method.name.as_str()) {
+                continue;
+            }
+            let Some(ron_method) = find_ron_method_by_name(&method.name, &ron_schema) else {
+                continue;
+            };
+            let pascal = &ron_method.names.1;
+            let expected = format!("type {pascal} = MultipartRequest<payloads::{pascal}>;");
+            if !normalized_api_rs.contains(&expected) {
+                errors.push(format!("{}: expected `{expected}` in src/bot/api.rs", method.name));
+            }
+        }
+
+        assert!(errors.is_empty(), "multipart request wiring mismatches:\n{}", errors.join("\n"));
+    }
 }

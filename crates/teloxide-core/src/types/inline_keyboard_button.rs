@@ -31,9 +31,16 @@ pub struct InlineKeyboardButton {
     pub kind: InlineKeyboardButtonKind,
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+/// Marker payload for a disabled inline keyboard button.
+///
+/// [The official docs](https://core.telegram.org/bots/api#disabledbutton).
+#[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
-#[serde(rename_all = "snake_case")]
+pub struct DisabledButton {}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[cfg_attr(test, schemars(rename_all = "snake_case"))]
 pub enum InlineKeyboardButtonKind {
     /// HTTP or `tg://` url to be opened when button is pressed.
     ///
@@ -119,6 +126,109 @@ pub enum InlineKeyboardButtonKind {
     ///
     /// [Pay button]: https://core.telegram.org/bots/api#payments
     Pay(True),
+
+    /// A disabled button that does nothing when pressed.
+    #[cfg_attr(test, schemars(skip))]
+    Disabled(DisabledButton),
+
+    /// A button kind unknown to this version of the library.
+    #[cfg_attr(test, schemars(skip))]
+    Unknown,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "snake_case")]
+enum KnownInlineKeyboardButtonKindRef<'a> {
+    Url(&'a reqwest::Url),
+    LoginUrl(&'a LoginUrl),
+    CallbackData(&'a str),
+    WebApp(&'a WebAppInfo),
+    SwitchInlineQuery(&'a str),
+    SwitchInlineQueryCurrentChat(&'a str),
+    SwitchInlineQueryChosenChat(&'a SwitchInlineQueryChosenChat),
+    CopyText(&'a CopyTextButton),
+    CallbackGame(&'a CallbackGame),
+    Pay(&'a True),
+    Disabled(&'a DisabledButton),
+}
+
+impl Serialize for InlineKeyboardButtonKind {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+
+        let known = match self {
+            Self::Url(v) => KnownInlineKeyboardButtonKindRef::Url(v),
+            Self::LoginUrl(v) => KnownInlineKeyboardButtonKindRef::LoginUrl(v),
+            Self::CallbackData(v) => KnownInlineKeyboardButtonKindRef::CallbackData(v),
+            Self::WebApp(v) => KnownInlineKeyboardButtonKindRef::WebApp(v),
+            Self::SwitchInlineQuery(v) => KnownInlineKeyboardButtonKindRef::SwitchInlineQuery(v),
+            Self::SwitchInlineQueryCurrentChat(v) => {
+                KnownInlineKeyboardButtonKindRef::SwitchInlineQueryCurrentChat(v)
+            }
+            Self::SwitchInlineQueryChosenChat(v) => {
+                KnownInlineKeyboardButtonKindRef::SwitchInlineQueryChosenChat(v)
+            }
+            Self::CopyText(v) => KnownInlineKeyboardButtonKindRef::CopyText(v),
+            Self::CallbackGame(v) => KnownInlineKeyboardButtonKindRef::CallbackGame(v),
+            Self::Pay(v) => KnownInlineKeyboardButtonKindRef::Pay(v),
+            Self::Disabled(v) => KnownInlineKeyboardButtonKindRef::Disabled(v),
+            Self::Unknown => return serializer.serialize_map(Some(0))?.end(),
+        };
+
+        known.serialize(serializer)
+    }
+}
+
+#[derive(Deserialize)]
+struct InlineKeyboardButtonKindRaw {
+    url: Option<reqwest::Url>,
+    login_url: Option<LoginUrl>,
+    callback_data: Option<String>,
+    web_app: Option<WebAppInfo>,
+    switch_inline_query: Option<String>,
+    switch_inline_query_current_chat: Option<String>,
+    switch_inline_query_chosen_chat: Option<SwitchInlineQueryChosenChat>,
+    copy_text: Option<CopyTextButton>,
+    callback_game: Option<CallbackGame>,
+    pay: Option<True>,
+    disabled: Option<DisabledButton>,
+}
+
+impl<'de> Deserialize<'de> for InlineKeyboardButtonKind {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw = InlineKeyboardButtonKindRaw::deserialize(deserializer)?;
+        Ok(if let Some(v) = raw.disabled {
+            Self::Disabled(v)
+        } else if let Some(v) = raw.url {
+            Self::Url(v)
+        } else if let Some(v) = raw.login_url {
+            Self::LoginUrl(v)
+        } else if let Some(v) = raw.callback_data {
+            Self::CallbackData(v)
+        } else if let Some(v) = raw.web_app {
+            Self::WebApp(v)
+        } else if let Some(v) = raw.switch_inline_query {
+            Self::SwitchInlineQuery(v)
+        } else if let Some(v) = raw.switch_inline_query_current_chat {
+            Self::SwitchInlineQueryCurrentChat(v)
+        } else if let Some(v) = raw.switch_inline_query_chosen_chat {
+            Self::SwitchInlineQueryChosenChat(v)
+        } else if let Some(v) = raw.copy_text {
+            Self::CopyText(v)
+        } else if let Some(v) = raw.callback_game {
+            Self::CallbackGame(v)
+        } else if let Some(v) = raw.pay {
+            Self::Pay(v)
+        } else {
+            Self::Unknown
+        })
+    }
 }
 
 impl InlineKeyboardButton {
@@ -247,6 +357,16 @@ impl InlineKeyboardButton {
     {
         Self::new(text, InlineKeyboardButtonKind::Pay(True))
     }
+
+    /// Constructor for `InlineKeyboardButton` with [`Disabled`] kind.
+    ///
+    /// [`Disabled`]: InlineKeyboardButtonKind::Disabled
+    pub fn disabled<T>(text: T) -> Self
+    where
+        T: Into<String>,
+    {
+        Self::new(text, InlineKeyboardButtonKind::Disabled(DisabledButton {}))
+    }
 }
 
 #[cfg(test)]
@@ -270,5 +390,15 @@ mod tests {
         let parsed_legacy: InlineKeyboardButton = serde_json::from_str(legacy_json).unwrap();
         assert_eq!(parsed_legacy, InlineKeyboardButton::callback("Go", "go"));
         assert_eq!(serde_json::to_string(&parsed_legacy).unwrap(), legacy_json);
+
+        let disabled_json = r#"{"text":"Off","disabled":{}}"#;
+        let parsed_disabled: InlineKeyboardButton = serde_json::from_str(disabled_json).unwrap();
+        assert_eq!(parsed_disabled, InlineKeyboardButton::disabled("Off"));
+        assert_eq!(serde_json::to_string(&parsed_disabled).unwrap(), disabled_json);
+
+        let unknown_kind_json = r#"{"text":"Future","future_action":"x","style":"secondary"}"#;
+        let parsed_unknown: InlineKeyboardButton = serde_json::from_str(unknown_kind_json).unwrap();
+        assert_eq!(parsed_unknown.kind, InlineKeyboardButtonKind::Unknown);
+        assert_eq!(parsed_unknown.style, Some(ButtonStyle::Unknown));
     }
 }

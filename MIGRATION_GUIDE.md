@@ -3,6 +3,22 @@ Note that the list of required changes is not fully exhaustive and it may lack s
 
 ## unreleased
 
+## 0.23.0 -> 0.23.1
+
+### teloxide-core & teloxide
+
+> This is a pragmatic patch release (`teloxide 0.23.1` / `teloxide-core 0.19.1`) carrying forward-compatibility hardening against live Telegram Bot API 10.5 servers alongside bug fixes. Note the minor enum/Request-type adjustments below:
+
+- **Forward-compatible enums:**
+  - Added `MessageEntityKind::{BankCardNumber, TonAddress, Unknown { kind: String }}`, `InlineKeyboardButtonKind::{Disabled(DisabledButton), Unknown}`, and `#[serde(other)] Unknown` variants to `ButtonStyle`, `UniqueGiftOrigin`, and `UniqueGiftModelRarity` so newer Telegram messages and buttons deserialize cleanly instead of degrading to `MessageKind::Empty {}`. Update any exhaustive `match` arms on these enums.
+- **Story & Sticker uploads (`PostStory`, `EditStory`, `ReplaceStickerInSet`):**
+  - Switched `Bot::PostStory`, `Bot::EditStory`, and `Bot::ReplaceStickerInSet` from `JsonRequest<...>` to `MultipartRequest<...>`, implemented `InputFileLike` for `InputStoryContent`, and marked `PostStory`/`EditStory` `@[multipart = content]` so uploaded files are attached rather than sent as dangling `attach://` strings. Update code matching their associated `Requester` types directly as `JsonRequest<...>`.
+- **`Message::photo()` & `Message::filter_photo()`:** `Message::photo()` now also returns `live_photo.photo.as_deref()` when a message has `MediaKind::LivePhoto`, so photo handlers continue receiving live photos with still sizes while `Message::live_photo()` / `filter_live_photo` remain specific to live photos.
+- **`ChatPermissions` & `ChatMemberKind::can_manage_tags()` read defaults:** Deserializing `ChatPermissions` now resolves omitted `can_edit_tag` from `can_pin_messages` (matching `can_react_to_messages` defaulting from `can_send_messages`), and `ChatMemberKind::can_manage_tags()` resolves omitted `can_manage_tags` from `can_pin_messages`.
+- **Guest messages excluded from `GetChatId`:** `GetChatId` now returns `None` for `UpdateKind::GuestMessage` and for `Message` values carrying `guest_query_id` so guest queries do not collide with chat-keyed dialogue state.
+- **`Throttle::send_message_draft`:** `send_message_draft` now bypasses per-chat message throttling so streaming previews are not rate-limited against normal messages.
+- **Username-less bots (`filter_command` / `filter_mention_command` / `CommandDescriptions::username_from_me`):** No longer panic when `Me::user.username` is `None`; `Me::try_username()` returns `Option<&str>`.
+
 ## 0.22 -> 0.23
 
 ### teloxide-core & teloxide
@@ -17,7 +33,7 @@ Note that the list of required changes is not fully exhaustive and it may lack s
 - **Live Photos (`MediaKind`, `ExternalReplyInfoKind`, `InputMedia`, `PaidMedia`, `InputPaidMedia`):**
   - Added `MediaKind::LivePhoto(MediaLivePhoto)` (ordered before `MediaKind::Photo`), `ExternalReplyInfoKind::LivePhoto(LivePhoto)` (ordered before `ExternalReplyInfoKind::Photo`), `InputMedia::LivePhoto(InputMediaLivePhoto)`, `PaidMedia::LivePhoto(Box<PaidMediaLivePhoto>)`, and `InputPaidMedia::LivePhoto(Box<InputPaidMediaLivePhoto>)`. Update exhaustive `match` arms.
 - **Chat Management (`Restricted` / `ChatPermissions`):**
-  - Added `can_react_to_messages: bool` (`#[serde(default)]`) to `Restricted` and `ChatPermissions::REACT_TO_MESSAGES` (`1 << 15`). `ChatPermissionsRaw` always serializes `can_react_to_messages`. Update exhaustive `Restricted` struct literals.
+  - Added `can_react_to_messages: bool` (`#[serde(default)]`) to `Restricted` and `ChatPermissions::REACT_TO_MESSAGES` (`1 << 15`). `ChatPermissionsRaw` always serializes explicit booleans for `can_edit_tag` and `can_react_to_messages` — **action required:** update existing `set_chat_permissions` / `restrict_chat_member` permission sets to include `ChatPermissions::REACT_TO_MESSAGES` (and `ChatPermissions::EDIT_TAG` when `PIN_MESSAGES` is set) unless you intend to revoke them. Update exhaustive `Restricted` struct literals.
 - **Custom `Requester` implementations:** Must implement `DeleteAllMessageReactions`, `DeleteMessageReaction`, `SendLivePhoto`, `AnswerGuestQuery`, `GetManagedBotAccessSettings`, `SetManagedBotAccessSettings`, and `GetUserPersonalChatMessages` associated types and methods.
 
 ## 0.21 -> 0.22
@@ -31,6 +47,7 @@ Note that the list of required changes is not fully exhaustive and it may lack s
   - `DefaultParseMode` now skips `explanation_parse_mode` / `description_parse_mode` on `SendPoll` when `explanation_entities` / `description_entities` are provided, respectively, and populates `description_parse_mode` when absent.
 - **`ReplyParameters` & `MessageCommon`:** Added `poll_option_id: Option<String>` to `ReplyParameters` and `reply_to_poll_option_id: Option<String>` to `MessageCommon`; initialize both to `None` in struct literals.
 - **`Me::can_manage_bots`:** Added `can_manage_bots: bool` (`#[serde(default)]`); initialize to `false` in struct literals.
+  - Replace `KeyboardButton` request fields (`request_users`, `request_chat`, `request_poll`, `web_app`, `request_managed_bot`): `KeyboardButton` deserialization now validates and rejects payloads specifying conflicting mutually exclusive request fields.
 - **New enum variants:** Added `ButtonRequest::RequestManagedBot(KeyboardButtonRequestManagedBot)`, `MessageKind::{ManagedBotCreated, PollOptionAdded, PollOptionDeleted}`, `UpdateKind::ManagedBot(ManagedBotUpdated)`, and `AllowedUpdate::ManagedBot`. Update exhaustive `match` arms.
 - **Custom `Requester` implementations:** Must implement `SavePreparedKeyboardButton`, `GetManagedBotToken`, and `ReplaceManagedBotToken` associated types and methods.
 
@@ -93,6 +110,11 @@ Note that the list of required changes is not fully exhaustive and it may lack s
 - `SendMessage::ephemeral_message_parameters` requires Bot API 10.3 or newer.
   Callback-only replies require Bot API 10.4 or newer. Older self-hosted servers
   can ignore the parameter and send a regular message.
+- **Upstream `0.17 -> 0.18` changes included in this release:**
+  - `ChatFullInfoPublicKind::Supergroup` is now boxed (`Box<ChatFullInfoPublicSupergroup>`).
+  - Return and parameter type fixes: `delete_chat_photo` returns `True` (was `String`), `upload_sticker_file` returns `File` (was `FileMeta`), `create_invoice_link` photo dimension parameters take `u32` (was `String`), and `get_game_high_scores` returns `Vec<GameHighScore>` (was `True`).
+  - Struct field type fixes: `ChatFullInfo::accent_color_id` is now `u8` (was `Option<u8>`), `PaidMediaPhoto::photo` is now `Vec<PhotoSize>` (was `PhotoSize`), `StickerKind::Regular::premium_animation` is now `Option<File>` (was `Option<FileMeta>`), and `VideoChatParticipantsInvited::users` is now `Vec<User>` (was `Option<Vec<User>>`).
+  - Misuse of `command_separator` in a command variant or `separator` without `parse_with = "split"` in `#[derive(BotCommands)]` is now a compile-time error rather than being silently ignored.
 
 ## 0.16 -> 0.17
 

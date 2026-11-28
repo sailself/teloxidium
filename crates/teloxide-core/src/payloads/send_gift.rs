@@ -19,7 +19,7 @@ impl_payload! {
         optional {
             /// Pass _true_ to pay for the gift upgrade from the bot's balance, thereby making the upgrade free for the receiver
             pub pay_for_upgrade: bool,
-            /// Text that will be shown along with the gift; 0-255 characters
+            /// Text that will be shown along with the gift; 0-128 characters
             pub text: String [into],
             /// Mode for parsing entities in the text. See [formatting options] for more details. Entities other than “bold”, “italic”, “underline”, “strikethrough”, “spoiler”, “custom_emoji”, and “date_time” are ignored
             ///

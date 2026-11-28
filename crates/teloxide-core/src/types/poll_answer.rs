@@ -45,7 +45,10 @@ struct VoterDe {
 
 fn deserialize_voter<'d, D: Deserializer<'d>>(d: D) -> Result<MaybeAnonymousUser, D::Error> {
     let VoterDe { voter_chat, user } = VoterDe::deserialize(d)?;
-    Ok(voter_chat.map(MaybeAnonymousUser::Chat).or(user.map(MaybeAnonymousUser::User)).unwrap())
+    voter_chat
+        .map(MaybeAnonymousUser::Chat)
+        .or_else(|| user.map(MaybeAnonymousUser::User))
+        .ok_or_else(|| serde::de::Error::missing_field("user or voter_chat"))
 }
 
 #[cfg(test)]
@@ -121,5 +124,12 @@ mod tests {
         let serialized = serde_json::to_value(&modern).unwrap();
         assert_eq!(serialized["option_ids"], serde_json::json!([0, 2]));
         assert_eq!(serialized["option_persistent_ids"], serde_json::json!(["pid-0", "pid-2"]));
+    }
+
+    #[test]
+    fn poll_answer_missing_voter_returns_error_not_panic() {
+        let missing_voter = r#"{"poll_id":"POLL_ID","option_ids":[0]}"#;
+        let err = serde_json::from_str::<PollAnswer>(missing_voter).unwrap_err();
+        assert!(err.to_string().contains("user or voter_chat"));
     }
 }

@@ -93,7 +93,6 @@ where
     }
 
     requester_forward! {
-        send_message_draft,
         forward_message,
         forward_messages,
         copy_message,
@@ -213,6 +212,9 @@ where
         get_managed_bot_access_settings,
         set_managed_bot_access_settings,
         get_user_personal_chat_messages,
+        // Streaming drafts are temporary 30-second previews; keep them unthrottled
+        // so live generation updates are not stalled behind the per-chat message queue.
+        send_message_draft,
         edit_message_text,
         edit_message_text_inline,
         edit_message_caption,
@@ -321,11 +323,12 @@ mod tests {
     }
 
     #[test]
-    fn send_message_draft_uses_chat_id_hash() {
+    fn send_message_draft_is_unthrottled() {
         let (bot, _worker) = Throttle::new(Bot::new("test-token"), Limits::default());
         let chat = ChatId(987654);
-        let request = bot.send_message_draft(chat, DraftId(7), "Streaming...");
-        assert_eq!((request.chat_id)(request.payload_ref()), Some((&chat).into()));
+        let request: crate::requests::JsonRequest<crate::payloads::SendMessageDraft> =
+            bot.send_message_draft(chat, DraftId(7), "Streaming...");
+        assert_eq!(request.payload_ref().chat_id, chat);
     }
 
     #[test]

@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## unreleased
 
+## 0.19.1 - 2026-11-27
+
+### Added
+
+- Add `MessageEntityKind::{BankCardNumber, TonAddress, Unknown { kind: String }}` (plus `MessageEntity::{bank_card_number, ton_address}`), `DisabledButton` + `InlineKeyboardButtonKind::{Disabled, Unknown}` (plus `InlineKeyboardButton::disabled`), and `#[serde(other)] Unknown` on `ButtonStyle`, `UniqueGiftOrigin`, and `UniqueGiftModelRarity` so future Telegram entity/button/style values do not collapse messages into `MessageKind::Empty {}` [**BC**]
+- Implement `InputFileLike` for `InputStoryContent` and mark `PostStory` / `EditStory` `@[multipart = content]`
+- Add `Me::try_username()`, `RichMessage::project_inline()`, and `TextQuote::project_rich_texts()`
+
+### Changed
+
+- Switch `Bot::PostStory`, `Bot::EditStory`, and `Bot::ReplaceStickerInSet` from `JsonRequest` to `MultipartRequest` so uploaded files are attached in `multipart/form-data` instead of dangling `attach://` strings [**BC**]
+- Include `LivePhoto::photo` in `Message::photo()` so photo consumers match live photos carrying still sizes while `Message::live_photo()` stays distinct
+- Forward `Throttle::send_message_draft` unthrottled so 30-second draft previews bypass per-chat message queueing
+
+### Fixed
+
+- Log a warning in `Message` deserialization when falling back to `MessageKind::Empty {}` while unparsed content keys remain, pointing reports to `https://github.com/sailself/teloxidium/issues`
+- Resolve omitted `ChatPermissionsRaw::can_edit_tag` and `ChatMemberKind::can_manage_tags()` from `can_pin_messages` on read; align `ExternalReplyInfo` map deserialization to parse only the winning content key so malformed lower-priority duplicates do not fail decoding
+- Decode `UpdateKind` map keys using `Cow<'de, str>` so `serde_json::from_value` and `serde_json::from_reader` succeed identically to `from_str`
+- Return a deserialization error instead of panicking in `PollAnswer` when both `user` and `voter_chat` are absent
+- Redact error bodies for `GetManagedBotToken` and `ReplaceManagedBotToken` under `Trace` (`TRACE_RESPONSES_VERBOSE`)
+- Align `custom_v2.json` (`sendMediaGroup` + `InputMediaLivePhoto`, `sendLivePhoto` `InputFile | String`, required `Poll::members_only`, `sendPoll.maybe_multipart`), enforce `maybe_multipart` vs `MultipartRequest` parity in `ron_check`, and fix minor Bot API doc strings (`guest_*`, `ManagedBotUpdated`, `Poll`, `KeyboardButtonRequestManagedBot`, `sendGift*`)
+
 ## 0.19.0 - 2026-11-27
 
 ### Added

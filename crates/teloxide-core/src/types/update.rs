@@ -382,21 +382,12 @@ impl<'de> Deserialize<'de> for UpdateKind {
             where
                 A: MapAccess<'de>,
             {
-                let mut tmp = None;
-
-                // Try to deserialize a borrowed-str key, or else try deserializing an owned
-                // string key
-                let key = map.next_key::<&str>().or_else(|_| {
-                    map.next_key::<String>().map(|k| {
-                        tmp = k;
-                        tmp.as_deref()
-                    })
-                });
+                let key = map.next_key::<std::borrow::Cow<'de, str>>();
 
                 let this = key
                     .ok()
                     .flatten()
-                    .and_then(|key| match key {
+                    .and_then(|key| match key.as_ref() {
                         "message" => map.next_value::<Message>().ok().map(UpdateKind::Message),
                         "edited_message" => {
                             map.next_value::<Message>().ok().map(UpdateKind::EditedMessage)
@@ -1359,7 +1350,6 @@ mod test {
                 "from": { "id": 2001, "is_bot": false, "first_name": "GuestSender" },
                 "chat": { "id": -100500, "title": "Lounge", "type": "supergroup" },
                 "date": 1778200000,
-                "guest_bot_caller_user": { "id": 2002, "is_bot": false, "first_name": "Caller" },
                 "guest_query_id": "gq-99",
                 "text": "@bot hi"
             }
@@ -1369,8 +1359,7 @@ mod test {
         assert_eq!(update.from().map(|u| u.id), Some(UserId(2001)));
         assert_eq!(update.chat().map(|c| c.id), Some(ChatId(-100500)));
         let mentioned: Vec<UserId> = update.mentioned_users().map(|u| u.id).collect();
-        assert!(mentioned.contains(&UserId(2001)));
-        assert!(mentioned.contains(&UserId(2002)));
+        assert_eq!(mentioned, vec![UserId(2001)]);
         match &update.kind {
             UpdateKind::GuestMessage(msg) => {
                 assert_eq!(msg.guest_query_id, Some(GuestQueryId("gq-99".to_owned())));
@@ -1381,5 +1370,154 @@ mod test {
         let roundtrip: Update =
             serde_json::from_str(&serde_json::to_string(&update).unwrap()).unwrap();
         assert_eq!(update, roundtrip);
+    }
+
+    #[test]
+    fn update_parses_via_str_value_and_reader() {
+        let json = r#"{
+            "update_id": 42,
+            "message": {
+                "message_id": 1,
+                "from": { "id": 7, "is_bot": false, "first_name": "Alice" },
+                "chat": { "id": 7, "type": "private", "first_name": "Alice" },
+                "date": 1778200000,
+                "text": "hello"
+            }
+        }"#;
+        let from_str_u: Update = serde_json::from_str(json).unwrap();
+        let val: serde_json::Value = serde_json::from_str(json).unwrap();
+        let from_value_u: Update = serde_json::from_value(val).unwrap();
+        let from_reader_u: Update = serde_json::from_reader(json.as_bytes()).unwrap();
+
+        assert!(matches!(from_str_u.kind, UpdateKind::Message(_)));
+        assert_eq!(from_str_u, from_value_u);
+        assert_eq!(from_str_u, from_reader_u);
+    }
+
+    #[test]
+    fn update_forward_compat_enum_and_entity_matrix() {
+        use crate::types::{
+            ButtonStyle, InlineKeyboardButtonKind, MessageEntityKind, UniqueGiftModelRarity,
+            UniqueGiftOrigin,
+        };
+
+        let entities_json = serde_json::json!([
+            { "type": "mention", "offset": 0, "length": 1 },
+            { "type": "hashtag", "offset": 0, "length": 1 },
+            { "type": "cashtag", "offset": 0, "length": 1 },
+            { "type": "bot_command", "offset": 0, "length": 1 },
+            { "type": "url", "offset": 0, "length": 1 },
+            { "type": "email", "offset": 0, "length": 1 },
+            { "type": "phone_number", "offset": 0, "length": 1 },
+            { "type": "bold", "offset": 0, "length": 1 },
+            { "type": "blockquote", "offset": 0, "length": 1 },
+            { "type": "expandable_blockquote", "offset": 0, "length": 1 },
+            { "type": "italic", "offset": 0, "length": 1 },
+            { "type": "underline", "offset": 0, "length": 1 },
+            { "type": "strikethrough", "offset": 0, "length": 1 },
+            { "type": "spoiler", "offset": 0, "length": 1 },
+            { "type": "code", "offset": 0, "length": 1 },
+            { "type": "pre", "offset": 0, "length": 1, "language": "rust" },
+            { "type": "text_link", "offset": 0, "length": 1, "url": "https://example.com" },
+            { "type": "text_mention", "offset": 0, "length": 1, "user": { "id": 1, "is_bot": false, "first_name": "U" } },
+            { "type": "custom_emoji", "offset": 0, "length": 1, "custom_emoji_id": "123" },
+            { "type": "date_time", "offset": 0, "length": 1, "unix_time": 1778200000, "date_time_format": "r" },
+            { "type": "bank_card_number", "offset": 0, "length": 1 },
+            { "type": "ton_address", "offset": 0, "length": 1 },
+            { "type": "future_entity_kind", "offset": 0, "length": 1, "extra": 42 }
+        ]);
+        let upd_entities: Update = serde_json::from_str(
+            &serde_json::json!({
+                "update_id": 1,
+                "message": {
+                    "message_id": 10,
+                    "chat": { "id": 1, "type": "private", "first_name": "A" },
+                    "date": 1778200000,
+                    "text": "pay",
+                    "entities": entities_json,
+                    "reply_markup": {
+                        "inline_keyboard": [[
+                            { "text": "Disabled", "disabled": {} },
+                            { "text": "FutureBtn", "future_button": { "x": 1 }, "style": "secondary" }
+                        ]]
+                    }
+                }
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let UpdateKind::Message(msg) = upd_entities.kind else { panic!("expected Message") };
+        assert_eq!(msg.text(), Some("pay"));
+        let parsed_entities = msg.entities().unwrap();
+        assert_eq!(parsed_entities.len(), 23);
+        assert_eq!(parsed_entities[20].kind, MessageEntityKind::BankCardNumber);
+        assert_eq!(parsed_entities[21].kind, MessageEntityKind::TonAddress);
+        assert_eq!(
+            parsed_entities[22].kind,
+            MessageEntityKind::Unknown { kind: "future_entity_kind".to_owned() }
+        );
+        let row = &msg.reply_markup().unwrap().inline_keyboard[0];
+        assert!(matches!(row[0].kind, InlineKeyboardButtonKind::Disabled(_)));
+        assert_eq!(row[1].kind, InlineKeyboardButtonKind::Unknown);
+        assert_eq!(row[1].style, Some(ButtonStyle::Unknown));
+
+        let gift_upd: Update = serde_json::from_str(
+            r#"{
+                "update_id": 2,
+                "message": {
+                    "message_id": 11,
+                    "chat": { "id": 1, "type": "private", "first_name": "A" },
+                    "date": 1778200000,
+                    "unique_gift": {
+                        "gift": {
+                            "gift_id": "g-1",
+                            "base_name": "B",
+                            "name": "N",
+                            "number": 1,
+                            "model": {
+                                "name": "M",
+                                "sticker": {
+                                    "file_id": "s1",
+                                    "file_unique_id": "su1",
+                                    "width": 512,
+                                    "height": 512,
+                                    "type": "regular",
+                                    "is_animated": false,
+                                    "is_video": false,
+                                    "needs_repainting": false
+                                },
+                                "rarity_per_mille": 0,
+                                "rarity": "mythic"
+                            },
+                            "symbol": {
+                                "name": "S",
+                                "sticker": {
+                                    "file_id": "s2",
+                                    "file_unique_id": "su2",
+                                    "width": 512,
+                                    "height": 512,
+                                    "type": "regular",
+                                    "is_animated": false,
+                                    "is_video": false,
+                                    "needs_repainting": false
+                                },
+                                "rarity_per_mille": 10
+                            },
+                            "backdrop": {
+                                "name": "Back",
+                                "colors": { "center_color": 0, "edge_color": 0, "symbol_color": 0, "text_color": 0 },
+                                "rarity_per_mille": 10
+                            }
+                        },
+                        "origin": "future_origin"
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+        let UpdateKind::Message(gift_msg) = gift_upd.kind else { panic!("expected Message") };
+        let ug_info = gift_msg.unique_gift_info().expect("expected unique_gift_info");
+        assert_eq!(ug_info.origin, UniqueGiftOrigin::Unknown);
+        assert_eq!(ug_info.gift.model.rarity, Some(UniqueGiftModelRarity::Unknown));
     }
 }

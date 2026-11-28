@@ -1598,7 +1598,7 @@ impl Requester for Bot {
         Self::DeleteStickerFromSet::new(self.clone(), payloads::DeleteStickerFromSet::new(sticker))
     }
 
-    type ReplaceStickerInSet = JsonRequest<payloads::ReplaceStickerInSet>;
+    type ReplaceStickerInSet = MultipartRequest<payloads::ReplaceStickerInSet>;
 
     fn replace_sticker_in_set<N, O>(
         &self,
@@ -1992,7 +1992,7 @@ impl Requester for Bot {
         )
     }
 
-    type PostStory = JsonRequest<payloads::PostStory>;
+    type PostStory = MultipartRequest<payloads::PostStory>;
 
     fn post_story(
         &self,
@@ -2006,7 +2006,7 @@ impl Requester for Bot {
         )
     }
 
-    type EditStory = JsonRequest<payloads::EditStory>;
+    type EditStory = MultipartRequest<payloads::EditStory>;
 
     fn edit_story(
         &self,
@@ -3119,6 +3119,283 @@ mod tests {
             let parts = parse_multipart_parts(&headers, &body);
             assert_eq!(resolve_multipart_file(&parts, "live_photo"), disk_video.as_slice());
             assert_eq!(resolve_multipart_file(&parts, "photo"), mem_photo.as_slice());
+        }
+    }
+
+    #[tokio::test]
+    async fn story_and_replace_sticker_multipart_uploads_over_transport() {
+        use crate::{
+            requests::Request,
+            types::{
+                BusinessConnectionId, InputSticker, InputStoryContent, InputStoryContentPhoto,
+                InputStoryContentVideo, Seconds, StickerFormat, StoryId,
+            },
+        };
+        use std::{
+            collections::HashMap,
+            io::{Read, Write},
+            net::TcpListener,
+            sync::mpsc,
+        };
+
+        struct TempFileGuard(std::path::PathBuf);
+        impl Drop for TempFileGuard {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_file(&self.0);
+            }
+        }
+
+        fn parse_multipart_parts(headers: &str, body: &[u8]) -> HashMap<String, Vec<u8>> {
+            let boundary = headers
+                .lines()
+                .find_map(|line| {
+                    let (k, v) = line.split_once(':')?;
+                    if !k.eq_ignore_ascii_case("content-type") {
+                        return None;
+                    }
+                    v.split(';')
+                        .find_map(|part| part.trim().strip_prefix("boundary="))
+                        .map(str::to_owned)
+                })
+                .expect("missing multipart boundary");
+            let delim = format!("--{boundary}").into_bytes();
+            let mut parts = HashMap::new();
+            let mut pos = 0;
+            while let Some(rel_start) =
+                body[pos..].windows(delim.len()).position(|w| w == delim.as_slice())
+            {
+                let part_start = pos + rel_start + delim.len();
+                pos = part_start;
+                if body[part_start..].starts_with(b"--") {
+                    break;
+                }
+                let content_start = if body[part_start..].starts_with(b"\r\n") {
+                    part_start + 2
+                } else {
+                    part_start
+                };
+                let Some(hdr_end_rel) =
+                    body[content_start..].windows(4).position(|w| w == b"\r\n\r\n")
+                else {
+                    continue;
+                };
+                let part_headers =
+                    String::from_utf8_lossy(&body[content_start..content_start + hdr_end_rel]);
+                let data_start = content_start + hdr_end_rel + 4;
+                let Some(next_delim_rel) =
+                    body[data_start..].windows(delim.len()).position(|w| w == delim.as_slice())
+                else {
+                    continue;
+                };
+                let mut data_end = data_start + next_delim_rel;
+                if body[data_start..data_end].ends_with(b"\r\n") {
+                    data_end -= 2;
+                }
+                if let Some(name_start) = part_headers.find("name=\"") {
+                    let name_rest = &part_headers[name_start + 6..];
+                    if let Some(name_end) = name_rest.find('"') {
+                        parts.insert(
+                            name_rest[..name_end].to_owned(),
+                            body[data_start..data_end].to_vec(),
+                        );
+                    }
+                }
+                pos = data_start + next_delim_rel;
+            }
+            parts
+        }
+
+        let story_json = serde_json::json!({
+            "ok": true,
+            "result": {
+                "chat": { "id": 100, "first_name": "Alice", "type": "private" },
+                "id": 7
+            }
+        })
+        .to_string();
+        let ok_true = r#"{"ok":true,"result":true}"#.to_owned();
+
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let (tx, rx) = mpsc::channel();
+        let responses = vec![
+            story_json.clone(),
+            story_json.clone(),
+            story_json.clone(),
+            story_json,
+            ok_true.clone(),
+            ok_true,
+        ];
+
+        std::thread::spawn(move || {
+            for response_body in responses {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut data = Vec::new();
+                let mut buf = [0u8; 4096];
+                let header_end = loop {
+                    let n = stream.read(&mut buf).unwrap();
+                    assert!(n > 0);
+                    data.extend_from_slice(&buf[..n]);
+                    if let Some(pos) = data.windows(4).position(|w| w == b"\r\n\r\n") {
+                        break pos + 4;
+                    }
+                };
+                let headers = String::from_utf8_lossy(&data[..header_end]).into_owned();
+                let req_line = headers.lines().next().unwrap().to_owned();
+                let is_chunked = headers.lines().any(|line| {
+                    line.split_once(':').is_some_and(|(k, v)| {
+                        k.eq_ignore_ascii_case("transfer-encoding")
+                            && v.to_ascii_lowercase().contains("chunked")
+                    })
+                });
+                let raw_body = if is_chunked {
+                    let mut cursor = header_end;
+                    let mut decoded = Vec::new();
+                    loop {
+                        let line_end = loop {
+                            if let Some(pos) = data[cursor..].windows(2).position(|w| w == b"\r\n")
+                            {
+                                break cursor + pos;
+                            }
+                            let n = stream.read(&mut buf).unwrap();
+                            assert!(n > 0);
+                            data.extend_from_slice(&buf[..n]);
+                        };
+                        let size_str = std::str::from_utf8(&data[cursor..line_end]).unwrap();
+                        let size_hex = size_str.split(';').next().unwrap().trim();
+                        let chunk_len = usize::from_str_radix(size_hex, 16).unwrap();
+                        cursor = line_end + 2;
+                        if chunk_len == 0 {
+                            while data.len() < cursor + 2 {
+                                let n = stream.read(&mut buf).unwrap();
+                                if n == 0 {
+                                    break;
+                                }
+                                data.extend_from_slice(&buf[..n]);
+                            }
+                            break;
+                        }
+                        while data.len() < cursor + chunk_len + 2 {
+                            let n = stream.read(&mut buf).unwrap();
+                            assert!(n > 0);
+                            data.extend_from_slice(&buf[..n]);
+                        }
+                        decoded.extend_from_slice(&data[cursor..cursor + chunk_len]);
+                        cursor += chunk_len + 2;
+                    }
+                    decoded
+                } else {
+                    let content_len: usize = headers
+                        .lines()
+                        .find_map(|line| {
+                            let (k, v) = line.split_once(':')?;
+                            k.eq_ignore_ascii_case("content-length")
+                                .then(|| v.trim().parse().ok())?
+                        })
+                        .unwrap_or(0);
+                    while data.len() < header_end + content_len {
+                        let n = stream.read(&mut buf).unwrap();
+                        assert!(n > 0);
+                        data.extend_from_slice(&buf[..n]);
+                    }
+                    data[header_end..header_end + content_len].to_vec()
+                };
+                tx.send((req_line, headers, raw_body)).unwrap();
+
+                let reply = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: \
+                     {}\r\nConnection: close\r\n\r\n{}",
+                    response_body.len(),
+                    response_body
+                );
+                stream.write_all(reply.as_bytes()).unwrap();
+                stream.flush().unwrap();
+            }
+        });
+
+        let api_url = reqwest::Url::parse(&format!("http://{addr}/")).unwrap();
+        let bot = Bot::with_client("test-token", reqwest::Client::new()).set_api_url(api_url);
+
+        let unique =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let story_video_bytes = b"\x00\x01DISK_STORY_MP4\xff\xfe".to_vec();
+        let story_video_path =
+            std::env::temp_dir().join(format!("teloxidium-story-vid-{unique}.mp4"));
+        std::fs::write(&story_video_path, &story_video_bytes).unwrap();
+        let _vid_guard = TempFileGuard(story_video_path.clone());
+
+        let story_photo_bytes = b"\xff\xd8MEM_STORY_PHOTO\xd9".to_vec();
+        let sticker_bytes = b"\x89PNG_REPLACE_STICKER\x00".to_vec();
+
+        let post_req = bot.post_story(
+            BusinessConnectionId("bc-1".to_owned()),
+            InputStoryContent::Photo(InputStoryContentPhoto {
+                photo: InputFile::memory(story_photo_bytes.clone()).file_name("story.jpg"),
+            }),
+            Seconds::from_seconds(21_600),
+        );
+        assert_eq!(post_req.send_ref().await.unwrap().id, StoryId(7));
+        assert_eq!(post_req.send().await.unwrap().id, StoryId(7));
+
+        let edit_req = bot.edit_story(
+            BusinessConnectionId("bc-1".to_owned()),
+            StoryId(7),
+            InputStoryContent::Video(InputStoryContentVideo {
+                video: InputFile::file(&story_video_path),
+                duration: Some(5.0),
+                cover_frame_timestamp: None,
+                is_animation: Some(false),
+            }),
+        );
+        assert_eq!(edit_req.send_ref().await.unwrap().id, StoryId(7));
+        assert_eq!(edit_req.send().await.unwrap().id, StoryId(7));
+
+        let replace_req = bot.replace_sticker_in_set(
+            UserId(42),
+            "my_pack",
+            "old_file_id",
+            InputSticker {
+                sticker: InputFile::memory(sticker_bytes.clone()).file_name("new.png"),
+                format: StickerFormat::Static,
+                emoji_list: vec!["😀".to_owned()],
+                mask_position: None,
+                keywords: Vec::new(),
+            },
+        );
+        assert_eq!(replace_req.send_ref().await.unwrap(), crate::types::True);
+        assert_eq!(replace_req.send().await.unwrap(), crate::types::True);
+
+        for _ in 0..2 {
+            let (line, headers, body) = rx.recv().unwrap();
+            assert!(line.starts_with("POST /bottest-token/PostStory "), "{line}");
+            assert!(headers.to_ascii_lowercase().contains("multipart/form-data"));
+            let parts = parse_multipart_parts(&headers, &body);
+            let content: serde_json::Value =
+                serde_json::from_slice(parts.get("content").unwrap()).unwrap();
+            let attach = content["photo"].as_str().unwrap().strip_prefix("attach://").unwrap();
+            assert_eq!(parts.get(attach), Some(&story_photo_bytes));
+        }
+
+        for _ in 0..2 {
+            let (line, headers, body) = rx.recv().unwrap();
+            assert!(line.starts_with("POST /bottest-token/EditStory "), "{line}");
+            assert!(headers.to_ascii_lowercase().contains("multipart/form-data"));
+            let parts = parse_multipart_parts(&headers, &body);
+            let content: serde_json::Value =
+                serde_json::from_slice(parts.get("content").unwrap()).unwrap();
+            let attach = content["video"].as_str().unwrap().strip_prefix("attach://").unwrap();
+            assert_eq!(parts.get(attach), Some(&story_video_bytes));
+        }
+
+        for _ in 0..2 {
+            let (line, headers, body) = rx.recv().unwrap();
+            assert!(line.starts_with("POST /bottest-token/ReplaceStickerInSet "), "{line}");
+            assert!(headers.to_ascii_lowercase().contains("multipart/form-data"));
+            let parts = parse_multipart_parts(&headers, &body);
+            let sticker: serde_json::Value =
+                serde_json::from_slice(parts.get("sticker").unwrap()).unwrap();
+            let attach = sticker["sticker"].as_str().unwrap().strip_prefix("attach://").unwrap();
+            assert_eq!(parts.get(attach), Some(&sticker_bytes));
         }
     }
 }

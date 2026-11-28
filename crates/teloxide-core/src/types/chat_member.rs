@@ -607,17 +607,18 @@ impl ChatMemberKind {
     /// I.e. returns `true` if the user
     /// - is the owner of the chat
     /// - is an administrator in the given chat and has [`can_manage_tags`]
-    ///   privilege.
+    ///   privilege (defaulting to [`can_pin_messages`] when omitted).
     ///
     /// Returns `false` otherwise.
     ///
     /// [`can_manage_tags`]: Administrator::can_manage_tags
+    /// [`can_pin_messages`]: Administrator::can_pin_messages
     #[must_use]
     pub fn can_manage_tags(&self) -> bool {
         match self {
             Self::Owner(_) => true,
-            Self::Administrator(Administrator { can_manage_tags, .. }) => {
-                can_manage_tags.unwrap_or(false)
+            Self::Administrator(Administrator { can_manage_tags, can_pin_messages, .. }) => {
+                can_manage_tags.unwrap_or(*can_pin_messages)
             }
             Self::Member(_) | Self::Restricted(_) | Self::Left | Self::Banned(_) => false,
         }
@@ -941,6 +942,24 @@ mod tests {
             other => panic!("expected administrator, got {other:?}"),
         }
         assert!(!serde_json::to_string(&channel_admin).unwrap().contains("can_manage_tags"));
+
+        let group_admin_omitted_with_pin_json = r#"{
+            "user": { "id": 13, "is_bot": false, "first_name": "GroupAdmin" },
+            "status": "administrator",
+            "is_anonymous": false,
+            "can_be_edited": false,
+            "can_manage_chat": true,
+            "can_delete_messages": false,
+            "can_manage_video_chats": false,
+            "can_restrict_members": false,
+            "can_promote_members": false,
+            "can_change_info": false,
+            "can_invite_users": false,
+            "can_pin_messages": true
+        }"#;
+        let group_admin: ChatMember =
+            serde_json::from_str(group_admin_omitted_with_pin_json).unwrap();
+        assert!(group_admin.can_manage_tags());
 
         let owner: ChatMember = serde_json::from_str(
             r#"{"user":{"id":2,"is_bot":false,"first_name":"Owner"},"status":"creator","is_anonymous":false}"#,

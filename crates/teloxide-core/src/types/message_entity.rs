@@ -143,6 +143,18 @@ impl MessageEntity {
         Self { kind: MessageEntityKind::DateTime { unix_time, date_time_format }, offset, length }
     }
 
+    /// Create a message entity representing a bank card number.
+    #[must_use]
+    pub const fn bank_card_number(offset: usize, length: usize) -> Self {
+        Self { kind: MessageEntityKind::BankCardNumber, offset, length }
+    }
+
+    /// Create a message entity representing a TON blockchain address.
+    #[must_use]
+    pub const fn ton_address(offset: usize, length: usize) -> Self {
+        Self { kind: MessageEntityKind::TonAddress, offset, length }
+    }
+
     #[must_use]
     pub fn kind(mut self, val: MessageEntityKind) -> Self {
         self.kind = val;
@@ -258,11 +270,9 @@ impl<'a> MessageEntityRef<'a> {
     }
 }
 
-#[serde_with::skip_serializing_none]
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
-#[serde(rename_all = "snake_case")]
-#[serde(tag = "type")]
+#[cfg_attr(test, schemars(tag = "type", rename_all = "snake_case"))]
 pub enum MessageEntityKind {
     Mention,
     Hashtag,
@@ -297,7 +307,6 @@ pub enum MessageEntityKind {
         ///
         /// Telegram's Bot API send path currently expects a positive signed
         /// 32-bit Unix timestamp (`1..=i32::MAX`).
-        #[serde(with = "crate::types::serde_date_from_unix_timestamp")]
         #[cfg_attr(test, schemars(with = "i64"))]
         unix_time: DateTime<Utc>,
 
@@ -307,6 +316,217 @@ pub enum MessageEntityKind {
         /// for more details.
         date_time_format: Option<String>,
     },
+    /// Bank card number.
+    #[cfg_attr(test, schemars(skip))]
+    BankCardNumber,
+    /// TON blockchain address.
+    #[cfg_attr(test, schemars(skip))]
+    TonAddress,
+    /// An entity type unknown to this version of the library.
+    #[cfg_attr(test, schemars(skip))]
+    Unknown {
+        kind: String,
+    },
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum KnownMessageEntityKindRef<'a> {
+    Mention,
+    Hashtag,
+    Cashtag,
+    BotCommand,
+    Url,
+    Email,
+    PhoneNumber,
+    Bold,
+    Blockquote,
+    ExpandableBlockquote,
+    Italic,
+    Underline,
+    Strikethrough,
+    Spoiler,
+    Code,
+    Pre {
+        language: Option<&'a str>,
+    },
+    TextLink {
+        url: &'a reqwest::Url,
+    },
+    TextMention {
+        user: &'a User,
+    },
+    CustomEmoji {
+        custom_emoji_id: &'a CustomEmojiId,
+    },
+    DateTime {
+        #[serde(with = "crate::types::serde_date_from_unix_timestamp")]
+        unix_time: &'a DateTime<Utc>,
+        date_time_format: Option<&'a str>,
+    },
+    BankCardNumber,
+    TonAddress,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum KnownMessageEntityKind {
+    Mention,
+    Hashtag,
+    Cashtag,
+    BotCommand,
+    Url,
+    Email,
+    PhoneNumber,
+    Bold,
+    Blockquote,
+    ExpandableBlockquote,
+    Italic,
+    Underline,
+    Strikethrough,
+    Spoiler,
+    Code,
+    Pre {
+        language: Option<String>,
+    },
+    TextLink {
+        url: reqwest::Url,
+    },
+    TextMention {
+        user: User,
+    },
+    CustomEmoji {
+        custom_emoji_id: CustomEmojiId,
+    },
+    DateTime {
+        #[serde(with = "crate::types::serde_date_from_unix_timestamp")]
+        unix_time: DateTime<Utc>,
+        date_time_format: Option<String>,
+    },
+    BankCardNumber,
+    TonAddress,
+}
+
+impl From<KnownMessageEntityKind> for MessageEntityKind {
+    fn from(value: KnownMessageEntityKind) -> Self {
+        match value {
+            KnownMessageEntityKind::Mention => Self::Mention,
+            KnownMessageEntityKind::Hashtag => Self::Hashtag,
+            KnownMessageEntityKind::Cashtag => Self::Cashtag,
+            KnownMessageEntityKind::BotCommand => Self::BotCommand,
+            KnownMessageEntityKind::Url => Self::Url,
+            KnownMessageEntityKind::Email => Self::Email,
+            KnownMessageEntityKind::PhoneNumber => Self::PhoneNumber,
+            KnownMessageEntityKind::Bold => Self::Bold,
+            KnownMessageEntityKind::Blockquote => Self::Blockquote,
+            KnownMessageEntityKind::ExpandableBlockquote => Self::ExpandableBlockquote,
+            KnownMessageEntityKind::Italic => Self::Italic,
+            KnownMessageEntityKind::Underline => Self::Underline,
+            KnownMessageEntityKind::Strikethrough => Self::Strikethrough,
+            KnownMessageEntityKind::Spoiler => Self::Spoiler,
+            KnownMessageEntityKind::Code => Self::Code,
+            KnownMessageEntityKind::Pre { language } => Self::Pre { language },
+            KnownMessageEntityKind::TextLink { url } => Self::TextLink { url },
+            KnownMessageEntityKind::TextMention { user } => Self::TextMention { user },
+            KnownMessageEntityKind::CustomEmoji { custom_emoji_id } => {
+                Self::CustomEmoji { custom_emoji_id }
+            }
+            KnownMessageEntityKind::DateTime { unix_time, date_time_format } => {
+                Self::DateTime { unix_time, date_time_format }
+            }
+            KnownMessageEntityKind::BankCardNumber => Self::BankCardNumber,
+            KnownMessageEntityKind::TonAddress => Self::TonAddress,
+        }
+    }
+}
+
+impl Serialize for MessageEntityKind {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+
+        let known = match self {
+            Self::Mention => KnownMessageEntityKindRef::Mention,
+            Self::Hashtag => KnownMessageEntityKindRef::Hashtag,
+            Self::Cashtag => KnownMessageEntityKindRef::Cashtag,
+            Self::BotCommand => KnownMessageEntityKindRef::BotCommand,
+            Self::Url => KnownMessageEntityKindRef::Url,
+            Self::Email => KnownMessageEntityKindRef::Email,
+            Self::PhoneNumber => KnownMessageEntityKindRef::PhoneNumber,
+            Self::Bold => KnownMessageEntityKindRef::Bold,
+            Self::Blockquote => KnownMessageEntityKindRef::Blockquote,
+            Self::ExpandableBlockquote => KnownMessageEntityKindRef::ExpandableBlockquote,
+            Self::Italic => KnownMessageEntityKindRef::Italic,
+            Self::Underline => KnownMessageEntityKindRef::Underline,
+            Self::Strikethrough => KnownMessageEntityKindRef::Strikethrough,
+            Self::Spoiler => KnownMessageEntityKindRef::Spoiler,
+            Self::Code => KnownMessageEntityKindRef::Code,
+            Self::Pre { language } => {
+                KnownMessageEntityKindRef::Pre { language: language.as_deref() }
+            }
+            Self::TextLink { url } => KnownMessageEntityKindRef::TextLink { url },
+            Self::TextMention { user } => KnownMessageEntityKindRef::TextMention { user },
+            Self::CustomEmoji { custom_emoji_id } => {
+                KnownMessageEntityKindRef::CustomEmoji { custom_emoji_id }
+            }
+            Self::DateTime { unix_time, date_time_format } => KnownMessageEntityKindRef::DateTime {
+                unix_time,
+                date_time_format: date_time_format.as_deref(),
+            },
+            Self::BankCardNumber => KnownMessageEntityKindRef::BankCardNumber,
+            Self::TonAddress => KnownMessageEntityKindRef::TonAddress,
+            Self::Unknown { kind } => {
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("type", kind)?;
+                return map.end();
+            }
+        };
+
+        known.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for MessageEntityKind {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let map = serde_json::Map::<String, serde_json::Value>::deserialize(deserializer)?;
+        let Some(ty) = map.get("type").and_then(serde_json::Value::as_str) else {
+            return Err(serde::de::Error::missing_field("type"));
+        };
+
+        match ty {
+            "mention"
+            | "hashtag"
+            | "cashtag"
+            | "bot_command"
+            | "url"
+            | "email"
+            | "phone_number"
+            | "bold"
+            | "blockquote"
+            | "expandable_blockquote"
+            | "italic"
+            | "underline"
+            | "strikethrough"
+            | "spoiler"
+            | "code"
+            | "pre"
+            | "text_link"
+            | "text_mention"
+            | "custom_emoji"
+            | "date_time"
+            | "bank_card_number"
+            | "ton_address" => KnownMessageEntityKind::deserialize(serde_json::Value::Object(map))
+                .map(Into::into)
+                .map_err(serde::de::Error::custom),
+            other => Ok(Self::Unknown { kind: other.to_owned() }),
+        }
+    }
 }
 
 #[cfg(test)]

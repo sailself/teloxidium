@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::types::MessageEntity;
+use crate::types::{MessageEntity, RichMessage, RichMessageContent};
 
 /// This object contains information about the quoted part of a message that is
 /// replied to by the given message.
@@ -30,4 +30,13 @@ pub struct TextQuote {
     /// the quote was added automatically by the server.
     #[serde(default)]
     pub is_manual: bool,
+}
+
+impl TextQuote {
+    /// Projects [`Self::rich_texts`] into plain text, entities, and mentions,
+    /// if present.
+    #[must_use]
+    pub fn project_rich_texts(&self) -> Option<RichMessageContent> {
+        self.rich_texts.as_deref().map(RichMessage::project_inline)
+    }
 }

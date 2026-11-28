@@ -34,7 +34,7 @@ pub struct ExternalReplyInfo {
 }
 
 #[derive(Deserialize)]
-struct ExternalReplyInfoRaw {
+struct ExternalReplyInfoHeader {
     origin: MessageOrigin,
     chat: Option<Chat>,
     #[serde(default, with = "crate::types::option_msg_id_as_int")]
@@ -42,27 +42,24 @@ struct ExternalReplyInfoRaw {
     link_preview_options: Option<LinkPreviewOptions>,
     #[serde(default)]
     has_media_spoiler: bool,
-    animation: Option<Animation>,
-    audio: Option<Audio>,
-    contact: Option<Contact>,
-    dice: Option<Dice>,
-    document: Option<Document>,
-    paid_media: Option<PaidMediaInfo>,
-    game: Option<Game>,
-    venue: Option<Venue>,
-    location: Option<Location>,
-    live_photo: Option<LivePhoto>,
-    photo: Option<Vec<PhotoSize>>,
-    poll: Option<Poll>,
-    checklist: Option<Checklist>,
-    sticker: Option<Sticker>,
-    story: Option<Story>,
-    giveaway: Option<Giveaway>,
-    giveaway_winners: Option<GiveawayWinners>,
-    video: Option<Video>,
-    video_note: Option<VideoNote>,
-    voice: Option<Voice>,
-    invoice: Option<Invoice>,
+}
+
+fn take_non_null(
+    map: &mut serde_json::Map<String, serde_json::Value>,
+    key: &str,
+) -> Option<serde_json::Value> {
+    map.remove(key).filter(|val| !val.is_null())
+}
+
+fn parse_variant<T, F>(
+    val: serde_json::Value,
+    wrap: F,
+) -> Result<ExternalReplyInfoKind, serde_json::Error>
+where
+    T: serde::de::DeserializeOwned,
+    F: FnOnce(T) -> ExternalReplyInfoKind,
+{
+    T::deserialize(val).map(wrap)
 }
 
 impl<'de> Deserialize<'de> for ExternalReplyInfo {
@@ -70,60 +67,68 @@ impl<'de> Deserialize<'de> for ExternalReplyInfo {
     where
         D: serde::Deserializer<'de>,
     {
-        let raw = ExternalReplyInfoRaw::deserialize(deserializer)?;
-        // Check overlapping wrapper keys in explicit precedence order regardless of
-        // JSON key order (`Animation` > `Document`, `Venue` > `Location`, `LivePhoto` >
-        // `Photo`).
-        let kind = if let Some(animation) = raw.animation {
-            Some(ExternalReplyInfoKind::Animation(animation))
-        } else if let Some(audio) = raw.audio {
-            Some(ExternalReplyInfoKind::Audio(audio))
-        } else if let Some(contact) = raw.contact {
-            Some(ExternalReplyInfoKind::Contact(contact))
-        } else if let Some(dice) = raw.dice {
-            Some(ExternalReplyInfoKind::Dice(dice))
-        } else if let Some(paid_media) = raw.paid_media {
-            Some(ExternalReplyInfoKind::PaidMedia(paid_media))
-        } else if let Some(game) = raw.game {
-            Some(ExternalReplyInfoKind::Game(game))
-        } else if let Some(venue) = raw.venue {
-            Some(ExternalReplyInfoKind::Venue(venue))
-        } else if let Some(location) = raw.location {
-            Some(ExternalReplyInfoKind::Location(location))
-        } else if let Some(live_photo) = raw.live_photo {
-            Some(ExternalReplyInfoKind::LivePhoto(live_photo))
-        } else if let Some(photo) = raw.photo {
-            Some(ExternalReplyInfoKind::Photo(photo))
-        } else if let Some(document) = raw.document {
-            Some(ExternalReplyInfoKind::Document(document))
-        } else if let Some(poll) = raw.poll {
-            Some(ExternalReplyInfoKind::Poll(poll))
-        } else if let Some(checklist) = raw.checklist {
-            Some(ExternalReplyInfoKind::Checklist(checklist))
-        } else if let Some(sticker) = raw.sticker {
-            Some(ExternalReplyInfoKind::Sticker(sticker))
-        } else if let Some(story) = raw.story {
-            Some(ExternalReplyInfoKind::Story(story))
-        } else if let Some(giveaway) = raw.giveaway {
-            Some(ExternalReplyInfoKind::Giveaway(giveaway))
-        } else if let Some(giveaway_winners) = raw.giveaway_winners {
-            Some(ExternalReplyInfoKind::GiveawayWinners(giveaway_winners))
-        } else if let Some(video) = raw.video {
-            Some(ExternalReplyInfoKind::Video(video))
-        } else if let Some(video_note) = raw.video_note {
-            Some(ExternalReplyInfoKind::VideoNote(video_note))
-        } else if let Some(voice) = raw.voice {
-            Some(ExternalReplyInfoKind::Voice(voice))
+        let mut map = serde_json::Map::<String, serde_json::Value>::deserialize(deserializer)?;
+
+        // Probe and extract only the highest-precedence content key first so a
+        // malformed or changed lower-precedence compatibility field cannot break
+        // decoding of the primary media variant (`Animation` > `Document`,
+        // `Venue` > `Location`, `LivePhoto` > `Photo`).
+        let kind = if let Some(v) = take_non_null(&mut map, "animation") {
+            Some(parse_variant(v, ExternalReplyInfoKind::Animation))
+        } else if let Some(v) = take_non_null(&mut map, "audio") {
+            Some(parse_variant(v, ExternalReplyInfoKind::Audio))
+        } else if let Some(v) = take_non_null(&mut map, "contact") {
+            Some(parse_variant(v, ExternalReplyInfoKind::Contact))
+        } else if let Some(v) = take_non_null(&mut map, "dice") {
+            Some(parse_variant(v, ExternalReplyInfoKind::Dice))
+        } else if let Some(v) = take_non_null(&mut map, "paid_media") {
+            Some(parse_variant(v, ExternalReplyInfoKind::PaidMedia))
+        } else if let Some(v) = take_non_null(&mut map, "game") {
+            Some(parse_variant(v, ExternalReplyInfoKind::Game))
+        } else if let Some(v) = take_non_null(&mut map, "venue") {
+            Some(parse_variant(v, ExternalReplyInfoKind::Venue))
+        } else if let Some(v) = take_non_null(&mut map, "location") {
+            Some(parse_variant(v, ExternalReplyInfoKind::Location))
+        } else if let Some(v) = take_non_null(&mut map, "live_photo") {
+            Some(parse_variant(v, ExternalReplyInfoKind::LivePhoto))
+        } else if let Some(v) = take_non_null(&mut map, "photo") {
+            Some(parse_variant(v, ExternalReplyInfoKind::Photo))
+        } else if let Some(v) = take_non_null(&mut map, "document") {
+            Some(parse_variant(v, ExternalReplyInfoKind::Document))
+        } else if let Some(v) = take_non_null(&mut map, "poll") {
+            Some(parse_variant(v, ExternalReplyInfoKind::Poll))
+        } else if let Some(v) = take_non_null(&mut map, "checklist") {
+            Some(parse_variant(v, ExternalReplyInfoKind::Checklist))
+        } else if let Some(v) = take_non_null(&mut map, "sticker") {
+            Some(parse_variant(v, ExternalReplyInfoKind::Sticker))
+        } else if let Some(v) = take_non_null(&mut map, "story") {
+            Some(parse_variant(v, ExternalReplyInfoKind::Story))
+        } else if let Some(v) = take_non_null(&mut map, "giveaway") {
+            Some(parse_variant(v, ExternalReplyInfoKind::Giveaway))
+        } else if let Some(v) = take_non_null(&mut map, "giveaway_winners") {
+            Some(parse_variant(v, ExternalReplyInfoKind::GiveawayWinners))
+        } else if let Some(v) = take_non_null(&mut map, "video") {
+            Some(parse_variant(v, ExternalReplyInfoKind::Video))
+        } else if let Some(v) = take_non_null(&mut map, "video_note") {
+            Some(parse_variant(v, ExternalReplyInfoKind::VideoNote))
+        } else if let Some(v) = take_non_null(&mut map, "voice") {
+            Some(parse_variant(v, ExternalReplyInfoKind::Voice))
         } else {
-            raw.invoice.map(ExternalReplyInfoKind::Invoice)
-        };
+            take_non_null(&mut map, "invoice")
+                .map(|v| parse_variant(v, ExternalReplyInfoKind::Invoice))
+        }
+        .transpose()
+        .map_err(serde::de::Error::custom)?;
+
+        let header = ExternalReplyInfoHeader::deserialize(serde_json::Value::Object(map))
+            .map_err(serde::de::Error::custom)?;
 
         Ok(Self {
-            origin: raw.origin,
-            chat: raw.chat,
-            message_id: raw.message_id,
-            link_preview_options: raw.link_preview_options,
-            has_media_spoiler: raw.has_media_spoiler,
+            origin: header.origin,
+            chat: header.chat,
+            message_id: header.message_id,
+            link_preview_options: header.link_preview_options,
+            has_media_spoiler: header.has_media_spoiler,
             kind,
         })
     }
@@ -228,5 +233,22 @@ mod tests {
         }"#;
         let info: ExternalReplyInfo = serde_json::from_str(loc_before_venue).unwrap();
         assert!(matches!(info.kind, Some(ExternalReplyInfoKind::Venue(_))));
+    }
+
+    #[test]
+    fn malformed_lower_precedence_field_does_not_fail_primary_variant() {
+        let json = r#"{
+            "origin": { "type": "user", "date": 1778200000, "sender_user": { "id": 1, "is_bot": false, "first_name": "A" } },
+            "live_photo": {
+                "file_id": "lp1",
+                "file_unique_id": "lpu1",
+                "width": 640,
+                "height": 480,
+                "duration": 2
+            },
+            "photo": "unexpected-legacy-shape"
+        }"#;
+        let info: ExternalReplyInfo = serde_json::from_str(json).unwrap();
+        assert!(matches!(info.kind, Some(ExternalReplyInfoKind::LivePhoto(_))));
     }
 }

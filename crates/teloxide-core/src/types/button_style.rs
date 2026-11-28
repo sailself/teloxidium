@@ -14,6 +14,10 @@ pub enum ButtonStyle {
     Success,
     /// Red button style.
     Danger,
+    /// A style value unknown to this version of the library.
+    #[serde(other)]
+    #[cfg_attr(test, schemars(skip))]
+    Unknown,
 }
 
 #[cfg(test)]

@@ -54,10 +54,17 @@ impl Me {
     /// Returns the username of the bot.
     ///
     /// Note that since Bot API 9.3 bots with additional active Fragment
-    /// usernames can disable their main username.
+    /// usernames can disable their main username. Prefer [`Self::try_username`]
+    /// when a bot may lack a main username.
     #[must_use]
     pub fn username(&self) -> &str {
         self.user.username.as_deref().expect("Bots must have usernames")
+    }
+
+    /// Returns the username of the bot if set.
+    #[must_use]
+    pub fn try_username(&self) -> Option<&str> {
+        self.user.username.as_deref()
     }
 
     /// Returns a username mention of this bot.

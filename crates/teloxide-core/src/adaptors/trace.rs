@@ -346,10 +346,11 @@ where
                         "Got response from `{}` request: Ok(\"<redacted>\")",
                         R::Payload::NAME
                     ),
-                    Err(err) => log::trace!(
-                        "Got response from `{}` request: Err({:?})",
-                        R::Payload::NAME,
-                        err
+                    // `RequestError::InvalidJson` embeds the raw response body, so redact errors
+                    // too.
+                    Err(_) => log::trace!(
+                        "Got response from `{}` request: Err(\"<redacted>\")",
+                        R::Payload::NAME
                     ),
                 }
             } else {
