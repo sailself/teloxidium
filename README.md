@@ -11,7 +11,7 @@
     <img src="https://img.shields.io/github/v/tag/sailself/teloxidium?label=release">
   </a>
 
-  A full-featured framework that empowers you to easily build [Telegram bots](https://telegram.org/blog/bot-revolution) using [Rust](https://www.rust-lang.org/). It handles all the difficult stuff so you can focus only on your business logic. Distributed via versioned Git tags (`v0.23.1`) from [`sailself/teloxidium`](https://github.com/sailself/teloxidium).
+  A full-featured framework that empowers you to easily build [Telegram bots](https://telegram.org/blog/bot-revolution) using [Rust](https://www.rust-lang.org/). It handles all the difficult stuff so you can focus only on your business logic. Distributed via versioned Git tags (`v0.23.2`) from [`sailself/teloxidium`](https://github.com/sailself/teloxidium).
 </div>
 
 ## Highlights
@@ -64,7 +64,7 @@ $ rustup override set nightly
  5. Run `cargo new my_bot`, enter the directory and put these lines into your `Cargo.toml`:
 ```toml
 [dependencies]
-teloxide = { git = "https://github.com/sailself/teloxidium", tag = "v0.23.1", features = ["macros"] }
+teloxide = { git = "https://github.com/sailself/teloxidium", tag = "v0.23.2", features = ["macros"] }
 log = "0.4"
 pretty_env_logger = "0.5"
 tokio = { version =  "1.39", features = ["rt-multi-thread", "macros"] }

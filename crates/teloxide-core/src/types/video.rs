@@ -39,7 +39,7 @@ pub struct Video {
     pub file_name: Option<String>,
 
     /// Mime type of a file as defined by sender.
-    #[serde(with = "crate::types::non_telegram_types::mime::opt_deser")]
+    #[serde(default, with = "crate::types::non_telegram_types::mime::opt_deser")]
     #[cfg_attr(test, schemars(with = "Option<String>"))]
     pub mime_type: Option<Mime>,
 }
@@ -97,5 +97,42 @@ mod tests {
         let roundtrip: Video =
             serde_json::from_str(&serde_json::to_string(&parsed).unwrap()).unwrap();
         assert_eq!(parsed, roundtrip);
+    }
+
+    #[test]
+    fn deserialize_without_mime_type() {
+        let json = r#"{
+            "file_id": "vid-no-mime",
+            "file_unique_id": "u-vid-no-mime",
+            "width": 640,
+            "height": 480,
+            "duration": 12
+        }"#;
+        let parsed: Video = serde_json::from_str(json).unwrap();
+        assert_eq!(parsed.mime_type, None);
+
+        let update_json = r#"{
+            "update_id": 2,
+            "message": {
+                "message_id": 11,
+                "chat": { "id": 100, "first_name": "Alice", "type": "private" },
+                "date": 1700000000,
+                "video": {
+                    "file_id": "vid-no-mime",
+                    "file_unique_id": "u-vid-no-mime",
+                    "width": 640,
+                    "height": 480,
+                    "duration": 12
+                }
+            }
+        }"#;
+        let update: crate::types::Update = serde_json::from_str(update_json).unwrap();
+        match &update.kind {
+            crate::types::UpdateKind::Message(msg) => {
+                assert!(msg.video().is_some());
+                assert_eq!(msg.video().and_then(|v| v.mime_type.as_ref()), None);
+            }
+            other => panic!("expected Message update, got {other:?}"),
+        }
     }
 }

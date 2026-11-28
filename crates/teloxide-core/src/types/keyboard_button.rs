@@ -31,6 +31,7 @@ pub struct KeyboardButton {
     pub icon_custom_emoji_id: Option<CustomEmojiId>,
 
     /// Style of the button. If omitted, then an app-specific style is used.
+    #[serde(skip_serializing_if = "ButtonStyle::is_none_or_unknown")]
     pub style: Option<ButtonStyle>,
 
     /// Request something from user. This is available in private chats only.
@@ -403,5 +404,10 @@ mod tests {
             serde_json::from_str::<KeyboardButton>(plain).unwrap(),
             KeyboardButton::new("Plain button")
         );
+
+        let unknown_style: KeyboardButton =
+            serde_json::from_str(r#"{"text":"Styled","style":"secondary"}"#).unwrap();
+        assert_eq!(unknown_style.style, Some(ButtonStyle::Unknown));
+        assert_eq!(serde_json::to_string(&unknown_style).unwrap(), r#"{"text":"Styled"}"#);
     }
 }

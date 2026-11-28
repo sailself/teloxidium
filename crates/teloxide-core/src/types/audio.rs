@@ -28,7 +28,7 @@ pub struct Audio {
     pub file_name: Option<String>,
 
     /// A MIME type of the file as defined by a sender.
-    #[serde(with = "crate::types::non_telegram_types::mime::opt_deser")]
+    #[serde(default, with = "crate::types::non_telegram_types::mime::opt_deser")]
     #[cfg_attr(test, schemars(with = "Option<String>"))]
     pub mime_type: Option<Mime>,
 
@@ -83,5 +83,16 @@ mod tests {
         };
         let actual = serde_json::from_str::<Audio>(json).unwrap();
         assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn deserialize_without_mime_type() {
+        let json = r#"{
+            "file_id": "aud-no-mime",
+            "file_unique_id": "u-aud-no-mime",
+            "duration": 30
+        }"#;
+        let parsed: Audio = serde_json::from_str(json).unwrap();
+        assert_eq!(parsed.mime_type, None);
     }
 }

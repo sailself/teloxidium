@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## unreleased
 
+## 0.23.2 - 2026-11-28
+
+### Added
+
+- Add `Me::try_mention()` and `Me::try_tme_url()` non-panicking helpers for bots without a main username (`teloxide-core 0.19.2`).
+
+### Fixed
+
+- Add `#[serde(default, ...)]` on optional `mime_type` fields in `Animation`, `Video`, `Audio`, and `Voice` so media payloads omitting `mime_type` deserialize cleanly (`teloxide-core 0.19.2`).
+- Populate `MediaLivePhoto.live_photo.photo` from top-level `photo` when the nested `live_photo.photo` field is omitted, so `Message::photo()` returns the guaranteed top-level sizes (`teloxide-core 0.19.2`).
+- Replace intermediate `serde_json::Value`/`Map` buffering with derived `Message` deserialization plus a streaming `MessageKind` empty-fallback visitor (logging known unmodelled 10.1–10.5 keys at `debug` instead of noisy `warn` logs), and stream `MessageEntityKind` and `InlineKeyboardButtonKind` maps directly (`teloxide-core 0.19.2`).
+- Omit `None | Some(ButtonStyle::Unknown)` on `InlineKeyboardButton::style` and `KeyboardButton::style` serialization, and reject action-less inline buttons missing both known and unknown action keys (`teloxide-core 0.19.2`).
+- Fail closed (`false`) in `ChatMemberKind::can_manage_tags()` when `Administrator::can_manage_tags` is omitted, matching Telegram's live Bot API reference (`teloxide-core 0.19.2`).
+- Fix `Poll::members_only` / `SendPoll::members_only` docs and schema descriptions (`users who have been members of the chat for more than 24 hours`), document `GetChatId` business-message caveat, and remove internal review IDs from `RELEASE_PROCEDURE.md` and `docs/bot-api-roadmap.md`.
+
 ## 0.23.1 - 2026-11-27
 
 ### Added

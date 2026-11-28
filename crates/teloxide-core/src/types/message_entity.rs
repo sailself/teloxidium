@@ -369,78 +369,6 @@ enum KnownMessageEntityKindRef<'a> {
     TonAddress,
 }
 
-#[derive(Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum KnownMessageEntityKind {
-    Mention,
-    Hashtag,
-    Cashtag,
-    BotCommand,
-    Url,
-    Email,
-    PhoneNumber,
-    Bold,
-    Blockquote,
-    ExpandableBlockquote,
-    Italic,
-    Underline,
-    Strikethrough,
-    Spoiler,
-    Code,
-    Pre {
-        language: Option<String>,
-    },
-    TextLink {
-        url: reqwest::Url,
-    },
-    TextMention {
-        user: User,
-    },
-    CustomEmoji {
-        custom_emoji_id: CustomEmojiId,
-    },
-    DateTime {
-        #[serde(with = "crate::types::serde_date_from_unix_timestamp")]
-        unix_time: DateTime<Utc>,
-        date_time_format: Option<String>,
-    },
-    BankCardNumber,
-    TonAddress,
-}
-
-impl From<KnownMessageEntityKind> for MessageEntityKind {
-    fn from(value: KnownMessageEntityKind) -> Self {
-        match value {
-            KnownMessageEntityKind::Mention => Self::Mention,
-            KnownMessageEntityKind::Hashtag => Self::Hashtag,
-            KnownMessageEntityKind::Cashtag => Self::Cashtag,
-            KnownMessageEntityKind::BotCommand => Self::BotCommand,
-            KnownMessageEntityKind::Url => Self::Url,
-            KnownMessageEntityKind::Email => Self::Email,
-            KnownMessageEntityKind::PhoneNumber => Self::PhoneNumber,
-            KnownMessageEntityKind::Bold => Self::Bold,
-            KnownMessageEntityKind::Blockquote => Self::Blockquote,
-            KnownMessageEntityKind::ExpandableBlockquote => Self::ExpandableBlockquote,
-            KnownMessageEntityKind::Italic => Self::Italic,
-            KnownMessageEntityKind::Underline => Self::Underline,
-            KnownMessageEntityKind::Strikethrough => Self::Strikethrough,
-            KnownMessageEntityKind::Spoiler => Self::Spoiler,
-            KnownMessageEntityKind::Code => Self::Code,
-            KnownMessageEntityKind::Pre { language } => Self::Pre { language },
-            KnownMessageEntityKind::TextLink { url } => Self::TextLink { url },
-            KnownMessageEntityKind::TextMention { user } => Self::TextMention { user },
-            KnownMessageEntityKind::CustomEmoji { custom_emoji_id } => {
-                Self::CustomEmoji { custom_emoji_id }
-            }
-            KnownMessageEntityKind::DateTime { unix_time, date_time_format } => {
-                Self::DateTime { unix_time, date_time_format }
-            }
-            KnownMessageEntityKind::BankCardNumber => Self::BankCardNumber,
-            KnownMessageEntityKind::TonAddress => Self::TonAddress,
-        }
-    }
-}
-
 impl Serialize for MessageEntityKind {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -494,38 +422,99 @@ impl<'de> Deserialize<'de> for MessageEntityKind {
     where
         D: serde::Deserializer<'de>,
     {
-        let map = serde_json::Map::<String, serde_json::Value>::deserialize(deserializer)?;
-        let Some(ty) = map.get("type").and_then(serde_json::Value::as_str) else {
-            return Err(serde::de::Error::missing_field("type"));
-        };
+        struct UnixTimestampSeed;
 
-        match ty {
-            "mention"
-            | "hashtag"
-            | "cashtag"
-            | "bot_command"
-            | "url"
-            | "email"
-            | "phone_number"
-            | "bold"
-            | "blockquote"
-            | "expandable_blockquote"
-            | "italic"
-            | "underline"
-            | "strikethrough"
-            | "spoiler"
-            | "code"
-            | "pre"
-            | "text_link"
-            | "text_mention"
-            | "custom_emoji"
-            | "date_time"
-            | "bank_card_number"
-            | "ton_address" => KnownMessageEntityKind::deserialize(serde_json::Value::Object(map))
-                .map(Into::into)
-                .map_err(serde::de::Error::custom),
-            other => Ok(Self::Unknown { kind: other.to_owned() }),
+        impl<'de> serde::de::DeserializeSeed<'de> for UnixTimestampSeed {
+            type Value = DateTime<Utc>;
+
+            fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                crate::types::serde_date_from_unix_timestamp::deserialize(deserializer)
+            }
         }
+
+        struct MessageEntityKindVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for MessageEntityKindVisitor {
+            type Value = MessageEntityKind;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("a message entity")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                let mut entity_type: Option<std::borrow::Cow<'de, str>> = None;
+                let mut language: Option<String> = None;
+                let mut url: Option<reqwest::Url> = None;
+                let mut user: Option<User> = None;
+                let mut custom_emoji_id: Option<CustomEmojiId> = None;
+                let mut unix_time: Option<DateTime<Utc>> = None;
+                let mut date_time_format: Option<String> = None;
+
+                while let Some(key) = map.next_key::<std::borrow::Cow<'de, str>>()? {
+                    match key.as_ref() {
+                        "type" => entity_type = Some(map.next_value()?),
+                        "language" => language = map.next_value()?,
+                        "url" => url = Some(map.next_value()?),
+                        "user" => user = Some(map.next_value()?),
+                        "custom_emoji_id" => custom_emoji_id = Some(map.next_value()?),
+                        "unix_time" => unix_time = Some(map.next_value_seed(UnixTimestampSeed)?),
+                        "date_time_format" => date_time_format = map.next_value()?,
+                        _ => {
+                            let _ = map.next_value::<serde::de::IgnoredAny>()?;
+                        }
+                    }
+                }
+
+                let Some(entity_type) = entity_type else {
+                    return Err(serde::de::Error::missing_field("type"));
+                };
+
+                match entity_type.as_ref() {
+                    "mention" => Ok(MessageEntityKind::Mention),
+                    "hashtag" => Ok(MessageEntityKind::Hashtag),
+                    "cashtag" => Ok(MessageEntityKind::Cashtag),
+                    "bot_command" => Ok(MessageEntityKind::BotCommand),
+                    "url" => Ok(MessageEntityKind::Url),
+                    "email" => Ok(MessageEntityKind::Email),
+                    "phone_number" => Ok(MessageEntityKind::PhoneNumber),
+                    "bold" => Ok(MessageEntityKind::Bold),
+                    "blockquote" => Ok(MessageEntityKind::Blockquote),
+                    "expandable_blockquote" => Ok(MessageEntityKind::ExpandableBlockquote),
+                    "italic" => Ok(MessageEntityKind::Italic),
+                    "underline" => Ok(MessageEntityKind::Underline),
+                    "strikethrough" => Ok(MessageEntityKind::Strikethrough),
+                    "spoiler" => Ok(MessageEntityKind::Spoiler),
+                    "code" => Ok(MessageEntityKind::Code),
+                    "pre" => Ok(MessageEntityKind::Pre { language }),
+                    "text_link" => Ok(MessageEntityKind::TextLink {
+                        url: url.ok_or_else(|| serde::de::Error::missing_field("url"))?,
+                    }),
+                    "text_mention" => Ok(MessageEntityKind::TextMention {
+                        user: user.ok_or_else(|| serde::de::Error::missing_field("user"))?,
+                    }),
+                    "custom_emoji" => Ok(MessageEntityKind::CustomEmoji {
+                        custom_emoji_id: custom_emoji_id
+                            .ok_or_else(|| serde::de::Error::missing_field("custom_emoji_id"))?,
+                    }),
+                    "date_time" => Ok(MessageEntityKind::DateTime {
+                        unix_time: unix_time
+                            .ok_or_else(|| serde::de::Error::missing_field("unix_time"))?,
+                        date_time_format,
+                    }),
+                    "bank_card_number" => Ok(MessageEntityKind::BankCardNumber),
+                    "ton_address" => Ok(MessageEntityKind::TonAddress),
+                    _ => Ok(MessageEntityKind::Unknown { kind: entity_type.into_owned() }),
+                }
+            }
+        }
+
+        deserializer.deserialize_map(MessageEntityKindVisitor)
     }
 }
 
@@ -875,5 +864,33 @@ mod tests {
                     } if *parsed_time == unix_time && fmt == "D"
                 )]
         );
+    }
+
+    #[test]
+    fn out_of_order_fields_and_unknown_entity() {
+        let link: MessageEntity = serde_json::from_str(
+            r#"{"url":"https://example.com/","length":4,"type":"text_link","offset":0}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            link.kind,
+            MessageEntityKind::TextLink { url: "https://example.com/".parse().unwrap() }
+        );
+
+        let unix_time = chrono::DateTime::from_timestamp(1_700_000_000, 0).unwrap();
+        let dt: MessageEntity = serde_json::from_str(
+            r#"{"date_time_format":"wDT","unix_time":1700000000,"offset":1,"length":2,"type":"date_time"}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            dt.kind,
+            MessageEntityKind::DateTime { unix_time, date_time_format: Some("wDT".to_owned()) }
+        );
+
+        let unknown: MessageEntity = serde_json::from_str(
+            r#"{"offset":0,"length":5,"type":"future_entity","extra_payload":{"a":1}}"#,
+        )
+        .unwrap();
+        assert_eq!(unknown.kind, MessageEntityKind::Unknown { kind: "future_entity".to_owned() });
     }
 }

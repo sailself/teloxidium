@@ -3,6 +3,13 @@ use crate::types::{
 };
 
 /// Something that may have a chat ID.
+///
+/// Guest queries (`UpdateKind::GuestMessage` and messages with
+/// `guest_query_id`) return `None` to avoid colliding with chat-keyed
+/// dialogues. Note that business messages (`UpdateKind::BusinessMessage` /
+/// `UpdateKind::EditedBusinessMessage` and messages carrying
+/// `business_connection_id`) currently still return `Some(chat.id)` for
+/// backwards compatibility; dedicated business-connection scoping is deferred.
 pub trait GetChatId {
     #[must_use]
     fn chat_id(&self) -> Option<ChatId>;

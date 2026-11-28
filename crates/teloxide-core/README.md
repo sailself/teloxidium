@@ -16,7 +16,7 @@
 </div>
 
 ```toml
-teloxide-core = { git = "https://github.com/sailself/teloxidium", tag = "v0.23.1" }
+teloxide-core = { git = "https://github.com/sailself/teloxidium", tag = "v0.23.2" }
 ```
 _Compiler support: requires rustc 1.85+_.
 

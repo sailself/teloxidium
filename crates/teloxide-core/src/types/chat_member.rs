@@ -607,18 +607,17 @@ impl ChatMemberKind {
     /// I.e. returns `true` if the user
     /// - is the owner of the chat
     /// - is an administrator in the given chat and has [`can_manage_tags`]
-    ///   privilege (defaulting to [`can_pin_messages`] when omitted).
+    ///   privilege (failing closed to `false` when omitted).
     ///
     /// Returns `false` otherwise.
     ///
     /// [`can_manage_tags`]: Administrator::can_manage_tags
-    /// [`can_pin_messages`]: Administrator::can_pin_messages
     #[must_use]
     pub fn can_manage_tags(&self) -> bool {
         match self {
             Self::Owner(_) => true,
-            Self::Administrator(Administrator { can_manage_tags, can_pin_messages, .. }) => {
-                can_manage_tags.unwrap_or(*can_pin_messages)
+            Self::Administrator(Administrator { can_manage_tags, .. }) => {
+                can_manage_tags.unwrap_or(false)
             }
             Self::Member(_) | Self::Restricted(_) | Self::Left | Self::Banned(_) => false,
         }
@@ -959,7 +958,7 @@ mod tests {
         }"#;
         let group_admin: ChatMember =
             serde_json::from_str(group_admin_omitted_with_pin_json).unwrap();
-        assert!(group_admin.can_manage_tags());
+        assert!(!group_admin.can_manage_tags());
 
         let owner: ChatMember = serde_json::from_str(
             r#"{"user":{"id":2,"is_bot":false,"first_name":"Owner"},"status":"creator","is_anonymous":false}"#,

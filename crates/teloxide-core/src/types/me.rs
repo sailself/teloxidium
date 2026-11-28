@@ -68,15 +68,32 @@ impl Me {
     }
 
     /// Returns a username mention of this bot.
+    ///
+    /// Prefer [`Self::try_mention`] when a bot may lack a main username.
     #[must_use]
     pub fn mention(&self) -> String {
         format!("@{}", self.username())
     }
 
+    /// Returns a username mention of this bot if it has a main username.
+    #[must_use]
+    pub fn try_mention(&self) -> Option<String> {
+        self.try_username().map(|username| format!("@{username}"))
+    }
+
     /// Returns an URL that links to this bot in the form of `t.me/<...>`.
+    ///
+    /// Prefer [`Self::try_tme_url`] when a bot may lack a main username.
     #[must_use]
     pub fn tme_url(&self) -> reqwest::Url {
         format!("https://t.me/{}", self.username()).parse().unwrap()
+    }
+
+    /// Returns a URL that links to this bot in the form of `t.me/<...>` if it
+    /// has a main username.
+    #[must_use]
+    pub fn try_tme_url(&self) -> Option<reqwest::Url> {
+        self.try_username().and_then(|username| format!("https://t.me/{username}").parse().ok())
     }
 }
 
@@ -117,8 +134,17 @@ mod tests {
         };
 
         assert_eq!(me.username(), "SomethingSomethingBot");
+        assert_eq!(me.try_username(), Some("SomethingSomethingBot"));
         assert_eq!(me.mention(), "@SomethingSomethingBot");
+        assert_eq!(me.try_mention().as_deref(), Some("@SomethingSomethingBot"));
         assert_eq!(me.tme_url(), "https://t.me/SomethingSomethingBot".parse().unwrap());
+        assert_eq!(me.try_tme_url(), Some("https://t.me/SomethingSomethingBot".parse().unwrap()));
+
+        let mut without_username = me;
+        without_username.user.username = None;
+        assert_eq!(without_username.try_username(), None);
+        assert_eq!(without_username.try_mention(), None);
+        assert_eq!(without_username.try_tme_url(), None);
     }
 
     #[test]

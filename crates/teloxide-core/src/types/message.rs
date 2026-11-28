@@ -27,7 +27,7 @@ use crate::types::{
 ///
 /// [The official docs](https://core.telegram.org/bots/api#message).
 #[serde_with::skip_serializing_none]
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct Message {
     /// Unique message identifier inside this chat. Zero for ephemeral messages.
@@ -111,112 +111,10 @@ pub struct Message {
     pub kind: MessageKind,
 }
 
-#[derive(Deserialize)]
-struct MessageRaw {
-    #[serde(flatten)]
-    id: MessageId,
-    ephemeral_message_id: Option<EphemeralMessageId>,
-    receiver_user: Option<Box<User>>,
-    #[serde(rename = "message_thread_id")]
-    thread_id: Option<ThreadId>,
-    direct_messages_topic: Option<DirectMessagesTopic>,
-    from: Option<User>,
-    sender_chat: Option<Chat>,
-    #[serde(with = "crate::types::serde_date_from_unix_timestamp")]
-    date: DateTime<Utc>,
-    chat: Chat,
-    #[serde(default)]
-    is_topic_message: bool,
-    suggested_post_info: Option<SuggestedPostInfo>,
-    #[serde(default)]
-    is_paid_post: bool,
-    via_bot: Option<User>,
-    sender_business_bot: Option<User>,
-    sender_tag: Option<String>,
-    guest_bot_caller_user: Option<Box<User>>,
-    guest_bot_caller_chat: Option<Box<Chat>>,
-    guest_query_id: Option<GuestQueryId>,
-    #[serde(flatten)]
-    kind: MessageKind,
-}
-
-const MESSAGE_HEADER_FIELDS: &[&str] = &[
-    "message_id",
-    "ephemeral_message_id",
-    "receiver_user",
-    "message_thread_id",
-    "direct_messages_topic",
-    "from",
-    "sender_chat",
-    "date",
-    "chat",
-    "is_topic_message",
-    "suggested_post_info",
-    "is_paid_post",
-    "via_bot",
-    "sender_business_bot",
-    "sender_tag",
-    "guest_bot_caller_user",
-    "guest_bot_caller_chat",
-    "guest_query_id",
-];
-
-impl<'de> Deserialize<'de> for Message {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let map = serde_json::Map::<String, serde_json::Value>::deserialize(deserializer)?;
-        let keys: Vec<String> = map.keys().cloned().collect();
-        let raw = MessageRaw::deserialize(serde_json::Value::Object(map))
-            .map_err(serde::de::Error::custom)?;
-
-        if matches!(raw.kind, MessageKind::Empty {}) {
-            let extra_keys: Vec<&str> = keys
-                .iter()
-                .map(String::as_str)
-                .filter(|k| !MESSAGE_HEADER_FIELDS.contains(k))
-                .collect();
-            if !extra_keys.is_empty() {
-                log::warn!(
-                    "Message {} in chat {} fell back to `MessageKind::Empty` despite unparsed \
-                     content keys: {:?}; please report this at \
-                     https://github.com/sailself/teloxidium/issues",
-                    raw.id.0,
-                    raw.chat.id.0,
-                    extra_keys
-                );
-            }
-        }
-
-        Ok(Self {
-            id: raw.id,
-            ephemeral_message_id: raw.ephemeral_message_id,
-            receiver_user: raw.receiver_user,
-            thread_id: raw.thread_id,
-            direct_messages_topic: raw.direct_messages_topic,
-            from: raw.from,
-            sender_chat: raw.sender_chat,
-            date: raw.date,
-            chat: raw.chat,
-            is_topic_message: raw.is_topic_message,
-            suggested_post_info: raw.suggested_post_info,
-            is_paid_post: raw.is_paid_post,
-            via_bot: raw.via_bot,
-            sender_business_bot: raw.sender_business_bot,
-            sender_tag: raw.sender_tag,
-            guest_bot_caller_user: raw.guest_bot_caller_user,
-            guest_bot_caller_chat: raw.guest_bot_caller_chat,
-            guest_query_id: raw.guest_query_id,
-            kind: raw.kind,
-        })
-    }
-}
-
 // FIXME: this could be a use-case for serde mixed-tags, some variants need to
 //        untagged (`MessageCommon` as an example), while other need to be
 //        tagged (e.g.: Forum*)
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum MessageKind {
@@ -278,6 +176,230 @@ pub enum MessageKind {
     /// An empty, content-less message, that can appear in callback queries
     /// attached to old messages.
     Empty {},
+}
+
+const MESSAGE_COMMON_METADATA_FIELDS: &[&str] = &[
+    "author_signature",
+    "paid_star_count",
+    "effect_id",
+    "forward_origin",
+    "reply_to_message",
+    "external_reply",
+    "quote",
+    "reply_to_story",
+    "reply_to_checklist_task_id",
+    "reply_to_poll_option_id",
+    "sender_boost_count",
+    "business_connection_id",
+    "is_from_offline",
+    "has_protected_content",
+    "is_automatic_forward",
+    "edit_date",
+    "reply_markup",
+    "has_media_spoiler",
+    "show_caption_above_media",
+    "media_group_id",
+];
+
+const KNOWN_UNMODELLED_CONTENT_KEYS: &[&str] = &[
+    "widget",
+    "community_chat_added",
+    "community_chat_joined",
+    "community_chat_removed",
+    "paid_messages_waived",
+    "ton_wallet_transfer",
+];
+
+struct EmptyFallback;
+
+impl<'de> Deserialize<'de> for EmptyFallback {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct EmptyFallbackVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for EmptyFallbackVisitor {
+            type Value = EmptyFallback;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("a message object")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                let mut known_unmodelled = Vec::new();
+                let mut unexpected = Vec::new();
+
+                while let Some(key) = map.next_key::<std::borrow::Cow<'de, str>>()? {
+                    let _ = map.next_value::<serde::de::IgnoredAny>()?;
+                    let key_str = key.as_ref();
+                    if MESSAGE_COMMON_METADATA_FIELDS.contains(&key_str) {
+                        continue;
+                    }
+                    if KNOWN_UNMODELLED_CONTENT_KEYS.contains(&key_str) {
+                        known_unmodelled.push(key.into_owned());
+                    } else {
+                        unexpected.push(key.into_owned());
+                    }
+                }
+
+                if !known_unmodelled.is_empty() {
+                    log::debug!(
+                        "Message fell back to `MessageKind::Empty` due to unmodelled Bot API \
+                         content keys: {known_unmodelled:?}"
+                    );
+                }
+                if !unexpected.is_empty() {
+                    log::warn!(
+                        "Message fell back to `MessageKind::Empty` with unrecognized content \
+                         keys: {unexpected:?}"
+                    );
+                }
+
+                Ok(EmptyFallback)
+            }
+        }
+
+        deserializer.deserialize_map(EmptyFallbackVisitor)
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum MessageKindDe {
+    Common(MessageCommon),
+    NewChatMembers(MessageNewChatMembers),
+    LeftChatMember(MessageLeftChatMember),
+    NewChatTitle(MessageNewChatTitle),
+    NewChatPhoto(MessageNewChatPhoto),
+    DeleteChatPhoto(MessageDeleteChatPhoto),
+    GroupChatCreated(MessageGroupChatCreated),
+    SupergroupChatCreated(MessageSupergroupChatCreated),
+    ChannelChatCreated(MessageChannelChatCreated),
+    MessageAutoDeleteTimerChanged(MessageMessageAutoDeleteTimerChanged),
+    Pinned(MessagePinned),
+    ChatShared(MessageChatShared),
+    UsersShared(MessageUsersShared),
+    Invoice(MessageInvoice),
+    SuccessfulPayment(MessageSuccessfulPayment),
+    RefundedPayment(MessageRefundedPayment),
+    ConnectedWebsite(MessageConnectedWebsite),
+    WriteAccessAllowed(MessageWriteAccessAllowed),
+    PassportData(MessagePassportData),
+    Dice(MessageDice),
+    ProximityAlertTriggered(MessageProximityAlertTriggered),
+    ChatBoostAdded(MessageChatBoostAdded),
+    ChatBackground(MessageChatBackground),
+    ChecklistTasksDone(MessageChecklistTasksDone),
+    ChecklistTasksAdded(MessageChecklistTasksAdded),
+    DirectMessagePriceChanged(MessageDirectMessagePriceChanged),
+    ForumTopicCreated(MessageForumTopicCreated),
+    ForumTopicEdited(MessageForumTopicEdited),
+    ForumTopicClosed(MessageForumTopicClosed),
+    ForumTopicReopened(MessageForumTopicReopened),
+    GeneralForumTopicHidden(MessageGeneralForumTopicHidden),
+    GeneralForumTopicUnhidden(MessageGeneralForumTopicUnhidden),
+    Giveaway(MessageGiveaway),
+    GiveawayCompleted(MessageGiveawayCompleted),
+    GiveawayCreated(MessageGiveawayCreated),
+    GiveawayWinners(MessageGiveawayWinners),
+    PaidMessagePriceChanged(MessagePaidMessagePriceChanged),
+    SuggestedPostApproved(MessageSuggestedPostApproved),
+    SuggestedPostApprovalFailed(MessageSuggestedPostApprovalFailed),
+    SuggestedPostDeclined(MessageSuggestedPostDeclined),
+    SuggestedPostPaid(MessageSuggestedPostPaid),
+    SuggestedPostRefunded(MessageSuggestedPostRefunded),
+    GiftInfo(MessageGiftInfo),
+    UniqueGiftInfo(MessageUniqueGiftInfo),
+    GiftUpgradeSent(MessageGiftUpgradeSent),
+    VideoChatScheduled(MessageVideoChatScheduled),
+    VideoChatStarted(MessageVideoChatStarted),
+    VideoChatEnded(MessageVideoChatEnded),
+    VideoChatParticipantsInvited(MessageVideoChatParticipantsInvited),
+    WebAppData(MessageWebAppData),
+    ChatOwnerLeft(MessageChatOwnerLeft),
+    ChatOwnerChanged(MessageChatOwnerChanged),
+    ManagedBotCreated(MessageManagedBotCreated),
+    PollOptionAdded(MessagePollOptionAdded),
+    PollOptionDeleted(MessagePollOptionDeleted),
+    Empty(EmptyFallback),
+}
+
+impl From<MessageKindDe> for MessageKind {
+    fn from(value: MessageKindDe) -> Self {
+        match value {
+            MessageKindDe::Common(v) => Self::Common(v),
+            MessageKindDe::NewChatMembers(v) => Self::NewChatMembers(v),
+            MessageKindDe::LeftChatMember(v) => Self::LeftChatMember(v),
+            MessageKindDe::NewChatTitle(v) => Self::NewChatTitle(v),
+            MessageKindDe::NewChatPhoto(v) => Self::NewChatPhoto(v),
+            MessageKindDe::DeleteChatPhoto(v) => Self::DeleteChatPhoto(v),
+            MessageKindDe::GroupChatCreated(v) => Self::GroupChatCreated(v),
+            MessageKindDe::SupergroupChatCreated(v) => Self::SupergroupChatCreated(v),
+            MessageKindDe::ChannelChatCreated(v) => Self::ChannelChatCreated(v),
+            MessageKindDe::MessageAutoDeleteTimerChanged(v) => {
+                Self::MessageAutoDeleteTimerChanged(v)
+            }
+            MessageKindDe::Pinned(v) => Self::Pinned(v),
+            MessageKindDe::ChatShared(v) => Self::ChatShared(v),
+            MessageKindDe::UsersShared(v) => Self::UsersShared(v),
+            MessageKindDe::Invoice(v) => Self::Invoice(v),
+            MessageKindDe::SuccessfulPayment(v) => Self::SuccessfulPayment(v),
+            MessageKindDe::RefundedPayment(v) => Self::RefundedPayment(v),
+            MessageKindDe::ConnectedWebsite(v) => Self::ConnectedWebsite(v),
+            MessageKindDe::WriteAccessAllowed(v) => Self::WriteAccessAllowed(v),
+            MessageKindDe::PassportData(v) => Self::PassportData(v),
+            MessageKindDe::Dice(v) => Self::Dice(v),
+            MessageKindDe::ProximityAlertTriggered(v) => Self::ProximityAlertTriggered(v),
+            MessageKindDe::ChatBoostAdded(v) => Self::ChatBoostAdded(v),
+            MessageKindDe::ChatBackground(v) => Self::ChatBackground(v),
+            MessageKindDe::ChecklistTasksDone(v) => Self::ChecklistTasksDone(v),
+            MessageKindDe::ChecklistTasksAdded(v) => Self::ChecklistTasksAdded(v),
+            MessageKindDe::DirectMessagePriceChanged(v) => Self::DirectMessagePriceChanged(v),
+            MessageKindDe::ForumTopicCreated(v) => Self::ForumTopicCreated(v),
+            MessageKindDe::ForumTopicEdited(v) => Self::ForumTopicEdited(v),
+            MessageKindDe::ForumTopicClosed(v) => Self::ForumTopicClosed(v),
+            MessageKindDe::ForumTopicReopened(v) => Self::ForumTopicReopened(v),
+            MessageKindDe::GeneralForumTopicHidden(v) => Self::GeneralForumTopicHidden(v),
+            MessageKindDe::GeneralForumTopicUnhidden(v) => Self::GeneralForumTopicUnhidden(v),
+            MessageKindDe::Giveaway(v) => Self::Giveaway(v),
+            MessageKindDe::GiveawayCompleted(v) => Self::GiveawayCompleted(v),
+            MessageKindDe::GiveawayCreated(v) => Self::GiveawayCreated(v),
+            MessageKindDe::GiveawayWinners(v) => Self::GiveawayWinners(v),
+            MessageKindDe::PaidMessagePriceChanged(v) => Self::PaidMessagePriceChanged(v),
+            MessageKindDe::SuggestedPostApproved(v) => Self::SuggestedPostApproved(v),
+            MessageKindDe::SuggestedPostApprovalFailed(v) => Self::SuggestedPostApprovalFailed(v),
+            MessageKindDe::SuggestedPostDeclined(v) => Self::SuggestedPostDeclined(v),
+            MessageKindDe::SuggestedPostPaid(v) => Self::SuggestedPostPaid(v),
+            MessageKindDe::SuggestedPostRefunded(v) => Self::SuggestedPostRefunded(v),
+            MessageKindDe::GiftInfo(v) => Self::GiftInfo(v),
+            MessageKindDe::UniqueGiftInfo(v) => Self::UniqueGiftInfo(v),
+            MessageKindDe::GiftUpgradeSent(v) => Self::GiftUpgradeSent(v),
+            MessageKindDe::VideoChatScheduled(v) => Self::VideoChatScheduled(v),
+            MessageKindDe::VideoChatStarted(v) => Self::VideoChatStarted(v),
+            MessageKindDe::VideoChatEnded(v) => Self::VideoChatEnded(v),
+            MessageKindDe::VideoChatParticipantsInvited(v) => Self::VideoChatParticipantsInvited(v),
+            MessageKindDe::WebAppData(v) => Self::WebAppData(v),
+            MessageKindDe::ChatOwnerLeft(v) => Self::ChatOwnerLeft(v),
+            MessageKindDe::ChatOwnerChanged(v) => Self::ChatOwnerChanged(v),
+            MessageKindDe::ManagedBotCreated(v) => Self::ManagedBotCreated(v),
+            MessageKindDe::PollOptionAdded(v) => Self::PollOptionAdded(v),
+            MessageKindDe::PollOptionDeleted(v) => Self::PollOptionDeleted(v),
+            MessageKindDe::Empty(_) => Self::Empty {},
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for MessageKind {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        MessageKindDe::deserialize(deserializer).map(Into::into)
+    }
 }
 
 /// Unique identifier of the message effect added to the message
@@ -728,7 +850,7 @@ pub struct MediaLocation {
 }
 
 #[serde_with::skip_serializing_none]
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct MediaLivePhoto {
     /// Message is a live photo, information about the live photo.
@@ -753,6 +875,40 @@ pub struct MediaLivePhoto {
     /// The unique identifier of a media message group this message belongs
     /// to.
     pub media_group_id: Option<MediaGroupId>,
+}
+
+#[derive(Deserialize)]
+struct MediaLivePhotoRaw {
+    live_photo: LivePhoto,
+    caption: Option<String>,
+    #[serde(default)]
+    caption_entities: Vec<MessageEntity>,
+    #[serde(default)]
+    show_caption_above_media: bool,
+    #[serde(default)]
+    has_media_spoiler: bool,
+    media_group_id: Option<MediaGroupId>,
+    photo: Option<Vec<PhotoSize>>,
+}
+
+impl<'de> Deserialize<'de> for MediaLivePhoto {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let mut raw = MediaLivePhotoRaw::deserialize(deserializer)?;
+        if raw.live_photo.photo.is_none() {
+            raw.live_photo.photo = raw.photo;
+        }
+        Ok(Self {
+            live_photo: raw.live_photo,
+            caption: raw.caption,
+            caption_entities: raw.caption_entities,
+            show_caption_above_media: raw.show_caption_above_media,
+            has_media_spoiler: raw.has_media_spoiler,
+            media_group_id: raw.media_group_id,
+        })
+    }
 }
 
 #[serde_with::skip_serializing_none]
@@ -4297,6 +4453,27 @@ mod tests {
 
         let roundtrip: Message = from_str(&serde_json::to_string(&msg).unwrap()).unwrap();
         assert_eq!(msg, roundtrip);
+
+        let top_level_only_live_photo_json = r#"{
+            "message_id": 4005,
+            "chat": { "id": 100, "first_name": "Alice", "type": "private" },
+            "date": 1778200004,
+            "live_photo": {
+                "file_id": "lp-v-2",
+                "file_unique_id": "lp-vu-2",
+                "width": 800,
+                "height": 600,
+                "duration": 2
+            },
+            "photo": [
+                { "file_id": "lp-top-1", "file_unique_id": "lp-top-u-1", "width": 800, "height": 600 }
+            ]
+        }"#;
+        let top_level_msg: Message = from_str(top_level_only_live_photo_json).unwrap();
+        let top_level_photo =
+            top_level_msg.photo().expect("expected top-level photo fallback on live photo");
+        assert_eq!(top_level_photo[0].file.id, FileId("lp-top-1".to_owned()));
+        assert_eq!(top_level_msg.live_photo().unwrap().photo.as_deref(), Some(top_level_photo));
 
         let incoming_guest_json = r#"{
             "message_id": 4002,

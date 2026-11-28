@@ -62,8 +62,8 @@ pub struct Poll {
     #[serde(default)]
     pub allows_revoting: bool,
 
-    /// `true`, if only members of the chat can vote in the poll (available only
-    /// for channel chats).
+    /// `true`, if only users who have been members of the chat for more than
+    /// 24 hours can vote in the poll (available only for channel chats).
     #[serde(default)]
     pub members_only: bool,
 
