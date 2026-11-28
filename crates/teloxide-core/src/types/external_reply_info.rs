@@ -90,7 +90,16 @@ impl<'de> Deserialize<'de> for ExternalReplyInfo {
         } else if let Some(v) = take_non_null(&mut map, "location") {
             Some(parse_variant(v, ExternalReplyInfoKind::Location))
         } else if let Some(v) = take_non_null(&mut map, "live_photo") {
-            Some(parse_variant(v, ExternalReplyInfoKind::LivePhoto))
+            Some(LivePhoto::deserialize(v).map(|mut lp| {
+                if lp.photo.is_none() {
+                    if let Some(photo_val) = take_non_null(&mut map, "photo") {
+                        if let Ok(photo) = Vec::<PhotoSize>::deserialize(photo_val) {
+                            lp.photo = Some(photo);
+                        }
+                    }
+                }
+                ExternalReplyInfoKind::LivePhoto(lp)
+            }))
         } else if let Some(v) = take_non_null(&mut map, "photo") {
             Some(parse_variant(v, ExternalReplyInfoKind::Photo))
         } else if let Some(v) = take_non_null(&mut map, "document") {
@@ -250,5 +259,30 @@ mod tests {
         }"#;
         let info: ExternalReplyInfo = serde_json::from_str(json).unwrap();
         assert!(matches!(info.kind, Some(ExternalReplyInfoKind::LivePhoto(_))));
+    }
+
+    #[test]
+    fn live_photo_falls_back_to_sibling_photo_when_nested_photo_omitted() {
+        let json = r#"{
+            "origin": { "type": "user", "date": 1778200000, "sender_user": { "id": 1, "is_bot": false, "first_name": "A" } },
+            "live_photo": {
+                "file_id": "lp1",
+                "file_unique_id": "lpu1",
+                "width": 640,
+                "height": 480,
+                "duration": 2
+            },
+            "photo": [
+                { "file_id": "top-p1", "file_unique_id": "top-pu1", "width": 640, "height": 480 }
+            ]
+        }"#;
+        let info: ExternalReplyInfo = serde_json::from_str(json).unwrap();
+        match info.kind {
+            Some(ExternalReplyInfoKind::LivePhoto(lp)) => {
+                let photo = lp.photo.expect("expected sibling photo fallback");
+                assert_eq!(photo[0].file.id, FileId("top-p1".to_owned()));
+            }
+            other => panic!("expected LivePhoto variant, got {other:?}"),
+        }
     }
 }

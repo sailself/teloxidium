@@ -3,6 +3,14 @@ Note that the list of required changes is not fully exhaustive and it may lack s
 
 ## unreleased
 
+## 0.23.1 -> 0.23.2
+
+### teloxide-core & teloxide
+
+> Non-breaking patch release (`teloxide 0.23.2` / `teloxide-core 0.19.2`) with no signature or API changes.
+
+- **`ChatMemberKind::can_manage_tags()`:** Reverted the `0.23.1` fallback so omitted `Administrator::can_manage_tags` now fails closed (`false`) instead of inheriting `can_pin_messages`, matching Telegram's live Bot API reference.
+
 ## 0.23.0 -> 0.23.1
 
 ### teloxide-core & teloxide
@@ -14,7 +22,7 @@ Note that the list of required changes is not fully exhaustive and it may lack s
 - **Story & Sticker uploads (`PostStory`, `EditStory`, `ReplaceStickerInSet`):**
   - Switched `Bot::PostStory`, `Bot::EditStory`, and `Bot::ReplaceStickerInSet` from `JsonRequest<...>` to `MultipartRequest<...>`, implemented `InputFileLike` for `InputStoryContent`, and marked `PostStory`/`EditStory` `@[multipart = content]` so uploaded files are attached rather than sent as dangling `attach://` strings. Update code matching their associated `Requester` types directly as `JsonRequest<...>`.
 - **`Message::photo()` & `Message::filter_photo()`:** `Message::photo()` now also returns `live_photo.photo.as_deref()` when a message has `MediaKind::LivePhoto`, so photo handlers continue receiving live photos with still sizes while `Message::live_photo()` / `filter_live_photo` remain specific to live photos.
-- **`ChatPermissions` & `ChatMemberKind::can_manage_tags()` read defaults:** Deserializing `ChatPermissions` now resolves omitted `can_edit_tag` from `can_pin_messages` (matching `can_react_to_messages` defaulting from `can_send_messages`), and `ChatMemberKind::can_manage_tags()` resolves omitted `can_manage_tags` from `can_pin_messages`.
+- **`ChatPermissions` & `ChatMemberKind::can_manage_tags()` read defaults:** Deserializing `ChatPermissions` now resolves omitted `can_edit_tag` from `can_pin_messages` (matching `can_react_to_messages` defaulting from `can_send_messages`), and `ChatMemberKind::can_manage_tags()` resolves omitted `can_manage_tags` from `can_pin_messages` (superseded in `0.23.2`, where `ChatMemberKind::can_manage_tags()` fails closed to `false`).
 - **Guest messages excluded from `GetChatId`:** `GetChatId` now returns `None` for `UpdateKind::GuestMessage` and for `Message` values carrying `guest_query_id` so guest queries do not collide with chat-keyed dialogue state.
 - **`Throttle::send_message_draft`:** `send_message_draft` now bypasses per-chat message throttling so streaming previews are not rate-limited against normal messages.
 - **Username-less bots (`filter_command` / `filter_mention_command` / `CommandDescriptions::username_from_me`):** No longer panic when `Me::user.username` is `None`; `Me::try_username()` returns `Option<&str>`.

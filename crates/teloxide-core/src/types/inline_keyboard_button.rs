@@ -212,7 +212,6 @@ impl<'de> Deserialize<'de> for InlineKeyboardButtonKind {
                 let mut copy_text: Option<CopyTextButton> = None;
                 let mut callback_game: Option<CallbackGame> = None;
                 let mut pay: Option<True> = None;
-                let mut saw_unknown_key = false;
 
                 while let Some(key) = map.next_key::<std::borrow::Cow<'de, str>>()? {
                     match key.as_ref() {
@@ -232,7 +231,6 @@ impl<'de> Deserialize<'de> for InlineKeyboardButtonKind {
                         "callback_game" => callback_game = map.next_value()?,
                         "pay" => pay = map.next_value()?,
                         _ => {
-                            saw_unknown_key = true;
                             let _ = map.next_value::<serde::de::IgnoredAny>()?;
                         }
                     }
@@ -260,10 +258,8 @@ impl<'de> Deserialize<'de> for InlineKeyboardButtonKind {
                     Ok(InlineKeyboardButtonKind::CallbackGame(v))
                 } else if let Some(v) = pay {
                     Ok(InlineKeyboardButtonKind::Pay(v))
-                } else if saw_unknown_key {
-                    Ok(InlineKeyboardButtonKind::Unknown)
                 } else {
-                    Err(serde::de::Error::custom("missing inline keyboard button action field"))
+                    Ok(InlineKeyboardButtonKind::Unknown)
                 }
             }
         }
@@ -441,6 +437,18 @@ mod tests {
         let parsed_unknown: InlineKeyboardButton = serde_json::from_str(unknown_kind_json).unwrap();
         assert_eq!(parsed_unknown.kind, InlineKeyboardButtonKind::Unknown);
         assert_eq!(parsed_unknown.style, Some(ButtonStyle::Unknown));
+        let stored_unknown = serde_json::to_string(&parsed_unknown).unwrap();
+        assert_eq!(stored_unknown, r#"{"text":"Future"}"#);
+        let reloaded_unknown: InlineKeyboardButton = serde_json::from_str(&stored_unknown).unwrap();
+        assert_eq!(
+            reloaded_unknown,
+            InlineKeyboardButton {
+                text: "Future".to_owned(),
+                icon_custom_emoji_id: None,
+                style: None,
+                kind: InlineKeyboardButtonKind::Unknown,
+            }
+        );
 
         let unknown_style_known_action: InlineKeyboardButton =
             serde_json::from_str(r#"{"text":"Go","callback_data":"go","style":"secondary"}"#)
@@ -451,6 +459,21 @@ mod tests {
             r#"{"text":"Go","callback_data":"go"}"#
         );
 
-        assert!(serde_json::from_str::<InlineKeyboardButton>(r#"{"text":"Broken"}"#).is_err());
+        let msg_with_unknown_button: crate::types::Message = serde_json::from_str(
+            r#"{
+                "message_id": 1,
+                "chat": { "id": 100, "first_name": "Alice", "type": "private" },
+                "date": 1700000000,
+                "text": "Keep me",
+                "reply_markup": {
+                    "inline_keyboard": [[{ "text": "FutureBtn", "future_action": "x" }]]
+                }
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(msg_with_unknown_button.text(), Some("Keep me"));
+        let serialized_msg = serde_json::to_string(&msg_with_unknown_button).unwrap();
+        let reloaded_msg: crate::types::Message = serde_json::from_str(&serialized_msg).unwrap();
+        assert_eq!(reloaded_msg.text(), Some("Keep me"));
     }
 }

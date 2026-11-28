@@ -27,7 +27,7 @@ use crate::types::{
 ///
 /// [The official docs](https://core.telegram.org/bots/api#message).
 #[serde_with::skip_serializing_none]
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct Message {
     /// Unique message identifier inside this chat. Zero for ephemeral messages.
@@ -109,6 +109,68 @@ pub struct Message {
 
     #[serde(flatten)]
     pub kind: MessageKind,
+}
+
+#[derive(Deserialize)]
+struct MessageDe {
+    #[serde(flatten)]
+    id: MessageId,
+    ephemeral_message_id: Option<EphemeralMessageId>,
+    receiver_user: Option<Box<User>>,
+    #[serde(rename = "message_thread_id")]
+    thread_id: Option<ThreadId>,
+    direct_messages_topic: Option<DirectMessagesTopic>,
+    from: Option<User>,
+    sender_chat: Option<Chat>,
+    #[serde(with = "crate::types::serde_date_from_unix_timestamp")]
+    date: DateTime<Utc>,
+    chat: Chat,
+    #[serde(default)]
+    is_topic_message: bool,
+    suggested_post_info: Option<SuggestedPostInfo>,
+    #[serde(default)]
+    is_paid_post: bool,
+    via_bot: Option<User>,
+    sender_business_bot: Option<User>,
+    sender_tag: Option<String>,
+    guest_bot_caller_user: Option<Box<User>>,
+    guest_bot_caller_chat: Option<Box<Chat>>,
+    guest_query_id: Option<GuestQueryId>,
+    #[serde(flatten)]
+    kind: MessageKindDe,
+}
+
+impl<'de> Deserialize<'de> for Message {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw = MessageDe::deserialize(deserializer)?;
+        if let MessageKindDe::Empty(fallback) = &raw.kind {
+            fallback.log(Some((raw.id, raw.chat.id)));
+        }
+        Ok(Self {
+            id: raw.id,
+            ephemeral_message_id: raw.ephemeral_message_id,
+            receiver_user: raw.receiver_user,
+            thread_id: raw.thread_id,
+            direct_messages_topic: raw.direct_messages_topic,
+            from: raw.from,
+            sender_chat: raw.sender_chat,
+            date: raw.date,
+            chat: raw.chat,
+            is_topic_message: raw.is_topic_message,
+            suggested_post_info: raw.suggested_post_info,
+            is_paid_post: raw.is_paid_post,
+            via_bot: raw.via_bot,
+            sender_business_bot: raw.sender_business_bot,
+            sender_tag: raw.sender_tag,
+            guest_bot_caller_user: raw.guest_bot_caller_user,
+            guest_bot_caller_chat: raw.guest_bot_caller_chat,
+            guest_query_id: raw.guest_query_id,
+            kind: raw.kind.into(),
+        })
+    }
 }
 
 // FIXME: this could be a use-case for serde mixed-tags, some variants need to
@@ -201,6 +263,88 @@ const MESSAGE_COMMON_METADATA_FIELDS: &[&str] = &[
     "media_group_id",
 ];
 
+const KNOWN_MODELLED_CONTENT_KEYS: &[&str] = &[
+    "text",
+    "entities",
+    "link_preview_options",
+    "caption",
+    "caption_entities",
+    "animation",
+    "audio",
+    "document",
+    "paid_media",
+    "photo",
+    "sticker",
+    "story",
+    "video",
+    "video_note",
+    "voice",
+    "contact",
+    "dice",
+    "game",
+    "poll",
+    "checklist",
+    "venue",
+    "location",
+    "live_photo",
+    "rich_message",
+    "new_chat_members",
+    "left_chat_member",
+    "new_chat_title",
+    "new_chat_photo",
+    "delete_chat_photo",
+    "group_chat_created",
+    "supergroup_chat_created",
+    "channel_chat_created",
+    "message_auto_delete_timer_changed",
+    "migrate_to_chat_id",
+    "migrate_from_chat_id",
+    "pinned_message",
+    "invoice",
+    "successful_payment",
+    "refunded_payment",
+    "users_shared",
+    "chat_shared",
+    "connected_website",
+    "write_access_allowed",
+    "passport_data",
+    "proximity_alert_triggered",
+    "boost_added",
+    "chat_background_set",
+    "checklist_tasks_done",
+    "checklist_tasks_added",
+    "direct_message_price_changed",
+    "forum_topic_created",
+    "forum_topic_edited",
+    "forum_topic_closed",
+    "forum_topic_reopened",
+    "general_forum_topic_hidden",
+    "general_forum_topic_unhidden",
+    "giveaway_created",
+    "giveaway",
+    "giveaway_winners",
+    "giveaway_completed",
+    "paid_message_price_changed",
+    "suggested_post_approved",
+    "suggested_post_approval_failed",
+    "suggested_post_declined",
+    "suggested_post_paid",
+    "suggested_post_refunded",
+    "gift",
+    "unique_gift",
+    "gift_upgrade_sent",
+    "video_chat_scheduled",
+    "video_chat_started",
+    "video_chat_ended",
+    "video_chat_participants_invited",
+    "web_app_data",
+    "chat_owner_left",
+    "chat_owner_changed",
+    "managed_bot_created",
+    "poll_option_added",
+    "poll_option_deleted",
+];
+
 const KNOWN_UNMODELLED_CONTENT_KEYS: &[&str] = &[
     "widget",
     "community_chat_added",
@@ -210,7 +354,46 @@ const KNOWN_UNMODELLED_CONTENT_KEYS: &[&str] = &[
     "ton_wallet_transfer",
 ];
 
-struct EmptyFallback;
+struct EmptyFallback {
+    failed_modelled: Vec<String>,
+    known_unmodelled: Vec<String>,
+    unexpected: Vec<String>,
+}
+
+impl EmptyFallback {
+    fn log(&self, context: Option<(MessageId, ChatId)>) {
+        if self.failed_modelled.is_empty()
+            && self.unexpected.is_empty()
+            && self.known_unmodelled.is_empty()
+        {
+            return;
+        }
+
+        let prefix = match context {
+            Some((msg_id, chat_id)) => format!("Message {} in chat {}", msg_id.0, chat_id.0),
+            None => "Message".to_owned(),
+        };
+
+        if !self.failed_modelled.is_empty() {
+            log::warn!(
+                "{prefix} fell back to `MessageKind::Empty` despite known content keys {:?} (a \
+                 field in the message or its metadata failed to deserialize)",
+                self.failed_modelled
+            );
+        } else if !self.unexpected.is_empty() {
+            log::warn!(
+                "{prefix} fell back to `MessageKind::Empty` with unrecognized content keys: {:?}",
+                self.unexpected
+            );
+        } else {
+            log::debug!(
+                "{prefix} fell back to `MessageKind::Empty` due to unmodelled Bot API content \
+                 keys: {:?}",
+                self.known_unmodelled
+            );
+        }
+    }
+}
 
 impl<'de> Deserialize<'de> for EmptyFallback {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -230,6 +413,7 @@ impl<'de> Deserialize<'de> for EmptyFallback {
             where
                 A: serde::de::MapAccess<'de>,
             {
+                let mut failed_modelled = Vec::new();
                 let mut known_unmodelled = Vec::new();
                 let mut unexpected = Vec::new();
 
@@ -239,27 +423,16 @@ impl<'de> Deserialize<'de> for EmptyFallback {
                     if MESSAGE_COMMON_METADATA_FIELDS.contains(&key_str) {
                         continue;
                     }
-                    if KNOWN_UNMODELLED_CONTENT_KEYS.contains(&key_str) {
+                    if KNOWN_MODELLED_CONTENT_KEYS.contains(&key_str) {
+                        failed_modelled.push(key.into_owned());
+                    } else if KNOWN_UNMODELLED_CONTENT_KEYS.contains(&key_str) {
                         known_unmodelled.push(key.into_owned());
                     } else {
                         unexpected.push(key.into_owned());
                     }
                 }
 
-                if !known_unmodelled.is_empty() {
-                    log::debug!(
-                        "Message fell back to `MessageKind::Empty` due to unmodelled Bot API \
-                         content keys: {known_unmodelled:?}"
-                    );
-                }
-                if !unexpected.is_empty() {
-                    log::warn!(
-                        "Message fell back to `MessageKind::Empty` with unrecognized content \
-                         keys: {unexpected:?}"
-                    );
-                }
-
-                Ok(EmptyFallback)
+                Ok(EmptyFallback { failed_modelled, known_unmodelled, unexpected })
             }
         }
 
@@ -393,12 +566,83 @@ impl From<MessageKindDe> for MessageKind {
     }
 }
 
+// Compile-time guard ensuring every `MessageKind` variant stays mirrored in
+// `MessageKindDe`.
+const _: fn(MessageKind) -> MessageKindDe = |kind| match kind {
+    MessageKind::Common(v) => MessageKindDe::Common(v),
+    MessageKind::NewChatMembers(v) => MessageKindDe::NewChatMembers(v),
+    MessageKind::LeftChatMember(v) => MessageKindDe::LeftChatMember(v),
+    MessageKind::NewChatTitle(v) => MessageKindDe::NewChatTitle(v),
+    MessageKind::NewChatPhoto(v) => MessageKindDe::NewChatPhoto(v),
+    MessageKind::DeleteChatPhoto(v) => MessageKindDe::DeleteChatPhoto(v),
+    MessageKind::GroupChatCreated(v) => MessageKindDe::GroupChatCreated(v),
+    MessageKind::SupergroupChatCreated(v) => MessageKindDe::SupergroupChatCreated(v),
+    MessageKind::ChannelChatCreated(v) => MessageKindDe::ChannelChatCreated(v),
+    MessageKind::MessageAutoDeleteTimerChanged(v) => {
+        MessageKindDe::MessageAutoDeleteTimerChanged(v)
+    }
+    MessageKind::Pinned(v) => MessageKindDe::Pinned(v),
+    MessageKind::ChatShared(v) => MessageKindDe::ChatShared(v),
+    MessageKind::UsersShared(v) => MessageKindDe::UsersShared(v),
+    MessageKind::Invoice(v) => MessageKindDe::Invoice(v),
+    MessageKind::SuccessfulPayment(v) => MessageKindDe::SuccessfulPayment(v),
+    MessageKind::RefundedPayment(v) => MessageKindDe::RefundedPayment(v),
+    MessageKind::ConnectedWebsite(v) => MessageKindDe::ConnectedWebsite(v),
+    MessageKind::WriteAccessAllowed(v) => MessageKindDe::WriteAccessAllowed(v),
+    MessageKind::PassportData(v) => MessageKindDe::PassportData(v),
+    MessageKind::Dice(v) => MessageKindDe::Dice(v),
+    MessageKind::ProximityAlertTriggered(v) => MessageKindDe::ProximityAlertTriggered(v),
+    MessageKind::ChatBoostAdded(v) => MessageKindDe::ChatBoostAdded(v),
+    MessageKind::ChatBackground(v) => MessageKindDe::ChatBackground(v),
+    MessageKind::ChecklistTasksDone(v) => MessageKindDe::ChecklistTasksDone(v),
+    MessageKind::ChecklistTasksAdded(v) => MessageKindDe::ChecklistTasksAdded(v),
+    MessageKind::DirectMessagePriceChanged(v) => MessageKindDe::DirectMessagePriceChanged(v),
+    MessageKind::ForumTopicCreated(v) => MessageKindDe::ForumTopicCreated(v),
+    MessageKind::ForumTopicEdited(v) => MessageKindDe::ForumTopicEdited(v),
+    MessageKind::ForumTopicClosed(v) => MessageKindDe::ForumTopicClosed(v),
+    MessageKind::ForumTopicReopened(v) => MessageKindDe::ForumTopicReopened(v),
+    MessageKind::GeneralForumTopicHidden(v) => MessageKindDe::GeneralForumTopicHidden(v),
+    MessageKind::GeneralForumTopicUnhidden(v) => MessageKindDe::GeneralForumTopicUnhidden(v),
+    MessageKind::Giveaway(v) => MessageKindDe::Giveaway(v),
+    MessageKind::GiveawayCompleted(v) => MessageKindDe::GiveawayCompleted(v),
+    MessageKind::GiveawayCreated(v) => MessageKindDe::GiveawayCreated(v),
+    MessageKind::GiveawayWinners(v) => MessageKindDe::GiveawayWinners(v),
+    MessageKind::PaidMessagePriceChanged(v) => MessageKindDe::PaidMessagePriceChanged(v),
+    MessageKind::SuggestedPostApproved(v) => MessageKindDe::SuggestedPostApproved(v),
+    MessageKind::SuggestedPostApprovalFailed(v) => MessageKindDe::SuggestedPostApprovalFailed(v),
+    MessageKind::SuggestedPostDeclined(v) => MessageKindDe::SuggestedPostDeclined(v),
+    MessageKind::SuggestedPostPaid(v) => MessageKindDe::SuggestedPostPaid(v),
+    MessageKind::SuggestedPostRefunded(v) => MessageKindDe::SuggestedPostRefunded(v),
+    MessageKind::GiftInfo(v) => MessageKindDe::GiftInfo(v),
+    MessageKind::UniqueGiftInfo(v) => MessageKindDe::UniqueGiftInfo(v),
+    MessageKind::GiftUpgradeSent(v) => MessageKindDe::GiftUpgradeSent(v),
+    MessageKind::VideoChatScheduled(v) => MessageKindDe::VideoChatScheduled(v),
+    MessageKind::VideoChatStarted(v) => MessageKindDe::VideoChatStarted(v),
+    MessageKind::VideoChatEnded(v) => MessageKindDe::VideoChatEnded(v),
+    MessageKind::VideoChatParticipantsInvited(v) => MessageKindDe::VideoChatParticipantsInvited(v),
+    MessageKind::WebAppData(v) => MessageKindDe::WebAppData(v),
+    MessageKind::ChatOwnerLeft(v) => MessageKindDe::ChatOwnerLeft(v),
+    MessageKind::ChatOwnerChanged(v) => MessageKindDe::ChatOwnerChanged(v),
+    MessageKind::ManagedBotCreated(v) => MessageKindDe::ManagedBotCreated(v),
+    MessageKind::PollOptionAdded(v) => MessageKindDe::PollOptionAdded(v),
+    MessageKind::PollOptionDeleted(v) => MessageKindDe::PollOptionDeleted(v),
+    MessageKind::Empty {} => MessageKindDe::Empty(EmptyFallback {
+        failed_modelled: Vec::new(),
+        known_unmodelled: Vec::new(),
+        unexpected: Vec::new(),
+    }),
+};
+
 impl<'de> Deserialize<'de> for MessageKind {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        MessageKindDe::deserialize(deserializer).map(Into::into)
+        let kind_de = MessageKindDe::deserialize(deserializer)?;
+        if let MessageKindDe::Empty(fallback) = &kind_de {
+            fallback.log(None);
+        }
+        Ok(kind_de.into())
     }
 }
 
