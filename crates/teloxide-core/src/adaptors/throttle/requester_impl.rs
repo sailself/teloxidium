@@ -48,6 +48,7 @@ where
     B::CopyMessage: Clone + Send + Sync + 'static,
     B::CopyMessages: Clone + Send + Sync + 'static,
     B::SendPhoto: Clone + Send + Sync + 'static,
+    B::SendLivePhoto: Clone + Send + Sync + 'static,
     B::SendAudio: Clone + Send + Sync + 'static,
     B::SendDocument: Clone + Send + Sync + 'static,
     B::SendVideo: Clone + Send + Sync + 'static,
@@ -98,6 +99,7 @@ where
         copy_message,
         copy_messages,
         send_photo,
+        send_live_photo,
         send_audio,
         send_document,
         send_video,
@@ -133,6 +135,8 @@ where
         edit_message_checklist,
         send_chat_action,
         set_message_reaction,
+        delete_all_message_reactions,
+        delete_message_reaction,
         get_user_profile_photos,
         get_user_profile_audios,
         set_user_emoji_status,
@@ -201,10 +205,14 @@ where
         delete_my_commands,
         answer_inline_query,
         answer_web_app_query,
+        answer_guest_query,
         save_prepared_inline_message,
         save_prepared_keyboard_button,
         get_managed_bot_token,
         replace_managed_bot_token,
+        get_managed_bot_access_settings,
+        set_managed_bot_access_settings,
+        get_user_personal_chat_messages,
         edit_message_text,
         edit_message_text_inline,
         edit_message_caption,
@@ -292,7 +300,7 @@ mod tests {
         adaptors::{throttle::Limits, Throttle},
         payloads::SendMessageSetters,
         requests::{HasPayload, Requester},
-        types::{ChatId, DraftId, EphemeralMessageParameters, UserId},
+        types::{ChatId, DraftId, EphemeralMessageParameters, InputFile, UserId},
         Bot,
     };
 
@@ -317,6 +325,18 @@ mod tests {
         let (bot, _worker) = Throttle::new(Bot::new("test-token"), Limits::default());
         let chat = ChatId(987654);
         let request = bot.send_message_draft(chat, DraftId(7), "Streaming...");
+        assert_eq!((request.chat_id)(request.payload_ref()), Some((&chat).into()));
+    }
+
+    #[test]
+    fn send_live_photo_uses_chat_id_hash() {
+        let (bot, _worker) = Throttle::new(Bot::new("test-token"), Limits::default());
+        let chat = ChatId(-10042);
+        let request = bot.send_live_photo(
+            chat,
+            InputFile::file_id("lp".into()),
+            InputFile::file_id("p".into()),
+        );
         assert_eq!((request.chat_id)(request.payload_ref()), Some((&chat).into()));
     }
 }

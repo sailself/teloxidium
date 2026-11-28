@@ -1,4 +1,4 @@
-use crate::types::{Chat, MessageEntity, PollType, Seconds, User};
+use crate::types::{Chat, MessageEntity, PollMedia, PollType, Seconds, User};
 
 use chrono::{DateTime, Utc};
 use derive_more::derive::From;
@@ -26,7 +26,7 @@ pub struct PollId(pub String);
 ///
 /// [The official docs](https://core.telegram.org/bots/api#poll).
 #[serde_with::skip_serializing_none]
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct Poll {
     /// Unique poll identifier.
@@ -62,6 +62,14 @@ pub struct Poll {
     #[serde(default)]
     pub allows_revoting: bool,
 
+    /// `true`, if only members of the chat can vote in the poll.
+    #[serde(default)]
+    pub members_only: bool,
+
+    /// List of two-letter ISO 3166-1 alpha-2 country codes of users allowed to
+    /// vote in the poll, or `"FT"` for Fragment anonymous numbers.
+    pub country_codes: Option<Vec<String>>,
+
     /// Array of 0-based identifiers of the correct answer options. Available
     /// only for polls in quiz mode which are closed or were sent (not
     /// forwarded) by the bot or to the private chat with the bot.
@@ -74,6 +82,9 @@ pub struct Poll {
     /// Special entities like usernames, URLs, bot commands, etc. that appear in
     /// the explanation.
     pub explanation_entities: Option<Vec<MessageEntity>>,
+
+    /// Media attached to the quiz explanation.
+    pub explanation_media: Option<Box<PollMedia>>,
 
     /// Amount of time in seconds the poll will be active after creation.
     pub open_period: Option<Seconds>,
@@ -91,6 +102,9 @@ pub struct Poll {
     /// Special entities like usernames, URLs, bot commands, etc. that appear in
     /// the description.
     pub description_entities: Option<Vec<MessageEntity>>,
+
+    /// Media attached to the poll description.
+    pub media: Option<Box<PollMedia>>,
 }
 
 #[derive(Deserialize)]
@@ -107,15 +121,20 @@ struct PollDe {
     allows_multiple_answers: bool,
     #[serde(default)]
     allows_revoting: Option<bool>,
+    #[serde(default)]
+    members_only: bool,
+    country_codes: Option<Vec<String>>,
     correct_option_id: Option<u8>,
     correct_option_ids: Option<Vec<u8>>,
     explanation: Option<String>,
     explanation_entities: Option<Vec<MessageEntity>>,
+    explanation_media: Option<Box<PollMedia>>,
     open_period: Option<Seconds>,
     #[serde(default, with = "crate::types::serde_opt_date_from_unix_timestamp")]
     close_date: Option<DateTime<Utc>>,
     description: Option<String>,
     description_entities: Option<Vec<MessageEntity>>,
+    media: Option<Box<PollMedia>>,
 }
 
 impl<'de> Deserialize<'de> for Poll {
@@ -140,13 +159,17 @@ impl<'de> Deserialize<'de> for Poll {
             poll_type: de.poll_type,
             allows_multiple_answers: de.allows_multiple_answers,
             allows_revoting,
+            members_only: de.members_only,
+            country_codes: de.country_codes,
             correct_option_ids,
             explanation: de.explanation,
             explanation_entities: de.explanation_entities,
+            explanation_media: de.explanation_media,
             open_period: de.open_period,
             close_date: de.close_date,
             description: de.description,
             description_entities: de.description_entities,
+            media: de.media,
         })
     }
 }
@@ -155,7 +178,7 @@ impl<'de> Deserialize<'de> for Poll {
 ///
 /// [The official docs](https://core.telegram.org/bots/api#polloption).
 #[serde_with::skip_serializing_none]
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 pub struct PollOption {
     /// Unique identifier of the option, persistent on option addition and
@@ -169,6 +192,9 @@ pub struct PollOption {
     /// Special entities that appear in the option text. Currently, only custom
     /// emoji entities are allowed in poll option texts
     pub text_entities: Option<Vec<MessageEntity>>,
+
+    /// Media attached to the poll option.
+    pub media: Option<Box<PollMedia>>,
 
     /// Number of users that voted for this option.
     pub voter_count: u32,
@@ -385,5 +411,83 @@ mod tests {
         }"#;
         let no_revote_regular: Poll = serde_json::from_str(no_revote_regular_json).unwrap();
         assert!(!no_revote_regular.allows_revoting);
+        assert!(!no_revote_regular.members_only);
+        assert!(no_revote_regular.country_codes.is_none());
+        assert!(no_revote_regular.media.is_none());
+        assert!(no_revote_regular.explanation_media.is_none());
+    }
+
+    #[test]
+    fn bot_api_10_0_poll_roundtrip_and_forward_compat() {
+        let data = r#"{
+            "id": "poll-10-0",
+            "question": "Favorite spot?",
+            "options": [
+                {
+                    "persistent_id": "opt-1",
+                    "text": "Cafe",
+                    "voter_count": 2,
+                    "media": {
+                        "location": {
+                            "latitude": 37.7749,
+                            "longitude": -122.4194,
+                            "horizontal_accuracy": 25.0
+                        }
+                    }
+                },
+                {
+                    "persistent_id": "opt-2",
+                    "text": "Link option",
+                    "voter_count": 1,
+                    "media": {
+                        "link": { "url": "https://example.com" }
+                    }
+                }
+            ],
+            "total_voter_count": 3,
+            "is_closed": false,
+            "is_anonymous": true,
+            "type": "quiz",
+            "allows_multiple_answers": false,
+            "allows_revoting": false,
+            "members_only": true,
+            "country_codes": ["US", "FT"],
+            "correct_option_ids": [0],
+            "media": {
+                "live_photo": {
+                    "file_id": "lp-vid",
+                    "file_unique_id": "lp-uniq",
+                    "width": 640,
+                    "height": 480,
+                    "duration": 2
+                },
+                "photo": [
+                    { "file_id": "lp-p", "file_unique_id": "lp-pu", "width": 640, "height": 480 }
+                ]
+            },
+            "explanation": "Right near the park!",
+            "explanation_media": {
+                "photo": [
+                    { "file_id": "exp-p", "file_unique_id": "exp-pu", "width": 320, "height": 240 }
+                ]
+            }
+        }"#;
+        let poll: Poll = serde_json::from_str(data).unwrap();
+        assert!(poll.members_only);
+        assert_eq!(poll.country_codes, Some(vec!["US".to_owned(), "FT".to_owned()]));
+        assert!(poll.media.as_ref().and_then(|m| m.live_photo.as_ref()).is_some());
+        assert!(poll.explanation_media.as_ref().and_then(|m| m.photo.as_ref()).is_some());
+        assert!(poll.options[0].media.as_ref().and_then(|m| m.location.as_ref()).is_some());
+        // Unknown Bot API 10.1+ field ("link") deserializes cleanly into empty
+        // PollMedia.
+        assert_eq!(poll.options[1].media.as_deref(), Some(&PollMedia::default()));
+
+        let roundtrip: Poll = serde_json::from_str(&serde_json::to_string(&poll).unwrap()).unwrap();
+        assert_eq!(poll, roundtrip);
+
+        let mut poll_false = poll;
+        poll_false.members_only = false;
+        let poll_false_json = serde_json::to_string(&poll_false).unwrap();
+        assert!(poll_false_json.contains(r#""members_only":false"#));
     }
 }

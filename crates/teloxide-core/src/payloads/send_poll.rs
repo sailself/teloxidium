@@ -4,22 +4,22 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 
 use crate::types::{
-    BusinessConnectionId, EffectId, InputPollOption, Message, MessageEntity, ParseMode, PollType,
-    Recipient, ReplyMarkup, ReplyParameters, ThreadId,
+    BusinessConnectionId, EffectId, InputPollMedia, InputPollOption, Message, MessageEntity,
+    ParseMode, PollType, Recipient, ReplyMarkup, ReplyParameters, ThreadId,
 };
 
 impl_payload! {
     /// Use this method to send a native poll. On success, the sent [`Message`] is returned.
     ///
     /// [`Message`]: crate::types::Message
-    #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize)]
+    #[derive(Debug, Clone, Serialize)]
     pub SendPoll (SendPollSetters) => Message {
         required {
             /// Unique identifier for the target chat or username of the target channel (in the format `@channelusername`)
             pub chat_id: Recipient [into],
             /// Poll question, 1-300 characters
             pub question: String [into],
-            /// A JSON-serialized list of 2-10 answer options
+            /// A JSON-serialized list of 1-12 answer options
             pub options: Vec<InputPollOption> [collect],
         }
         optional {
@@ -33,6 +33,8 @@ impl_payload! {
             pub question_parse_mode: ParseMode,
             /// A JSON-serialized list of special entities that appear in the poll question. It can be specified instead of _question\_parse\_mode_
             pub question_entities: Vec<MessageEntity> [collect],
+            /// Media to be attached to the poll description
+            pub media: InputPollMedia,
             /// True, if the poll needs to be anonymous, defaults to True
             pub is_anonymous: bool,
             /// Poll type, “quiz” or “regular”, defaults to “regular”
@@ -42,6 +44,10 @@ impl_payload! {
             pub allows_multiple_answers: bool,
             /// Pass True if the poll allows changing the chosen answer options, defaults to False for quizzes and to True for regular polls
             pub allows_revoting: bool,
+            /// Pass True if only members of the chat can vote in the poll
+            pub members_only: bool,
+            /// A JSON-serialized list of two-letter ISO 3166-1 alpha-2 country codes of users allowed to vote in the poll, or `"FT"` for Fragment anonymous numbers
+            pub country_codes: Vec<String> [collect],
             /// Pass True if the poll options must be shown in random order
             pub shuffle_options: bool,
             /// Pass True if answer options can be added to the poll after creation; not supported for anonymous polls and quizzes
@@ -58,6 +64,8 @@ impl_payload! {
             pub explanation_parse_mode: ParseMode,
             /// List of special entities that appear in the poll explanation, which can be specified instead of _parse\_mode_
             pub explanation_entities: Vec<MessageEntity> [collect],
+            /// Media to be attached to the quiz explanation
+            pub explanation_media: InputPollMedia,
             /// Amount of time in seconds the poll will be active after creation, 5-2628000. Can't be used together with close_date.
             pub open_period: u32,
             /// Point in time (Unix timestamp) when the poll will be automatically closed. Must be at least 5 and no more than 2628000 seconds in the future. Can't be used together with open_period.

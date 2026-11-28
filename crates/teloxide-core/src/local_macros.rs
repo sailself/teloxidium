@@ -534,6 +534,14 @@ macro_rules! requester_forward {
             $body!(send_photo this (chat_id: C, photo: InputFile))
         }
     };
+    (@method send_live_photo $body:ident $ty:ident) => {
+        type SendLivePhoto = $ty![SendLivePhoto];
+
+        fn send_live_photo<C>(&self, chat_id: C, live_photo: InputFile, photo: InputFile) -> Self::SendLivePhoto where C: Into<Recipient> {
+            let this = self;
+            $body!(send_live_photo this (chat_id: C, live_photo: InputFile, photo: InputFile))
+        }
+    };
     (@method send_audio $body:ident $ty:ident) => {
         type SendAudio = $ty![SendAudio];
 
@@ -708,6 +716,22 @@ macro_rules! requester_forward {
         fn set_message_reaction<C>(&self, chat_id: C, message_id: MessageId) -> Self::SetMessageReaction where C: Into<Recipient> {
             let this = self;
             $body!(set_message_reaction this (chat_id: C, message_id: MessageId))
+        }
+    };
+    (@method delete_all_message_reactions $body:ident $ty:ident) => {
+        type DeleteAllMessageReactions = $ty![DeleteAllMessageReactions];
+
+        fn delete_all_message_reactions<C>(&self, chat_id: C) -> Self::DeleteAllMessageReactions where C: Into<Recipient> {
+            let this = self;
+            $body!(delete_all_message_reactions this (chat_id: C))
+        }
+    };
+    (@method delete_message_reaction $body:ident $ty:ident) => {
+        type DeleteMessageReaction = $ty![DeleteMessageReaction];
+
+        fn delete_message_reaction<C>(&self, chat_id: C, message_id: MessageId) -> Self::DeleteMessageReaction where C: Into<Recipient> {
+            let this = self;
+            $body!(delete_message_reaction this (chat_id: C, message_id: MessageId))
         }
     };
     (@method get_user_profile_photos $body:ident $ty:ident) => {
@@ -1280,6 +1304,14 @@ macro_rules! requester_forward {
             $body!(answer_web_app_query this (web_app_query_id: W, result: InlineQueryResult))
         }
     };
+    (@method answer_guest_query $body:ident $ty:ident) => {
+        type AnswerGuestQuery = $ty![AnswerGuestQuery];
+
+        fn answer_guest_query(&self, guest_query_id: GuestQueryId, result: InlineQueryResult) -> Self::AnswerGuestQuery {
+            let this = self;
+            $body!(answer_guest_query this (guest_query_id: GuestQueryId, result: InlineQueryResult))
+        }
+    };
     (@method save_prepared_inline_message $body:ident $ty:ident) => {
         type SavePreparedInlineMessage = $ty![SavePreparedInlineMessage];
 
@@ -1310,6 +1342,30 @@ macro_rules! requester_forward {
         fn replace_managed_bot_token(&self, user_id: UserId) -> Self::ReplaceManagedBotToken {
             let this = self;
             $body!(replace_managed_bot_token this (user_id: UserId))
+        }
+    };
+    (@method get_managed_bot_access_settings $body:ident $ty:ident) => {
+        type GetManagedBotAccessSettings = $ty![GetManagedBotAccessSettings];
+
+        fn get_managed_bot_access_settings(&self, user_id: UserId) -> Self::GetManagedBotAccessSettings {
+            let this = self;
+            $body!(get_managed_bot_access_settings this (user_id: UserId))
+        }
+    };
+    (@method set_managed_bot_access_settings $body:ident $ty:ident) => {
+        type SetManagedBotAccessSettings = $ty![SetManagedBotAccessSettings];
+
+        fn set_managed_bot_access_settings(&self, user_id: UserId, is_access_restricted: bool) -> Self::SetManagedBotAccessSettings {
+            let this = self;
+            $body!(set_managed_bot_access_settings this (user_id: UserId, is_access_restricted: bool))
+        }
+    };
+    (@method get_user_personal_chat_messages $body:ident $ty:ident) => {
+        type GetUserPersonalChatMessages = $ty![GetUserPersonalChatMessages];
+
+        fn get_user_personal_chat_messages(&self, user_id: UserId, limit: u8) -> Self::GetUserPersonalChatMessages {
+            let this = self;
+            $body!(get_user_personal_chat_messages this (user_id: UserId, limit: u8))
         }
     };
     (@method edit_message_text $body:ident $ty:ident) => {

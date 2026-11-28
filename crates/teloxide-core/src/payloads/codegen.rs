@@ -63,6 +63,7 @@ fn codegen_payloads() {
                 &*method.names.1,
                 "SendPaidMedia"
                     | "SendMediaGroup"
+                    | "SendPoll"
                     | "PostStory"
                     | "EditStory"
                     | "EditMessageMedia"
@@ -197,7 +198,12 @@ fn eq_hash_suitable(method: &Method) -> bool {
             Type::Url | Type::DateTime => true,
 
             Type::RawTy(raw) => {
-                raw != "InputSticker" && raw != "MaskPosition" && raw != "InlineQueryResult"
+                raw != "InputSticker"
+                    && raw != "MaskPosition"
+                    && raw != "InlineQueryResult"
+                    && raw != "InputPollOption"
+                    && raw != "InputPollMedia"
+                    && raw != "InputPollOptionMedia"
             }
         }
     }

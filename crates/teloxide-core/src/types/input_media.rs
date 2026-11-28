@@ -1,5 +1,3 @@
-use std::iter;
-
 use serde::Serialize;
 
 use crate::types::{InputFile, MessageEntity, ParseMode, Seconds};
@@ -13,6 +11,7 @@ use crate::types::{InputFile, MessageEntity, ParseMode, Seconds};
 #[serde(rename_all = "snake_case")]
 pub enum InputMedia {
     Photo(InputMediaPhoto),
+    LivePhoto(InputMediaLivePhoto),
     Video(InputMediaVideo),
     Animation(InputMediaAnimation),
     Audio(InputMediaAudio),
@@ -581,10 +580,296 @@ impl InputMediaDocument {
     }
 }
 
+/// Represents a live photo to be sent.
+///
+/// [The official docs](https://core.telegram.org/bots/api#inputmedialivephoto).
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Debug, Serialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct InputMediaLivePhoto {
+    /// Video of the live photo to send. Pass a file_id to send a file that
+    /// exists on the Telegram servers (recommended) or pass
+    /// `attach://<file_attach_name>` to upload a new one using
+    /// `multipart/form-data` under `<file_attach_name>` name. Sending live
+    /// photos by a URL is currently unsupported.
+    pub media: InputFile,
+
+    /// The static photo to send. Pass a file_id to send a file that exists on
+    /// the Telegram servers (recommended) or pass `attach://<file_attach_name>`
+    /// to upload a new one using `multipart/form-data` under
+    /// `<file_attach_name>` name. Sending live photos by a URL is currently
+    /// unsupported.
+    pub photo: InputFile,
+
+    /// Caption of the live photo to be sent, 0-1024 characters after entities
+    /// parsing.
+    pub caption: Option<String>,
+
+    /// Mode for parsing entities in the live photo caption. See [formatting
+    /// options] for more details.
+    ///
+    /// [formatting options]: https://core.telegram.org/bots/api#formatting-options
+    pub parse_mode: Option<ParseMode>,
+
+    /// List of special entities that appear in the caption, which can be
+    /// specified instead of `parse_mode`.
+    pub caption_entities: Option<Vec<MessageEntity>>,
+
+    /// Pass `true`, if the caption must be shown above the message media.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub show_caption_above_media: bool,
+
+    /// Pass `true` if the live photo needs to be covered with a spoiler
+    /// animation.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub has_spoiler: bool,
+}
+
+impl InputMediaLivePhoto {
+    pub const fn new(media: InputFile, photo: InputFile) -> Self {
+        Self {
+            media,
+            photo,
+            caption: None,
+            parse_mode: None,
+            caption_entities: None,
+            show_caption_above_media: false,
+            has_spoiler: false,
+        }
+    }
+
+    pub fn media(mut self, val: InputFile) -> Self {
+        self.media = val;
+        self
+    }
+
+    pub fn photo(mut self, val: InputFile) -> Self {
+        self.photo = val;
+        self
+    }
+
+    pub fn caption<S>(mut self, val: S) -> Self
+    where
+        S: Into<String>,
+    {
+        self.caption = Some(val.into());
+        self
+    }
+
+    pub const fn parse_mode(mut self, val: ParseMode) -> Self {
+        self.parse_mode = Some(val);
+        self
+    }
+
+    pub fn caption_entities<C>(mut self, val: C) -> Self
+    where
+        C: IntoIterator<Item = MessageEntity>,
+    {
+        self.caption_entities = Some(val.into_iter().collect());
+        self
+    }
+
+    pub fn show_caption_above_media(mut self, val: bool) -> Self {
+        self.show_caption_above_media = val;
+        self
+    }
+
+    /// Sets [`has_spoiler`] to `true`.
+    ///
+    /// [`has_spoiler`]: InputMediaLivePhoto::has_spoiler
+    pub fn spoiler(mut self) -> Self {
+        self.has_spoiler = true;
+        self
+    }
+}
+
+/// Represents a sticker to be sent in a poll option.
+///
+/// [The official docs](https://core.telegram.org/bots/api#inputmediasticker).
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Debug, Serialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct InputMediaSticker {
+    /// File to send.
+    pub media: InputFile,
+
+    /// Emoji associated with the sticker; only for just uploaded stickers.
+    pub emoji: Option<String>,
+}
+
+impl InputMediaSticker {
+    pub const fn new(media: InputFile) -> Self {
+        Self { media, emoji: None }
+    }
+
+    pub fn media(mut self, val: InputFile) -> Self {
+        self.media = val;
+        self
+    }
+
+    pub fn emoji<S>(mut self, val: S) -> Self
+    where
+        S: Into<String>,
+    {
+        self.emoji = Some(val.into());
+        self
+    }
+}
+
+/// Represents a location to be sent in a poll description, quiz explanation,
+/// or poll option.
+///
+/// [The official docs](https://core.telegram.org/bots/api#inputmedialocation).
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct InputMediaLocation {
+    /// Latitude of the location.
+    pub latitude: f64,
+
+    /// Longitude of the location.
+    pub longitude: f64,
+
+    /// The radius of uncertainty for the location, measured in meters; 0-1500.
+    pub horizontal_accuracy: Option<f64>,
+}
+
+impl InputMediaLocation {
+    pub const fn new(latitude: f64, longitude: f64) -> Self {
+        Self { latitude, longitude, horizontal_accuracy: None }
+    }
+
+    pub const fn latitude(mut self, val: f64) -> Self {
+        self.latitude = val;
+        self
+    }
+
+    pub const fn longitude(mut self, val: f64) -> Self {
+        self.longitude = val;
+        self
+    }
+
+    pub const fn horizontal_accuracy(mut self, val: f64) -> Self {
+        self.horizontal_accuracy = Some(val);
+        self
+    }
+}
+
+/// Represents a venue to be sent in a poll description, quiz explanation, or
+/// poll option.
+///
+/// [The official docs](https://core.telegram.org/bots/api#inputmediavenue).
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct InputMediaVenue {
+    /// Latitude of the location.
+    pub latitude: f64,
+
+    /// Longitude of the location.
+    pub longitude: f64,
+
+    /// Name of the venue.
+    pub title: String,
+
+    /// Address of the venue.
+    pub address: String,
+
+    /// Foursquare identifier of the venue.
+    pub foursquare_id: Option<String>,
+
+    /// Foursquare type of the venue, if known.
+    pub foursquare_type: Option<String>,
+
+    /// Google Places identifier of the venue.
+    pub google_place_id: Option<String>,
+
+    /// Google Places type of the venue.
+    pub google_place_type: Option<String>,
+}
+
+impl InputMediaVenue {
+    pub fn new<T, A>(latitude: f64, longitude: f64, title: T, address: A) -> Self
+    where
+        T: Into<String>,
+        A: Into<String>,
+    {
+        Self {
+            latitude,
+            longitude,
+            title: title.into(),
+            address: address.into(),
+            foursquare_id: None,
+            foursquare_type: None,
+            google_place_id: None,
+            google_place_type: None,
+        }
+    }
+
+    pub const fn latitude(mut self, val: f64) -> Self {
+        self.latitude = val;
+        self
+    }
+
+    pub const fn longitude(mut self, val: f64) -> Self {
+        self.longitude = val;
+        self
+    }
+
+    pub fn title<S>(mut self, val: S) -> Self
+    where
+        S: Into<String>,
+    {
+        self.title = val.into();
+        self
+    }
+
+    pub fn address<S>(mut self, val: S) -> Self
+    where
+        S: Into<String>,
+    {
+        self.address = val.into();
+        self
+    }
+
+    pub fn foursquare_id<S>(mut self, val: S) -> Self
+    where
+        S: Into<String>,
+    {
+        self.foursquare_id = Some(val.into());
+        self
+    }
+
+    pub fn foursquare_type<S>(mut self, val: S) -> Self
+    where
+        S: Into<String>,
+    {
+        self.foursquare_type = Some(val.into());
+        self
+    }
+
+    pub fn google_place_id<S>(mut self, val: S) -> Self
+    where
+        S: Into<String>,
+    {
+        self.google_place_id = Some(val.into());
+        self
+    }
+
+    pub fn google_place_type<S>(mut self, val: S) -> Self
+    where
+        S: Into<String>,
+    {
+        self.google_place_type = Some(val.into());
+        self
+    }
+}
+
 impl From<InputMedia> for InputFile {
     fn from(media: InputMedia) -> InputFile {
         match media {
             InputMedia::Photo(InputMediaPhoto { media, .. })
+            | InputMedia::LivePhoto(InputMediaLivePhoto { media, .. })
             | InputMedia::Document(InputMediaDocument { media, .. })
             | InputMedia::Audio(InputMediaAudio { media, .. })
             | InputMedia::Animation(InputMediaAnimation { media, .. })
@@ -598,30 +883,40 @@ impl InputMedia {
     pub(crate) fn files(&self) -> impl Iterator<Item = &InputFile> {
         use InputMedia::*;
 
-        let (media, thumbnail) = match self {
-            Photo(InputMediaPhoto { media, .. }) => (media, None),
+        let slots: [Option<&InputFile>; 3] = match self {
+            Photo(InputMediaPhoto { media, .. }) => [Some(media), None, None],
+            LivePhoto(InputMediaLivePhoto { media, photo, .. }) => [Some(media), Some(photo), None],
             Document(InputMediaDocument { media, thumbnail, .. })
             | Audio(InputMediaAudio { media, thumbnail, .. })
-            | Animation(InputMediaAnimation { media, thumbnail, .. })
-            | Video(InputMediaVideo { media, thumbnail, .. }) => (media, thumbnail.as_ref()),
+            | Animation(InputMediaAnimation { media, thumbnail, .. }) => {
+                [Some(media), thumbnail.as_ref(), None]
+            }
+            Video(InputMediaVideo { media, thumbnail, cover, .. }) => {
+                [Some(media), thumbnail.as_ref(), cover.as_ref()]
+            }
         };
 
-        iter::once(media).chain(thumbnail)
+        slots.into_iter().flatten()
     }
 
     /// Returns an iterator of all files in this input media
     pub(crate) fn files_mut(&mut self) -> impl Iterator<Item = &mut InputFile> {
         use InputMedia::*;
 
-        let (media, thumbnail) = match self {
-            Photo(InputMediaPhoto { media, .. }) => (media, None),
+        let slots: [Option<&mut InputFile>; 3] = match self {
+            Photo(InputMediaPhoto { media, .. }) => [Some(media), None, None],
+            LivePhoto(InputMediaLivePhoto { media, photo, .. }) => [Some(media), Some(photo), None],
             Document(InputMediaDocument { media, thumbnail, .. })
             | Audio(InputMediaAudio { media, thumbnail, .. })
-            | Animation(InputMediaAnimation { media, thumbnail, .. })
-            | Video(InputMediaVideo { media, thumbnail, .. }) => (media, thumbnail.as_mut()),
+            | Animation(InputMediaAnimation { media, thumbnail, .. }) => {
+                [Some(media), thumbnail.as_mut(), None]
+            }
+            Video(InputMediaVideo { media, thumbnail, cover, .. }) => {
+                [Some(media), thumbnail.as_mut(), cover.as_mut()]
+            }
         };
 
-        iter::once(media).chain(thumbnail)
+        slots.into_iter().flatten()
     }
 }
 
@@ -720,5 +1015,27 @@ mod tests {
 
         let actual_json = serde_json::to_string(&video).unwrap();
         assert_eq!(expected_json, actual_json);
+    }
+
+    #[test]
+    fn live_photo_dual_files_and_poll_media_structs() {
+        let mut lp = InputMedia::LivePhoto(
+            InputMediaLivePhoto::new(InputFile::memory("v"), InputFile::memory("p"))
+                .caption("Cap")
+                .spoiler(),
+        );
+        assert_eq!(lp.files().count(), 2);
+        assert_eq!(lp.files_mut().count(), 2);
+        let json = serde_json::to_value(&lp).unwrap();
+        assert_eq!(json["type"], "live_photo");
+        assert_eq!(json["has_spoiler"], true);
+
+        let sticker = InputMediaSticker::new(InputFile::file_id("s1".into())).emoji("😎");
+        assert_eq!(serde_json::to_string(&sticker).unwrap(), r#"{"media":"s1","emoji":"😎"}"#);
+
+        let venue = InputMediaVenue::new(10.0, 20.0, "Title", "Addr").google_place_id("gp1");
+        let venue_json = serde_json::to_value(&venue).unwrap();
+        assert_eq!(venue_json["title"], "Title");
+        assert_eq!(venue_json["google_place_id"], "gp1");
     }
 }

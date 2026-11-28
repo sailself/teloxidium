@@ -264,6 +264,18 @@ pub trait Requester {
     where
         C: Into<Recipient>;
 
+    type SendLivePhoto: Request<Payload = SendLivePhoto, Err = Self::Err>;
+
+    /// For Telegram documentation see [`SendLivePhoto`].
+    fn send_live_photo<C>(
+        &self,
+        chat_id: C,
+        live_photo: InputFile,
+        photo: InputFile,
+    ) -> Self::SendLivePhoto
+    where
+        C: Into<Recipient>;
+
     type SendAudio: Request<Payload = SendAudio, Err = Self::Err>;
 
     /// For Telegram documentation see [`SendAudio`].
@@ -467,6 +479,24 @@ pub trait Requester {
         chat_id: C,
         message_id: MessageId,
     ) -> Self::SetMessageReaction
+    where
+        C: Into<Recipient>;
+
+    type DeleteAllMessageReactions: Request<Payload = DeleteAllMessageReactions, Err = Self::Err>;
+
+    /// For Telegram documentation see [`DeleteAllMessageReactions`].
+    fn delete_all_message_reactions<C>(&self, chat_id: C) -> Self::DeleteAllMessageReactions
+    where
+        C: Into<Recipient>;
+
+    type DeleteMessageReaction: Request<Payload = DeleteMessageReaction, Err = Self::Err>;
+
+    /// For Telegram documentation see [`DeleteMessageReaction`].
+    fn delete_message_reaction<C>(
+        &self,
+        chat_id: C,
+        message_id: MessageId,
+    ) -> Self::DeleteMessageReaction
     where
         C: Into<Recipient>;
 
@@ -1022,6 +1052,15 @@ pub trait Requester {
     where
         W: Into<String>;
 
+    type AnswerGuestQuery: Request<Payload = AnswerGuestQuery, Err = Self::Err>;
+
+    /// For Telegram documentation see [`AnswerGuestQuery`].
+    fn answer_guest_query(
+        &self,
+        guest_query_id: GuestQueryId,
+        result: InlineQueryResult,
+    ) -> Self::AnswerGuestQuery;
+
     type SavePreparedInlineMessage: Request<Payload = SavePreparedInlineMessage, Err = Self::Err>;
 
     /// For Telegram documentation see [`SavePreparedInlineMessage`].
@@ -1049,6 +1088,39 @@ pub trait Requester {
 
     /// For Telegram documentation see [`ReplaceManagedBotToken`].
     fn replace_managed_bot_token(&self, user_id: UserId) -> Self::ReplaceManagedBotToken;
+
+    type GetManagedBotAccessSettings: Request<
+        Payload = GetManagedBotAccessSettings,
+        Err = Self::Err,
+    >;
+
+    /// For Telegram documentation see [`GetManagedBotAccessSettings`].
+    fn get_managed_bot_access_settings(&self, user_id: UserId)
+        -> Self::GetManagedBotAccessSettings;
+
+    type SetManagedBotAccessSettings: Request<
+        Payload = SetManagedBotAccessSettings,
+        Err = Self::Err,
+    >;
+
+    /// For Telegram documentation see [`SetManagedBotAccessSettings`].
+    fn set_managed_bot_access_settings(
+        &self,
+        user_id: UserId,
+        is_access_restricted: bool,
+    ) -> Self::SetManagedBotAccessSettings;
+
+    type GetUserPersonalChatMessages: Request<
+        Payload = GetUserPersonalChatMessages,
+        Err = Self::Err,
+    >;
+
+    /// For Telegram documentation see [`GetUserPersonalChatMessages`].
+    fn get_user_personal_chat_messages(
+        &self,
+        user_id: UserId,
+        limit: u8,
+    ) -> Self::GetUserPersonalChatMessages;
 
     type EditMessageText: Request<Payload = EditMessageText, Err = Self::Err>;
 
@@ -1783,6 +1855,7 @@ macro_rules! forward_all {
             send_message,
             send_message_draft,
             send_photo,
+            send_live_photo,
             send_audio,
             send_document,
             send_video,
@@ -1804,6 +1877,8 @@ macro_rules! forward_all {
             send_dice,
             send_chat_action,
             set_message_reaction,
+            delete_all_message_reactions,
+            delete_message_reaction,
             get_user_profile_photos,
             get_user_profile_audios,
             set_user_emoji_status,
@@ -1872,10 +1947,14 @@ macro_rules! forward_all {
             delete_my_commands,
             answer_inline_query,
             answer_web_app_query,
+            answer_guest_query,
             save_prepared_inline_message,
             save_prepared_keyboard_button,
             get_managed_bot_token,
             replace_managed_bot_token,
+            get_managed_bot_access_settings,
+            set_managed_bot_access_settings,
+            get_user_personal_chat_messages,
             edit_message_text,
             edit_message_text_inline,
             edit_message_caption,

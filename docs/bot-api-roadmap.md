@@ -2,7 +2,7 @@
 
 Tracking plan for bringing **Teloxidium** (`crates/teloxide-core`, `crates/teloxide`, `crates/teloxide-macros`) from its initial **Bot API 9.2** starting baseline up to **Bot API 10.5**.
 
-- **Current Baseline:** Bot API **9.6** (April 3, 2026) declared in [`crates/teloxide-core/schema.ron`](../crates/teloxide-core/schema.ron) and [`crates/teloxide-core/custom_v2.json`](../crates/teloxide-core/custom_v2.json) (upgraded from the M0 Bot API **9.2** baseline), plus selective Bot API 10.x support from commit `870ba033`:
+- **Current Baseline:** Bot API **10.0** (May 8, 2026) declared in [`crates/teloxide-core/schema.ron`](../crates/teloxide-core/schema.ron) and [`crates/teloxide-core/custom_v2.json`](../crates/teloxide-core/custom_v2.json) (upgraded from the M0 Bot API **9.2** baseline), plus selective Bot API 10.x support from commit `870ba033`:
   - Receive-only `RichMessage` (`Vec<serde_json::Value>`), `RichMessage::project()`, `MediaKind::RichMessage`, `TextQuote::rich_texts`, and optional `ExternalReplyInfo::kind`.
   - Ephemeral text menus (`SendMessage::ephemeral_message_parameters`, `EphemeralMessageId`, `EphemeralMessageParameters`, `Message::receiver_user`, `edit_ephemeral_message_reply_markup`, `delete_ephemeral_message`).
 - **Target Baseline:** Bot API **10.5** (November 22, 2026) — 10 Bot API releases across 11 incremental milestones (**M0–M10**).
@@ -15,7 +15,7 @@ flowchart LR
     M1 --> M2["M2 (#4): Bot API 9.4\n(Button Styles, Profile Photo/Audio,\nVideoQuality, ChatOwner)"]
     M2 --> M3["M3 (#5): Bot API 9.5\n(Member Tags, DateTime, Open Drafts)"]
     M3 --> M4["M4 (#6): Bot API 9.6\n(Managed Bots, Polls v2,\nPrepared Buttons)"]
-    M4 --> M5["M5 (#7): Bot API 10.0\n(Guest Mode)"]
+    M4 --> M5["M5 (#7): Bot API 10.0\n(Guest Mode, Live Photos,\nPolls Media, Reactions, Access)"]
     M5 --> M6["M6 (#8): Bot API 10.1\n(Rich Messages Send/Draft/Edit)"]
     M6 --> M7["M7 (#9): Bot API 10.2\n(Rich Builders, Communities,\nSubscriptions, Ephemeral Edits)"]
     M7 --> M8["M8 (#10): Bot API 10.3\n(Rich Buttons/Blocks,\nAll-Send Ephemeral Params)"]
@@ -32,12 +32,12 @@ flowchart LR
 | `[x]` | **M2** | **9.4** (2026-02-09) | [#4](https://github.com/sailself/teloxidium/issues/4) | `[**BC**]` | Button `style` + `icon_custom_emoji_id`, `setMyProfilePhoto`/`removeMyProfilePhoto`, `UserProfileAudios`, `VideoQuality`, `UniqueGift::is_burned`/`UniqueGiftModel::rarity`, `ChatOwnerLeft`/`Changed` |
 | `[x]` | **M3** | **9.5** (2026-03-01) | [#5](https://github.com/sailself/teloxidium/issues/5) | `[**BC**]` | Chat member `tag` / `sender_tag` / `setChatMemberTag` / `EDIT_TAG`, full `9.5` schema refresh, unrestricted `sendMessageDraft` |
 | `[x]` | **M4** | **9.6** (2026-04-03) | [#6](https://github.com/sailself/teloxidium/issues/6) | `[**BC**]` | Managed Bots (`UpdateKind::ManagedBot`, tokens), `savePreparedKeyboardButton`, Polls v2 (`correct_option_ids`, revoting, persistent IDs, `sendPoll` options) |
-| `[ ]` | **M5** | **10.0** (2026-05-08) | [#7](https://github.com/sailself/teloxidium/issues/7) | `[**BC**]` | Guest Mode (`UpdateKind::GuestMessage`, `answerGuestQuery`, `SentGuestMessage`, `Message` guest caller fields) |
-| `[ ]` | **M6** | **10.1** (2026-06-11) | [#8](https://github.com/sailself/teloxidium/issues/8) | No | Typed `RichText` & `RichBlock`, `InputRichMessage`, `sendRichMessage`, `sendRichMessageDraft`, `editMessageRichMessage` |
+| `[x]` | **M5** | **10.0** (2026-05-08) | [#7](https://github.com/sailself/teloxidium/issues/7) | `[**BC**]` | Guest Mode (`UpdateKind::GuestMessage`, `answerGuestQuery`), Live Photos (`LivePhoto`, `sendLivePhoto`), Polls media/restrictions (`PollMedia`, `sendPoll`), `deleteAllMessageReactions`/`deleteMessageReaction`, `REACT_TO_MESSAGES`, `getChatAdministrators::return_bots`, `BotAccessSettings`, `getUserPersonalChatMessages` |
+| `[ ]` | **M6** | **10.1** (2026-06-11) | [#8](https://github.com/sailself/teloxidium/issues/8) | No | Typed `RichText` & `RichBlock`, `InputRichMessage`, `sendRichMessage`, `sendRichMessageDraft`, `editMessageRichMessage` (plus `PollMedia::link` / `InputMediaLink`) |
 | `[ ]` | **M7** | **10.2** (2026-07-14) | [#9](https://github.com/sailself/teloxidium/issues/9) | `[**BC**]` | `InputRichMessageMedia` & `InputRichBlock*`, `InputMediaVoiceNote`, Communities, `UpdateKind::Subscription`, ephemeral edit methods |
-| `[ ]` | **M8** | **10.3** (2026-08-24) | [#10](https://github.com/sailself/teloxidium/issues/10) | No | `RichMessageButton`, rich button/document/quote blocks, `ephemeral_message_parameters` across all `send*` methods + `Throttle` |
-| `[ ]` | **M9** | **10.4** (2026-11-09) | [#11](https://github.com/sailself/teloxidium/issues/11) | `[**BC**]` | HTML Widgets (`sendWidget`, `sendSharedWidget`), Live Photos (`sendLivePhoto`), `ReplyParameters::ephemeral_message_id`, `TonAddress`/`BankCardNumber` entities |
-| `[ ]` | **M10** | **10.5** (2026-11-22) | [#12](https://github.com/sailself/teloxidium/issues/12) | `[**BC**]` | `BotFullInfo` split from `User`, `setMySettings`, `BotAccessSettings`, `getUserPersonalChatMessages`, `WriteAccessAllowed::inviter` |
+| `[ ]` | **M8** | **10.3** (2026-08-24) | [#10](https://github.com/sailself/teloxidium/issues/10) | No | `RichMessageButton`, rich button/document/quote blocks, `ephemeral_message_parameters` across all `send*` methods + `Throttle`, streaming `can_stop`/`keep_on_stop` |
+| `[ ]` | **M9** | **10.4** (2026-11-09) | [#11](https://github.com/sailself/teloxidium/issues/11) | `[**BC**]` | HTML Widgets (`sendWidget`, `sendSharedWidget`), `ReplyParameters::ephemeral_message_id`, `TonAddress`/`BankCardNumber` entities (Live Photos landed in M5) |
+| `[ ]` | **M10** | **10.5** (2026-11-22) | [#12](https://github.com/sailself/teloxidium/issues/12) | `[**BC**]` | `BotFullInfo` split from `User`, `setMySettings`, `WriteAccessAllowed::inviter` (`BotAccessSettings` & `getUserPersonalChatMessages` landed in M5) |
 
 ---
 
@@ -129,8 +129,12 @@ Execute this checklist for every milestone **M1–M10**:
 - **Key changes (`[**BC**]`):** `Poll::{allows_revoting, correct_option_ids, description, description_entities}` (replacing `correct_option_id`), `PollOption::{persistent_id, added_by_user, added_by_chat, addition_date}`, `PollAnswer::option_persistent_ids`, `ReplyParameters::poll_option_id`, `MessageCommon::reply_to_poll_option_id`, `PollOptionAdded`/`PollOptionDeleted`; `KeyboardButtonRequestManagedBot`, `ManagedBotCreated`, `ManagedBotUpdated` (`UpdateKind::ManagedBot`, `AllowedUpdate::ManagedBot`, `filter_managed_bot`), `PreparedKeyboardButton`, `Me::can_manage_bots`; methods `getManagedBotToken`, `replaceManagedBotToken`, `savePreparedKeyboardButton`, updated `sendPoll` (`allows_revoting`, `shuffle_options`, `allow_adding_options`, `hide_results_until_closes`, `correct_option_ids`, `open_period: u32`, `description*` with `VisitParseModes`), and `date_time` docs across quotes/checklists/gifts.
 
 ### M5 — Bot API 10.0 ([#7](https://github.com/sailself/teloxidium/issues/7))
-- **Goal:** Support Guest Mode for receiving and answering guest-mention queries in non-member chats.
-- **Key changes (`[**BC**]`):** `GuestQueryId`, `SentGuestMessage`, `Me::supports_guest_queries`, `Message::{guest_bot_caller_user, guest_bot_caller_chat, guest_query_id}` (boxed `User`/`Chat`), `UpdateKind::GuestMessage` / `AllowedUpdate::GuestMessage` + `filter_guest_message`, method `answerGuestQuery` (`VisitParseModes`).
+- **Goal:** Complete Bot API 10.0 parity covering Guest Mode, Live Photos, Poll Media & Restrictions, Chat Management (`REACT_TO_MESSAGES`, reaction deletion, admin bots), Managed Bot Access Settings, Personal Chat Messages, and empty placeholder drafts.
+- **Key changes (`[**BC**]`):**
+  - Guest Mode: `GuestQueryId`, `SentGuestMessage`, `Me::supports_guest_queries`, `Message::{guest_bot_caller_user, guest_bot_caller_chat, guest_query_id}`, `UpdateKind::GuestMessage` / `AllowedUpdate::GuestMessage` + `filter_guest_message`, `answerGuestQuery` (`VisitParseModes`).
+  - Live Photos: `LivePhoto`, `InputMediaLivePhoto`, `PaidMediaLivePhoto`, `InputPaidMediaLivePhoto`, `MediaLivePhoto` / `MediaKind::LivePhoto` + `ExternalReplyInfoKind::LivePhoto`, `Message::live_photo()` + `filter_live_photo`, `sendLivePhoto` (`MultipartRequest`, `VisitParseModes`, `Throttle`, `RequestReplyExt`).
+  - Polls: `PollMedia`, `InputPollMedia`, `InputPollOptionMedia`, `InputMediaSticker`/`Location`/`Venue`, `Poll::{media, explanation_media, members_only, country_codes}`, `PollOption::media`, `InputPollOption::media`, `sendPoll` (`MultipartRequest` / `MultipartPayload`, `1-12` options).
+  - Chat Management & General: `ChatPermissions::REACT_TO_MESSAGES` (`1 << 15`), `Restricted::can_react_to_messages`, `getChatAdministrators::return_bots`, `deleteAllMessageReactions`, `deleteMessageReaction`, `BotAccessSettings`, `getManagedBotAccessSettings`, `setManagedBotAccessSettings`, `getUserPersonalChatMessages`, `sendMessageDraft` empty-text placeholder docs.
 
 ### M6 — Bot API 10.1 ([#8](https://github.com/sailself/teloxidium/issues/8))
 - **Goal:** Add outgoing, streaming, and editable Rich Messages alongside the fork's existing projection API.
@@ -145,9 +149,9 @@ Execute this checklist for every milestone **M1–M10**:
 - **Key changes:** `RichMessageButton`, `RichText::Button`, `RichBlockButtons`/`Document`/`ExpandableBlockQuotation`, `RichBlockTable::is_compact`; `ephemeral_message_parameters` added across all Bot API 10.3 `send*` methods; shared `Throttle` `Option<ChatIdHash>` helper across all ephemeral-capable throttled sends.
 
 ### M9 — Bot API 10.4 ([#11](https://github.com/sailself/teloxidium/issues/11))
-- **Goal:** Add HTML Widgets, Live Photos, `ton_address`/`bank_card_number` entities, and ephemeral message reply/callback enhancements.
-- **Key changes (`[**BC**]`):** `WidgetId`, `Widget`, `LivePhoto`, `MediaKind::{Widget, LivePhoto}`, `ExternalReplyInfoKind::{Widget, LivePhoto}`, `MessageEntityKind::{TonAddress, BankCardNumber}` (plus `custom_v2.json` & update fixtures), `InputMediaLivePhoto`, `PaidMediaLivePhoto`, `InputPaidMediaLivePhoto`, `ReplyParameters::{ephemeral_message_id, message_id: Option<MessageId>}`, filters `filter_widget`/`filter_live_photo`, methods `sendLivePhoto` (`MultipartRequest`), `sendWidget`, `sendSharedWidget`.
+- **Goal:** Add HTML Widgets, `ton_address`/`bank_card_number` entities, and ephemeral message reply/callback enhancements (building on Live Photos landed in M5).
+- **Key changes (`[**BC**]`):** `WidgetId`, `Widget`, `MediaKind::Widget`, `ExternalReplyInfoKind::Widget`, `MessageEntityKind::{TonAddress, BankCardNumber}` (plus `custom_v2.json` & update fixtures), `ReplyParameters::{ephemeral_message_id, message_id: Option<MessageId>}`, `sendLivePhoto` ephemeral parameters, `filter_widget`, methods `sendWidget`, `sendSharedWidget`.
 
 ### M10 — Bot API 10.5 ([#12](https://github.com/sailself/teloxidium/issues/12))
-- **Goal:** Complete Bot API 10.5 parity with `BotFullInfo`, `setMySettings`, managed bot access settings, personal chat messages, bulk invite tracking, and updated expandable block quotations.
-- **Key changes (`[**BC**]`):** `BotAccessSettings`, `CallbackQueryMode`, `Me`/`BotFullInfo` new fields + `rust_types_check_codegen.rs` cleanup, `WriteAccessAllowed::inviter`, `CallbackQuery` doc updates, `RichBlockExpandableBlockQuotation` (`text` → `blocks`), methods `setMySettings`, `getManagedBotAccessSettings`, `setManagedBotAccessSettings`, `getUserPersonalChatMessages`, and final `10.5` badges/docs.
+- **Goal:** Complete Bot API 10.5 parity with `BotFullInfo`, `setMySettings`, bulk invite tracking, and updated expandable block quotations (building on `BotAccessSettings` and `getUserPersonalChatMessages` landed in M5).
+- **Key changes (`[**BC**]`):** `CallbackQueryMode`, `Me`/`BotFullInfo` new fields + `rust_types_check_codegen.rs` cleanup, `WriteAccessAllowed::inviter`, `CallbackQuery` doc updates, `RichBlockExpandableBlockQuotation` (`text` → `blocks`), method `setMySettings`, and final `10.5` badges/docs.

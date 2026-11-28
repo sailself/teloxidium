@@ -84,6 +84,7 @@ define_message_ext! {
     (filter_game, Message::game),
     (filter_venue, Message::venue),
     (filter_location, Message::location),
+    (filter_live_photo, Message::live_photo),
     (filter_photo, Message::photo),
     (filter_poll, Message::poll),
     (filter_checklist, Message::checklist),
@@ -195,6 +196,7 @@ define_update_ext! {
     (filter_chat_boost, UpdateKind::ChatBoost, ChatBoost),
     (filter_removed_chat_boost, UpdateKind::RemovedChatBoost, RemovedChatBoost),
     (filter_managed_bot, UpdateKind::ManagedBot, ManagedBot),
+    (filter_guest_message, UpdateKind::GuestMessage, GuestMessage),
 }
 
 #[cfg(test)]
@@ -425,6 +427,69 @@ mod tests {
         ));
         assert!(matches!(
             added_handler.dispatch(deps![poll_option_deleted_msg]).await,
+            ControlFlow::Continue(_)
+        ));
+    }
+
+    #[tokio::test]
+    async fn filter_guest_message_and_live_photo_dispatch() {
+        let guest_update: Update = serde_json::from_str(
+            r#"{
+                "update_id": 20,
+                "guest_message": {
+                    "message_id": 30,
+                    "chat": { "id": -1001, "title": "Lounge", "type": "supergroup" },
+                    "date": 1778200000,
+                    "guest_query_id": "gq-20",
+                    "text": "Hi"
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let live_photo_update: Update = serde_json::from_str(
+            r#"{
+                "update_id": 21,
+                "message": {
+                    "message_id": 31,
+                    "chat": { "id": 42, "first_name": "Alice", "type": "private" },
+                    "date": 1778200001,
+                    "live_photo": {
+                        "file_id": "lp-id",
+                        "file_unique_id": "lp-uniq",
+                        "width": 640,
+                        "height": 480,
+                        "duration": 2
+                    },
+                    "photo": [{ "file_id": "p-id", "file_unique_id": "p-uniq", "width": 640, "height": 480 }]
+                }
+            }"#,
+        )
+        .unwrap();
+
+        let guest_handler = dptree::entry()
+            .branch(Update::filter_guest_message().endpoint(|m: Message| async move { m.id.0 }));
+        let live_photo_handler = dptree::entry().branch(
+            Update::filter_message().chain(
+                Message::filter_live_photo()
+                    .endpoint(|lp: crate::types::LivePhoto| async move { lp.file_id.0 }),
+            ),
+        );
+
+        assert!(matches!(
+            guest_handler.dispatch(deps![guest_update.clone()]).await,
+            ControlFlow::Break(30)
+        ));
+        assert!(matches!(
+            live_photo_handler.dispatch(deps![guest_update]).await,
+            ControlFlow::Continue(_)
+        ));
+        assert!(matches!(
+            live_photo_handler.dispatch(deps![live_photo_update.clone()]).await,
+            ControlFlow::Break(ref id) if id == "lp-id"
+        ));
+        assert!(matches!(
+            guest_handler.dispatch(deps![live_photo_update]).await,
             ControlFlow::Continue(_)
         ));
     }

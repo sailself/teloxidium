@@ -3,6 +3,23 @@ Note that the list of required changes is not fully exhaustive and it may lack s
 
 ## unreleased
 
+## 0.22 -> 0.23
+
+### teloxide-core & teloxide
+
+- **`Bot::SendPoll`:** Switched from `JsonRequest<payloads::SendPoll>` to `MultipartRequest<payloads::SendPoll>`, and `SendPoll` now implements `MultipartPayload` for nested `InputFile` uploads across `media`, `explanation_media`, and `options[*].media`. Any code matching `SendPoll` directly as `JsonRequest<...>` must update to `MultipartRequest<...>`.
+- **Polls (`Poll`, `PollOption`, `InputPollOption`, `SendPoll`):**
+  - Removed `Eq` and `Hash` from `Poll` and `PollOption`, removed `PartialEq`, `Eq`, and `Hash` from `SendPoll`, and removed `PartialEq`, `Eq`, `Hash`, and `Deserialize` from `InputPollOption` (`InputPollOptionFormatting` retains `Deserialize`) because `PollMedia` includes `Location`/`Venue` (`f64`) and `InputPollOptionMedia` includes `InputFile`.
+  - Added `media: Option<Box<PollMedia>>`, `explanation_media: Option<Box<PollMedia>>`, `members_only: bool` (`#[serde(default)]`), and `country_codes: Option<Vec<String>>` to `Poll`; added `media: Option<Box<PollMedia>>` to `PollOption`; added `media: Option<InputPollOptionMedia>` to `InputPollOption`; added `media`, `explanation_media`, `members_only`, and `country_codes` to `SendPoll`. Update exhaustive struct literals.
+- **Guest Mode (`Me`, `Message`, `UpdateKind`, `AllowedUpdate`):**
+  - Added `supports_guest_queries: bool` (`#[serde(default)]`) to `Me` and `guest_bot_caller_user`, `guest_bot_caller_chat`, and `guest_query_id` to `Message`. Update exhaustive struct literals.
+  - Added `UpdateKind::GuestMessage(Message)` and `AllowedUpdate::GuestMessage`. Update exhaustive `match` arms.
+- **Live Photos (`MediaKind`, `ExternalReplyInfoKind`, `InputMedia`, `PaidMedia`, `InputPaidMedia`):**
+  - Added `MediaKind::LivePhoto(MediaLivePhoto)` (ordered before `MediaKind::Photo`), `ExternalReplyInfoKind::LivePhoto(LivePhoto)` (ordered before `ExternalReplyInfoKind::Photo`), `InputMedia::LivePhoto(InputMediaLivePhoto)`, `PaidMedia::LivePhoto(Box<PaidMediaLivePhoto>)`, and `InputPaidMedia::LivePhoto(Box<InputPaidMediaLivePhoto>)`. Update exhaustive `match` arms.
+- **Chat Management (`Restricted` / `ChatPermissions`):**
+  - Added `can_react_to_messages: bool` (`#[serde(default)]`) to `Restricted` and `ChatPermissions::REACT_TO_MESSAGES` (`1 << 15`). `ChatPermissionsRaw` always serializes `can_react_to_messages`. Update exhaustive `Restricted` struct literals.
+- **Custom `Requester` implementations:** Must implement `DeleteAllMessageReactions`, `DeleteMessageReaction`, `SendLivePhoto`, `AnswerGuestQuery`, `GetManagedBotAccessSettings`, `SetManagedBotAccessSettings`, and `GetUserPersonalChatMessages` associated types and methods.
+
 ## 0.21 -> 0.22
 
 ### teloxide-core & teloxide
